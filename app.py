@@ -1668,7 +1668,8 @@ class MainMenuUI:
 
         self.resource_download_button.config(state="disabled")
         self.status_var.set("Изтегляне на липсващи инсталационни ресурси...")
-        threading.Thread(target=self._run_resource_downloads, args=(missing_downloads,), daemon=True).start()
+        progress_ui = self._open_resource_download_window(len(missing_downloads))
+        threading.Thread(target=self._run_resource_downloads, args=(missing_downloads, progress_ui), daemon=True).start()
 
     def _run_resource_downloads(self, items: list[object]) -> None:
         errors: list[str] = []
@@ -1792,6 +1793,201 @@ class MainMenuUI:
                 self.status_var.set("Инсталационните ресурси са обновени.")
                 if self.current_menu == "office_install_center":
                     self._render_cards()
+
+        self.root.after(0, finish)
+
+    def _open_resource_download_window(self, total_items: int) -> dict[str, object]:
+        progress_window = tk.Toplevel(self.root)
+        progress_window.title("Изтегляне на инсталационни ресурси")
+        progress_window.geometry("660x350")
+        progress_window.configure(bg="#07100a")
+        progress_window.resizable(False, False)
+        progress_window.transient(self.root)
+        apply_app_icon(progress_window)
+
+        wrapper = tk.Frame(progress_window, bg="#07100a", padx=22, pady=18)
+        wrapper.pack(fill="both", expand=True)
+        tk.Label(
+            wrapper,
+            text="Изтегляне на ресурси",
+            font=("Segoe UI Semibold", 17),
+            fg="#eaffef",
+            bg="#07100a",
+        ).pack(anchor="w")
+
+        package_var = tk.StringVar(value=f"Подготовка на {total_items} пакета...")
+        detail_var = tk.StringVar(value="Може да затворите този прозорец. Изтеглянето ще продължи.")
+        speed_var = tk.StringVar(value="Скорост: - | Оставащо време: -")
+        total_var = tk.StringVar(value=f"Пакети: 0/{total_items}")
+
+        for variable, font, color in (
+            (package_var, ("Segoe UI Semibold", 11), "#c9ffd0"),
+            (detail_var, ("Segoe UI", 10), "#9bc39e"),
+            (speed_var, ("Segoe UI", 10), "#ffe08a"),
+            (total_var, ("Segoe UI", 10), "#d7f1ff"),
+        ):
+            tk.Label(
+                wrapper,
+                textvariable=variable,
+                font=font,
+                fg=color,
+                bg="#07100a",
+                anchor="w",
+                justify="left",
+                wraplength=600,
+            ).pack(anchor="w", fill="x", pady=(8, 0))
+
+        current_progress = tk.IntVar(value=0)
+        total_progress = tk.IntVar(value=0)
+        ttk.Progressbar(wrapper, maximum=100, variable=current_progress, length=600).pack(fill="x", pady=(14, 6))
+        ttk.Progressbar(wrapper, maximum=100, variable=total_progress, length=600).pack(fill="x", pady=(4, 10))
+
+        log_box = tk.Text(
+            wrapper,
+            height=5,
+            bg="#102515",
+            fg="#e7ffe9",
+            insertbackground="#e7ffe9",
+            relief="flat",
+            wrap="word",
+            font=("Consolas", 9),
+        )
+        log_box.pack(fill="both", expand=True)
+        log_box.insert("end", "Стартиране на изтеглянето...\n")
+        log_box.config(state="disabled")
+
+        progress_window.protocol("WM_DELETE_WINDOW", progress_window.destroy)
+        self.root.after(0, lambda: self._center_window(progress_window, 660, 350))
+
+        return {
+            "window": progress_window,
+            "package_var": package_var,
+            "detail_var": detail_var,
+            "speed_var": speed_var,
+            "total_var": total_var,
+            "current_progress": current_progress,
+            "total_progress": total_progress,
+            "log_box": log_box,
+            "total_items": total_items,
+        }
+
+    def _resource_download_window_exists(self, ui: dict[str, object] | None) -> bool:
+        if not ui:
+            return False
+        window = ui.get("window")
+        try:
+            return bool(window and window.winfo_exists())
+        except tk.TclError:
+            return False
+
+    def _append_resource_download_log(self, ui: dict[str, object] | None, text: str) -> None:
+        if not self._resource_download_window_exists(ui):
+            return
+        log_box = ui.get("log_box")
+        try:
+            log_box.config(state="normal")
+            log_box.insert("end", f"{text}\n")
+            log_box.see("end")
+            log_box.config(state="disabled")
+        except tk.TclError:
+            return
+
+    def _update_resource_download_ui(
+        self,
+        ui: dict[str, object] | None,
+        item_index: int,
+        total_items: int,
+        name: str,
+        downloaded: int,
+        total: int,
+        speed: float = 0.0,
+        eta: int = 0,
+        phase: str = "",
+    ) -> None:
+        percent = int((downloaded / total) * 100) if total else 0
+        total_percent = int(((item_index - 1) + (percent / 100)) * 100 / max(1, total_items))
+        action = phase or "Изтегляне"
+        self.status_var.set(f"{action}: {name} - {percent}% | Общо {total_percent}%")
+
+        if not self._resource_download_window_exists(ui):
+            return
+
+        try:
+            ui["current_progress"].set(percent)
+            ui["total_progress"].set(total_percent)
+            ui["package_var"].set(f"Пакет {item_index}/{total_items}: {name}")
+            ui["detail_var"].set(f"{action}: {format_file_size(downloaded)} от {format_file_size(total)} ({percent}%)")
+            if phase:
+                ui["speed_var"].set("Моля изчакайте. Файловете се обработват локално.")
+            else:
+                ui["speed_var"].set(f"Скорост: {format_bytes_per_second(speed)} | Оставащо време: {format_duration(eta)}")
+            ui["total_var"].set(f"Общ прогрес: {total_percent}% | Пакети: {item_index}/{total_items}")
+        except tk.TclError:
+            return
+
+    def _run_resource_downloads(self, items: list[object], ui: dict[str, object] | None = None) -> None:
+        errors: list[str] = []
+        total_items = len(items)
+
+        for index, item in enumerate(items, start=1):
+            self.root.after(0, lambda item=item, index=index: self._append_resource_download_log(ui, f"[{index}/{total_items}] Изтегляне: {item.name}"))
+
+            def progress(
+                downloaded: int,
+                total: int,
+                name: str,
+                speed: float = 0.0,
+                eta: int = 0,
+                phase: str = "",
+                item_index: int = index,
+            ) -> None:
+                self.root.after(
+                    0,
+                    lambda: self._update_resource_download_ui(
+                        ui,
+                        item_index,
+                        total_items,
+                        name,
+                        downloaded,
+                        total,
+                        speed,
+                        eta,
+                        phase,
+                    ),
+                )
+
+            try:
+                download_resource(PROJECT_ROOT, item, progress)
+                self.root.after(0, lambda item=item: self._append_resource_download_log(ui, f"Готово: {item.name}"))
+            except Exception as exc:
+                errors.append(f"{item.name}: {exc}")
+                self.root.after(0, lambda item=item, exc=exc: self._append_resource_download_log(ui, f"Проблем: {item.name} - {exc}"))
+
+        def finish() -> None:
+            self._refresh_resource_panel()
+            self.resource_download_button.config(state="normal")
+            if self._resource_download_window_exists(ui):
+                try:
+                    ui["total_progress"].set(100)
+                except tk.TclError:
+                    pass
+
+            if errors:
+                self.status_var.set("Изтеглянето приключи, но има проблеми. Проверете съобщението.")
+                messagebox.showerror("Проблем при изтегляне", "\n".join(errors), parent=self.root)
+                return
+
+            if self._resource_download_window_exists(ui):
+                try:
+                    ui["package_var"].set("Всички ресурси са изтеглени успешно.")
+                    ui["detail_var"].set("Архивите са разархивирани и готови за използване.")
+                    ui["speed_var"].set("Готово.")
+                except tk.TclError:
+                    pass
+            self.status_var.set("Инсталационните ресурси са обновени.")
+            if self.current_menu == "office_install_center":
+                self._render_cards()
+            messagebox.showinfo("Готово", "Липсващите инсталационни ресурси са изтеглени успешно.", parent=self.root)
 
         self.root.after(0, finish)
 

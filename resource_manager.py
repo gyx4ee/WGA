@@ -173,9 +173,27 @@ def download_resource(
             raise RuntimeError(f"SHA256 проверката е неуспешна за {item.name}.")
 
     if item.extract and zipfile.is_zipfile(target_path):
+        if callable(progress_callback):
+            progress_callback(
+                target_path.stat().st_size,
+                target_path.stat().st_size,
+                item.name,
+                0.0,
+                0,
+                "Разархивиране на пакета...",
+            )
         extract_dir = target_path.parent
         with zipfile.ZipFile(target_path) as archive:
             archive.extractall(extract_dir)
+        if callable(progress_callback):
+            progress_callback(
+                target_path.stat().st_size,
+                target_path.stat().st_size,
+                item.name,
+                0.0,
+                0,
+                "Разархивирането приключи.",
+            )
 
     return target_path
 
