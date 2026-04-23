@@ -54,12 +54,24 @@ class ResourceStatus:
 
 def manifest_path(program_root: Path) -> Path:
     portable_manifest = program_root / MANIFEST_FILE_NAME
+    bundled_manifest = program_root / "_internal" / MANIFEST_FILE_NAME
+
+    if bundled_manifest.exists() and _manifest_has_download_urls(bundled_manifest):
+        return bundled_manifest
     if portable_manifest.exists():
         return portable_manifest
-    bundled_manifest = program_root / "_internal" / MANIFEST_FILE_NAME
     if bundled_manifest.exists():
         return bundled_manifest
     return portable_manifest
+
+
+def _manifest_has_download_urls(path: Path) -> bool:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    resources = data.get("resources", []) if isinstance(data, dict) else []
+    return any(isinstance(item, dict) and str(item.get("url", "")).strip() for item in resources)
 
 
 def load_resource_manifest(program_root: Path) -> list[ResourceItem]:
@@ -67,7 +79,7 @@ def load_resource_manifest(program_root: Path) -> list[ResourceItem]:
     if not path.exists():
         return []
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
+        data = json.loads(path.read_text(encoding="utf-8-sig"))
     except (OSError, json.JSONDecodeError):
         return []
 

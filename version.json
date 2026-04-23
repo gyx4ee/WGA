@@ -1,10 +1,12 @@
 {
-  "version": "0.2.0",
+  "version": "0.2.2",
   "version_info_url": "https://raw.githubusercontent.com/gyx4ee/WGA/refs/heads/main/version.json",
   "download_url": "https://github.com/gyx4ee/WGA/releases/latest",
   "package_url": "https://raw.githubusercontent.com/gyx4ee/WGA/refs/heads/main/WGA-portable.zip",
-  "notes": "Added online installer resources from networkbgs.com with speed, ETA, package count, and SHA256 verification.",
+  "notes": "Fixed installer manifest reading with UTF-8 BOM and old portable manifest fallback.",
   "changelog": [
+    "v0.2.2 - Fixed installer manifest reading with UTF-8 BOM and old portable manifest fallback.",
+    "v0.2.1 - Fixed resource manifest selection so online downloads work after updating from older portable builds.",
     "v0.2.0 - Added online installer resources from networkbgs.com with speed, ETA, package count, and SHA256 verification.",
     "v0.1.9 - Added cache-busting update metadata checks to prevent stale GitHub raw responses.",
     "v0.1.8 - Switched update metadata and package downloads to refs/heads/main to avoid stale GitHub raw cache.",
