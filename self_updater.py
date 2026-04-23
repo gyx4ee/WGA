@@ -5,6 +5,7 @@ import shutil
 import tempfile
 import zipfile
 from pathlib import Path
+from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlsplit, urlunsplit
 from urllib.request import urlopen
 
@@ -44,18 +45,26 @@ def download_update_package(url: str, destination: Path, progress_callback=None)
     package_path = destination / "wga-update.zip"
     prepared_url = _prepare_url(url)
 
-    with urlopen(prepared_url, timeout=30) as response:
-        total = int(response.headers.get("Content-Length") or 0)
-        downloaded = 0
-        with package_path.open("wb") as output:
-            while True:
-                chunk = response.read(1024 * 256)
-                if not chunk:
-                    break
-                output.write(chunk)
-                downloaded += len(chunk)
-                if progress_callback and total:
-                    progress_callback(min(45, int(downloaded * 45 / total)))
+    try:
+        with urlopen(prepared_url, timeout=30) as response:
+            total = int(response.headers.get("Content-Length") or 0)
+            downloaded = 0
+            with package_path.open("wb") as output:
+                while True:
+                    chunk = response.read(1024 * 256)
+                    if not chunk:
+                        break
+                    output.write(chunk)
+                    downloaded += len(chunk)
+                    if progress_callback and total:
+                        progress_callback(min(45, int(downloaded * 45 / total)))
+    except HTTPError as exc:
+        raise RuntimeError(f"Update пакетът не е достъпен. HTTP код: {exc.code}. URL: {prepared_url}") from exc
+    except URLError as exc:
+        raise RuntimeError(f"Update пакетът не може да бъде изтеглен: {exc.reason}") from exc
+
+    if package_path.stat().st_size <= 0:
+        raise RuntimeError("Update пакетът беше изтеглен като празен файл.")
 
     return package_path
 
@@ -100,20 +109,27 @@ def create_update_helper(
     restart_line = _restart_line(restart_command)
     skipped_dirs = " ".join(_cmd_quote(item) for item in sorted(SKIPPED_DIRS))
     preserved_files = " ".join(_cmd_quote(item) for item in sorted(PRESERVED_NAMES))
+    log_path = target_root / "WGA-update.log"
 
     helper_text = f"""@echo off
 chcp 65001 >nul
 title WGA Update Installer
-echo Installing WinSys Guardian Advanced update...
-timeout /t 2 /nobreak >nul
-robocopy {_cmd_quote(str(source_root))} {_cmd_quote(str(target_root))} /E /R:2 /W:1 /XD {skipped_dirs} /XF {preserved_files}
+set "LOG_FILE={str(log_path)}"
+echo Installing WinSys Guardian Advanced update... > "%LOG_FILE%"
+echo Source: {_cmd_quote(str(source_root))} >> "%LOG_FILE%"
+echo Target: {_cmd_quote(str(target_root))} >> "%LOG_FILE%"
+echo Waiting for WGA to close...
+timeout /t 4 /nobreak >nul
+robocopy {_cmd_quote(str(source_root))} {_cmd_quote(str(target_root))} /E /R:5 /W:2 /XD {skipped_dirs} /XF {preserved_files} /LOG+:"%LOG_FILE%"
 set "ROBOCOPY_CODE=%ERRORLEVEL%"
 if %ROBOCOPY_CODE% GEQ 8 (
     echo Update failed. Robocopy code: %ROBOCOPY_CODE%
+    echo Update failed. Robocopy code: %ROBOCOPY_CODE% >> "%LOG_FILE%"
     pause
     exit /b %ROBOCOPY_CODE%
 )
 echo Update installed.
+echo Update installed. Robocopy code: %ROBOCOPY_CODE% >> "%LOG_FILE%"
 {restart_line}
 timeout /t 1 /nobreak >nul
 exit /b 0

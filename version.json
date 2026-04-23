@@ -1,10 +1,11 @@
 {
-  "version": "0.1.6",
+  "version": "0.1.7",
   "version_info_url": "https://raw.githubusercontent.com/gyx4ee/WGA/main/version.json",
   "download_url": "https://github.com/gyx4ee/WGA/releases/latest",
-  "package_url": "https://github.com/gyx4ee/WGA/releases/latest/download/WGA-portable.zip",
-  "notes": "Automatic installer menu with selectable tasks and one-click sequential installation.",
+  "package_url": "https://raw.githubusercontent.com/gyx4ee/WGA/main/WGA-portable.zip",
+  "notes": "Fixed automatic updater download path and added update installer logging.",
   "changelog": [
+    "v0.1.7 - Fixed automatic updater download path and added WGA-update.log diagnostics.",
     "v0.1.6 - Added automatic installer menu with checkboxes and one-click sequential installation.",
     "v0.1.5 - Added update history button and popup notification for available updates.",
     "v0.1.4 - Added automatic update installer with download, file replacement, and restart.",
