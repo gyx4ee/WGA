@@ -53,15 +53,13 @@ def describe_drive_type(drive_type: str) -> str:
 
 def resolve_installers_root(program_root: Path) -> Path:
     drive_root = Path(f"{_normalize_drive(program_root)}\\") if _normalize_drive(program_root) else program_root.anchor
-    drive_type = detect_drive_type(program_root)
     drive_installers = Path(drive_root) / "Installers" if drive_root else None
     local_installers = program_root / "Installers"
     parent_installers = program_root.parent / "Installers"
 
-    if drive_type == "Removable":
-        candidates = [path for path in (drive_installers, local_installers, parent_installers) if path is not None]
-    else:
-        candidates = [path for path in (local_installers, drive_installers, parent_installers) if path is not None]
+    # Portable builds must keep their resources next to WGA.exe. This makes a
+    # copied flash-drive folder self-contained and avoids accidentally using C:\Installers.
+    candidates = [path for path in (local_installers, drive_installers, parent_installers) if path is not None]
 
     seen: set[str] = set()
     for candidate in candidates:
@@ -74,11 +72,17 @@ def resolve_installers_root(program_root: Path) -> Path:
     return candidates[0]
 
 
+def ensure_installers_root(program_root: Path) -> Path:
+    installers_root = resolve_installers_root(program_root)
+    installers_root.mkdir(parents=True, exist_ok=True)
+    return installers_root
+
+
 def get_runtime_storage_info(program_root: Path) -> RuntimeStorageInfo:
     drive = _normalize_drive(program_root)
     drive_letter = drive[:1].upper() if drive else ""
     drive_type = detect_drive_type(program_root)
-    installers_root = resolve_installers_root(program_root)
+    installers_root = ensure_installers_root(program_root)
     return RuntimeStorageInfo(
         drive=drive or "Unknown",
         drive_letter=drive_letter,

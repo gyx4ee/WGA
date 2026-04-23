@@ -8,7 +8,7 @@ import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 
-from path_utils import resolve_installers_root
+from path_utils import ensure_installers_root, resolve_installers_root
 
 
 MANIFEST_FILE_NAME = "installers_manifest.json"
@@ -110,7 +110,7 @@ def load_resource_manifest(program_root: Path) -> list[ResourceItem]:
 
 
 def check_resource_status(program_root: Path) -> ResourceStatus:
-    installers_root = resolve_installers_root(program_root)
+    installers_root = ensure_installers_root(program_root)
     checks: list[ResourceCheck] = []
     for item in load_resource_manifest(program_root):
         missing_files = tuple(
@@ -140,7 +140,7 @@ def download_resource(
     if not item.url:
         raise ValueError(f"No download URL configured for {item.name}.")
 
-    installers_root = resolve_installers_root(program_root)
+    installers_root = ensure_installers_root(program_root)
     target_relative = item.target or Path(item.url).name or f"{item.resource_id}.download"
     target_path = installers_root / target_relative
     target_path.parent.mkdir(parents=True, exist_ok=True)
