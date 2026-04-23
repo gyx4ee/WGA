@@ -1,101 +1,129 @@
-{
-  "version": "1",
-  "notes": "Add download URLs when the installer packages are uploaded online. Required files are checked inside the detected Installers folder.",
-  "resources": [
-    {
-      "id": "office_2016_offline",
-      "name": "Office 2016 Offline",
-      "category": "Office",
-      "required_files": [
-        "Office2016/setup.exe",
-        "Office2016/Configuration.xml"
-      ],
-      "url": "",
-      "target": "Office2016/office_2016_package.zip",
-      "extract": true
-    },
-    {
-      "id": "office_2019_offline",
-      "name": "Office 2019 Offline",
-      "category": "Office",
-      "required_files": [
-        "Office2019/setup.exe",
-        "Office2019/Configuration.xml"
-      ],
-      "url": "",
-      "target": "Office2019/office_2019_package.zip",
-      "extract": true
-    },
-    {
-      "id": "office_2021_offline",
-      "name": "Office 2021 Offline",
-      "category": "Office",
-      "required_files": [
-        "Office2021/setup.exe",
-        "Office2021/Configuration.xml"
-      ],
-      "url": "",
-      "target": "Office2021/office_2021_package.zip",
-      "extract": true
-    },
-    {
-      "id": "office_professional_2021_offline",
-      "name": "Office Professional 2021 Offline",
-      "category": "Office",
-      "required_files": [
-        "Office prof 2021/setup.exe",
-        "Office prof 2021/Configuration.xml"
-      ],
-      "url": "",
-      "target": "Office prof 2021/office_professional_2021_package.zip",
-      "extract": true
-    },
-    {
-      "id": "office_professional_2024_offline",
-      "name": "Office Professional 2024 Offline",
-      "category": "Office",
-      "required_files": [
-        "Office 2024 Prof/setup.exe",
-        "Office 2024 Prof/ConfigurationProPlus2024EnBgx64.xml"
-      ],
-      "url": "",
-      "target": "Office 2024 Prof/office_professional_2024_package.zip",
-      "extract": true
-    },
-    {
-      "id": "office_standard_2024_offline",
-      "name": "Office Standard 2024 Offline",
-      "category": "Office",
-      "required_files": [
-        "Office 2024 Standart/setup.exe",
-        "Office 2024 Standart/Configuration.xml"
-      ],
-      "url": "",
-      "target": "Office 2024 Standart/office_standard_2024_package.zip",
-      "extract": true
-    },
-    {
-      "id": "office_standard_2021_offline",
-      "name": "Office Standard 2021 Offline",
-      "category": "Office",
-      "required_files": [
-        "Office 2021 Standart/setup.exe",
-        "Office 2021 Standart/Configuration.xml"
-      ],
-      "url": "",
-      "target": "Office 2021 Standart/office_standard_2021_package.zip",
-      "extract": true
-    },
-    {
-      "id": "adobe_reader",
-      "name": "Adobe Reader",
-      "category": "Utilities",
-      "required_files": [
-        "AdobeReader/AcroRdrDC.exe"
-      ],
-      "url": "",
-      "target": "AdobeReader/adobe_reader_package.zip",
-      "extract": true
-    }
-  ]
+﻿{
+    "version":  "web-template-1",
+    "language":  "bg-BG",
+    "notes_bg":  "Шаблон за онлайн ресурси на WGA. Замени https://networkbgs.com/repoWGA с адреса на папката във web hosting-а.",
+    "base_url_placeholder":  "https://networkbgs.com/repoWGA",
+    "resources":  [
+                      {
+                          "id":  "office_2016_offline",
+                          "category":  "Office",
+                          "required_files":  [
+                                                 "Office2016/setup.exe",
+                                                 "Office2016/Configuration.xml"
+                                             ],
+                          "url":  "https://networkbgs.com/repoWGA/office-2016.zip",
+                          "target":  "office-2016.zip",
+                          "extract":  true,
+                          "size_bytes":  882382624,
+                          "sha256":  "E752149240F420A761F1BC164D6F43E0A77E86EA0A7CCF8EBDF229C78006C5FF",
+                          "name":  "Office 2016 Offline"
+                      },
+                      {
+                          "id":  "office_2021_offline",
+                          "category":  "Office",
+                          "required_files":  [
+                                                 "Office2021/setup.exe",
+                                                 "Office2021/Configuration.xml"
+                                             ],
+                          "url":  "https://networkbgs.com/repoWGA/office-2021.zip",
+                          "target":  "office-2021.zip",
+                          "extract":  true,
+                          "size_bytes":  2123158213,
+                          "sha256":  "6DA6D7CC98BCDBD73E482A8DFB4CC4FEEC7E12DEC546A87485C6A77DE71F4B58",
+                          "name":  "Office 2021 Offline"
+                      },
+                      {
+                          "id":  "office_professional_2024_offline",
+                          "category":  "Office",
+                          "required_files":  [
+                                                 "Office 2024 Prof/setup.exe",
+                                                 "Office 2024 Prof/ConfigurationProPlus2024EnBgx64.xml"
+                                             ],
+                          "url":  "https://networkbgs.com/repoWGA/office-2024-prof.zip",
+                          "target":  "office-2024-prof.zip",
+                          "extract":  true,
+                          "size_bytes":  7164366150,
+                          "sha256":  "4ED017B5DFA0467C0CA3368B123476097F29943335BFE81CEDF3D003D3D3BEF2",
+                          "name":  "Office Professional 2024 Offline"
+                      },
+                      {
+                          "id":  "windirstat_tools",
+                          "category":  "Utilities",
+                          "required_files":  [
+                                                 "WINDIRSTSTS/x64/WinDirStat.exe"
+                                             ],
+                          "url":  "https://networkbgs.com/repoWGA/windirststs.zip",
+                          "target":  "windirststs.zip",
+                          "extract":  true,
+                          "size_bytes":  5397180,
+                          "sha256":  "BCB10CD5C4E0751D80DF8F4316E5E9D7DD4A7B4EC032003C546592D6A9361C3C",
+                          "name":  "WinDirStat Tools"
+                      },
+                      {
+                          "id":  "adobe_reader",
+                          "category":  "Utilities",
+                          "required_files":  [
+                                                 "AdobeReaderInstaller.exe"
+                                             ],
+                          "url":  "https://networkbgs.com/repoWGA/adobe-reader-installer.zip",
+                          "target":  "adobe-reader-installer.zip",
+                          "extract":  true,
+                          "size_bytes":  1597157,
+                          "sha256":  "AA2BAB51DFDBF1597C6F9F1DB0F90356065F1A6C383215A2FFCA80BB93F5AE44",
+                          "name":  "Adobe Reader Installer"
+                      },
+                      {
+                          "id":  "ninite_installer",
+                          "category":  "Utilities",
+                          "required_files":  [
+                                                 "NiniteInstaller.exe"
+                                             ],
+                          "url":  "https://networkbgs.com/repoWGA/ninite-installer.zip",
+                          "target":  "ninite-installer.zip",
+                          "extract":  true,
+                          "size_bytes":  248348,
+                          "sha256":  "3B864A33C5A6C8B26168E0DCCD7F1ADF695A330582A6EE96A88062C655709E91",
+                          "name":  "Ninite Installer"
+                      },
+                      {
+                          "id":  "visual_studio_setup",
+                          "category":  "Development",
+                          "required_files":  [
+                                                 "VisualStudioSetup (1).exe"
+                                             ],
+                          "url":  "https://networkbgs.com/repoWGA/visual-studio-setup.zip",
+                          "target":  "visual-studio-setup.zip",
+                          "extract":  true,
+                          "size_bytes":  4226070,
+                          "sha256":  "FC66E8971717CAC52EDADDCE1C4D6CB25F3C31D62C3F3FAAF60C0C3ADFCE9215",
+                          "name":  "Visual Studio Setup"
+                      },
+                      {
+                          "id":  "vscode_user_setup_arm64",
+                          "category":  "Development",
+                          "required_files":  [
+                                                 "VSCodeUserSetup-arm64-1.104.1.exe"
+                                             ],
+                          "url":  "https://networkbgs.com/repoWGA/vscode-user-setup-arm64.zip",
+                          "target":  "vscode-user-setup-arm64.zip",
+                          "extract":  true,
+                          "size_bytes":  108969698,
+                          "sha256":  "C3747DC1783C9516DC0FFBDB68671A5FEC152DD4BCA6DFA04D8CBB06FF940217",
+                          "name":  "VS Code User Setup ARM64"
+                      },
+                      {
+                          "id":  "zali_installer",
+                          "category":  "Utilities",
+                          "required_files":  [
+                                                 "zali.exe"
+                                             ],
+                          "url":  "https://networkbgs.com/repoWGA/zali.zip",
+                          "target":  "zali.zip",
+                          "extract":  true,
+                          "size_bytes":  248325,
+                          "sha256":  "A30E60627A0C2FA7A9F44A4CD50A79DD54CE25A3C059F1E4203E2D06ABB9223C",
+                          "name":  "Zali Installer"
+                      }
+                  ]
 }
+

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import hashlib
+import time
 import urllib.request
 import zipfile
 from dataclasses import dataclass
@@ -21,6 +23,8 @@ class ResourceItem:
     url: str
     target: str
     extract: bool
+    size_bytes: int = 0
+    sha256: str = ""
 
 
 @dataclass(frozen=True)
@@ -86,6 +90,8 @@ def load_resource_manifest(program_root: Path) -> list[ResourceItem]:
                 url=str(raw_item.get("url", "")).strip(),
                 target=str(raw_item.get("target", "")).strip(),
                 extract=bool(raw_item.get("extract", False)),
+                size_bytes=int(raw_item.get("size_bytes") or 0),
+                sha256=str(raw_item.get("sha256", "")).strip(),
             )
         )
     return items
@@ -127,13 +133,32 @@ def download_resource(
     target_path = installers_root / target_relative
     target_path.parent.mkdir(parents=True, exist_ok=True)
 
-    def report(block_count: int, block_size: int, total_size: int) -> None:
-        if not callable(progress_callback) or total_size <= 0:
-            return
-        downloaded = min(block_count * block_size, total_size)
-        progress_callback(downloaded, total_size, item.name)
+    start_time = time.monotonic()
+    downloaded = 0
+    request = urllib.request.Request(item.url, headers={"User-Agent": "WGA-Resource-Downloader/1.0"})
+    with urllib.request.urlopen(request, timeout=60) as response:
+        total_size = int(response.headers.get("Content-Length") or item.size_bytes or 0)
+        with target_path.open("wb") as output:
+            while True:
+                chunk = response.read(1024 * 512)
+                if not chunk:
+                    break
+                output.write(chunk)
+                downloaded += len(chunk)
+                if callable(progress_callback):
+                    elapsed = max(0.001, time.monotonic() - start_time)
+                    speed = downloaded / elapsed
+                    eta = int((total_size - downloaded) / speed) if total_size and speed > 0 else 0
+                    progress_callback(downloaded, total_size, item.name, speed, eta)
 
-    urllib.request.urlretrieve(item.url, target_path, reporthook=report)
+    if item.sha256:
+        digest = hashlib.sha256()
+        with target_path.open("rb") as downloaded_file:
+            for chunk in iter(lambda: downloaded_file.read(1024 * 1024), b""):
+                digest.update(chunk)
+        if digest.hexdigest().upper() != item.sha256.upper():
+            target_path.unlink(missing_ok=True)
+            raise RuntimeError(f"SHA256 проверката е неуспешна за {item.name}.")
 
     if item.extract and zipfile.is_zipfile(target_path):
         extract_dir = target_path.parent

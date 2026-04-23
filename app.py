@@ -736,6 +736,37 @@ def load_version_info() -> dict[str, object]:
     return merged
 
 
+def format_bytes_per_second(value: float) -> str:
+    units = ("B/s", "KB/s", "MB/s", "GB/s")
+    current = float(max(0.0, value))
+    for unit in units:
+        if current < 1024 or unit == units[-1]:
+            return f"{current:.1f} {unit}"
+        current /= 1024
+    return f"{current:.1f} GB/s"
+
+
+def format_file_size(value: int) -> str:
+    units = ("B", "KB", "MB", "GB")
+    current = float(max(0, value))
+    for unit in units:
+        if current < 1024 or unit == units[-1]:
+            return f"{current:.1f} {unit}"
+        current /= 1024
+    return f"{current:.1f} GB"
+
+
+def format_duration(seconds: int) -> str:
+    seconds = max(0, int(seconds))
+    hours, remainder = divmod(seconds, 3600)
+    minutes, secs = divmod(remainder, 60)
+    if hours:
+        return f"{hours} ч {minutes:02d} мин"
+    if minutes:
+        return f"{minutes} мин {secs:02d} сек"
+    return f"{secs} сек"
+
+
 def _portable_secret_key() -> bytes:
     secret_seed = f"{APP_TITLE}|WGA-Portable-Store|{PROJECT_ROOT.name}"
     return hashlib.sha256(secret_seed.encode("utf-8")).digest()
@@ -1667,6 +1698,97 @@ class MainMenuUI:
                     "Липсващите инсталационни ресурси са изтеглени успешно.",
                     parent=self.root,
                 )
+                self.status_var.set("Инсталационните ресурси са обновени.")
+                if self.current_menu == "office_install_center":
+                    self._render_cards()
+
+        self.root.after(0, finish)
+
+    def _run_resource_downloads(self, items: list[object]) -> None:
+        errors: list[str] = []
+        total_items = len(items)
+
+        progress_window = tk.Toplevel(self.root)
+        progress_window.title("Изтегляне на инсталационни ресурси")
+        progress_window.geometry("620x320")
+        progress_window.configure(bg="#07100a")
+        progress_window.resizable(False, False)
+        progress_window.transient(self.root)
+        apply_app_icon(progress_window)
+
+        wrapper = tk.Frame(progress_window, bg="#07100a", padx=22, pady=18)
+        wrapper.pack(fill="both", expand=True)
+        tk.Label(wrapper, text="Изтегляне на ресурси", font=("Segoe UI Semibold", 17), fg="#eaffef", bg="#07100a").pack(anchor="w")
+
+        package_var = tk.StringVar(value=f"Подготовка на {total_items} пакета...")
+        detail_var = tk.StringVar(value="Очакване на първия пакет.")
+        speed_var = tk.StringVar(value="Скорост: - | Оставащо време: -")
+        total_var = tk.StringVar(value=f"Пакети: 0/{total_items}")
+        for variable, font, color in (
+            (package_var, ("Segoe UI Semibold", 11), "#c9ffd0"),
+            (detail_var, ("Segoe UI", 10), "#9bc39e"),
+            (speed_var, ("Segoe UI", 10), "#ffe08a"),
+            (total_var, ("Segoe UI", 10), "#d7f1ff"),
+        ):
+            tk.Label(wrapper, textvariable=variable, font=font, fg=color, bg="#07100a", anchor="w", justify="left", wraplength=560).pack(anchor="w", fill="x", pady=(8, 0))
+
+        current_progress = tk.IntVar(value=0)
+        total_progress = tk.IntVar(value=0)
+        ttk.Progressbar(wrapper, maximum=100, variable=current_progress, length=560).pack(fill="x", pady=(14, 6))
+        ttk.Progressbar(wrapper, maximum=100, variable=total_progress, length=560).pack(fill="x", pady=(4, 10))
+
+        log_box = tk.Text(wrapper, height=5, bg="#102515", fg="#e7ffe9", insertbackground="#e7ffe9", relief="flat", wrap="word", font=("Consolas", 9))
+        log_box.pack(fill="both", expand=True)
+        log_box.insert("end", "Стартиране на изтеглянето...\n")
+        log_box.config(state="disabled")
+        self.root.after(0, lambda: self._center_window(progress_window, 620, 320))
+
+        def append_log(text: str) -> None:
+            if not progress_window.winfo_exists():
+                return
+            log_box.config(state="normal")
+            log_box.insert("end", f"{text}\n")
+            log_box.see("end")
+            log_box.config(state="disabled")
+
+        def progress(downloaded: int, total: int, name: str, speed: float = 0.0, eta: int = 0, item_index: int = 1) -> None:
+            percent = int((downloaded / total) * 100) if total else 0
+            total_percent = int(((item_index - 1) + (percent / 100)) * 100 / max(1, total_items))
+
+            def update() -> None:
+                self.status_var.set(f"Изтегляне: {name} - {percent}%")
+                if progress_window.winfo_exists():
+                    current_progress.set(percent)
+                    total_progress.set(total_percent)
+                    package_var.set(f"Пакет {item_index}/{total_items}: {name}")
+                    detail_var.set(f"{format_file_size(downloaded)} от {format_file_size(total)} ({percent}%)")
+                    speed_var.set(f"Скорост: {format_bytes_per_second(speed)} | Оставащо време: {format_duration(eta)}")
+                    total_var.set(f"Общ прогрес: {total_percent}% | Пакети: {item_index}/{total_items}")
+
+            self.root.after(0, update)
+
+        for index, item in enumerate(items, start=1):
+            try:
+                self.root.after(0, lambda item=item, index=index: append_log(f"[{index}/{total_items}] Изтегляне: {item.name}"))
+                download_resource(PROJECT_ROOT, item, lambda downloaded, total, name, speed=0.0, eta=0: progress(downloaded, total, name, speed, eta, index))
+                self.root.after(0, lambda item=item: append_log(f"Готово: {item.name}"))
+            except Exception as exc:
+                errors.append(f"{item.name}: {exc}")
+                self.root.after(0, lambda item=item, exc=exc: append_log(f"Проблем: {item.name} - {exc}"))
+
+        def finish() -> None:
+            self._refresh_resource_panel()
+            if progress_window.winfo_exists():
+                total_progress.set(100)
+            if errors:
+                messagebox.showerror("Проблем при изтегляне", "\n".join(errors), parent=self.root)
+                self.status_var.set("Изтеглянето приключи с проблем.")
+            else:
+                if progress_window.winfo_exists():
+                    package_var.set("Всички ресурси са изтеглени успешно.")
+                    detail_var.set("Архивите са разархивирани в Installers папката.")
+                    speed_var.set("Готово.")
+                messagebox.showinfo("Готово", "Липсващите инсталационни ресурси са изтеглени успешно.", parent=self.root)
                 self.status_var.set("Инсталационните ресурси са обновени.")
                 if self.current_menu == "office_install_center":
                     self._render_cards()
