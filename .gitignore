@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+.wga_secure_store.json
+.wga_secure_store.json.bak
+settings.json
+
+.idea/
+.vscode/

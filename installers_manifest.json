@@ -1,0 +1,101 @@
+{
+  "version": "1",
+  "notes": "Add download URLs when the installer packages are uploaded online. Required files are checked inside the detected Installers folder.",
+  "resources": [
+    {
+      "id": "office_2016_offline",
+      "name": "Office 2016 Offline",
+      "category": "Office",
+      "required_files": [
+        "Office2016/setup.exe",
+        "Office2016/Configuration.xml"
+      ],
+      "url": "",
+      "target": "Office2016/office_2016_package.zip",
+      "extract": true
+    },
+    {
+      "id": "office_2019_offline",
+      "name": "Office 2019 Offline",
+      "category": "Office",
+      "required_files": [
+        "Office2019/setup.exe",
+        "Office2019/Configuration.xml"
+      ],
+      "url": "",
+      "target": "Office2019/office_2019_package.zip",
+      "extract": true
+    },
+    {
+      "id": "office_2021_offline",
+      "name": "Office 2021 Offline",
+      "category": "Office",
+      "required_files": [
+        "Office2021/setup.exe",
+        "Office2021/Configuration.xml"
+      ],
+      "url": "",
+      "target": "Office2021/office_2021_package.zip",
+      "extract": true
+    },
+    {
+      "id": "office_professional_2021_offline",
+      "name": "Office Professional 2021 Offline",
+      "category": "Office",
+      "required_files": [
+        "Office prof 2021/setup.exe",
+        "Office prof 2021/Configuration.xml"
+      ],
+      "url": "",
+      "target": "Office prof 2021/office_professional_2021_package.zip",
+      "extract": true
+    },
+    {
+      "id": "office_professional_2024_offline",
+      "name": "Office Professional 2024 Offline",
+      "category": "Office",
+      "required_files": [
+        "Office 2024 Prof/setup.exe",
+        "Office 2024 Prof/ConfigurationProPlus2024EnBgx64.xml"
+      ],
+      "url": "",
+      "target": "Office 2024 Prof/office_professional_2024_package.zip",
+      "extract": true
+    },
+    {
+      "id": "office_standard_2024_offline",
+      "name": "Office Standard 2024 Offline",
+      "category": "Office",
+      "required_files": [
+        "Office 2024 Standart/setup.exe",
+        "Office 2024 Standart/Configuration.xml"
+      ],
+      "url": "",
+      "target": "Office 2024 Standart/office_standard_2024_package.zip",
+      "extract": true
+    },
+    {
+      "id": "office_standard_2021_offline",
+      "name": "Office Standard 2021 Offline",
+      "category": "Office",
+      "required_files": [
+        "Office 2021 Standart/setup.exe",
+        "Office 2021 Standart/Configuration.xml"
+      ],
+      "url": "",
+      "target": "Office 2021 Standart/office_standard_2021_package.zip",
+      "extract": true
+    },
+    {
+      "id": "adobe_reader",
+      "name": "Adobe Reader",
+      "category": "Utilities",
+      "required_files": [
+        "AdobeReader/AcroRdrDC.exe"
+      ],
+      "url": "",
+      "target": "AdobeReader/adobe_reader_package.zip",
+      "extract": true
+    }
+  ]
+}
