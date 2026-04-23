@@ -34,7 +34,7 @@ from driver_backup import (
 )
 from office_activation import build_office_activation_commands, get_office_version_label
 from office_inventory import detect_installed_office
-from office_installers import get_office_offline_installer
+from office_installers import OFFICE_OFFLINE_INSTALLERS, get_office_offline_installer
 from language_manager import build_language_action, get_language_status
 from language_manager import LanguageStatus
 from nexus_admin import (
@@ -52,7 +52,7 @@ from office_maintenance import (
     find_click_to_run_executable,
     find_ospp_vbs,
 )
-from office_online import check_online_package, find_winget_executable, get_online_package
+from office_online import OFFICE_ONLINE_PACKAGES, check_online_package, find_winget_executable, get_online_package
 from path_utils import get_runtime_storage_info
 from resource_manager import (
     ResourceStatus,
@@ -104,6 +104,7 @@ MENU_PAGE_SIZE: dict[str, int] = {
     "office_activation": 4,
     "install_software": 4,
     "office_install_center": 4,
+    "auto_installer": 1,
     "secret_install": 4,
     "office_center": 4,
     "language": 4,
@@ -131,6 +132,12 @@ MENU_TREE = {
                 "target": "reset_onedrive",
             },
             {"label": "Install Software", "kind": "menu", "target": "install_software"},
+            {
+                "label": "Автоматичен инсталатор",
+                "kind": "menu",
+                "target": "auto_installer",
+                "description": "Избери няколко инсталации и ги стартирай с едно копче.",
+            },
             {"label": "Language Menu", "kind": "menu", "target": "language"},
             {
                 "label": "Driver Backup + PC Report",
@@ -146,6 +153,11 @@ MENU_TREE = {
             {"label": "Reset Console", "kind": "action", "description": "Refresh the current interface state."},
             {"label": "Exit", "kind": "exit", "description": "Close WinSys Guardian Advanced."},
         ],
+    },
+    "auto_installer": {
+        "title": "Автоматичен инсталатор",
+        "subtitle": "Отметни нужните програми и настройки, след това ги инсталирай наведнъж.",
+        "items": [],
     },
     "activation": {
         "title": "Activation Menu",
@@ -1127,6 +1139,8 @@ class MainMenuUI:
         self.update_package_url = ""
         self.update_installing = False
         self.update_popup_shown = False
+        self.auto_install_vars: dict[str, tk.BooleanVar] = {}
+        self.auto_install_running = False
         self.office_inventory_cache: dict[str, object] = {}
         self.office_online_cache: dict[str, object] = {}
         self.office_maintenance_cache: dict[str, object] = {}
@@ -2194,6 +2208,10 @@ class MainMenuUI:
             self.cards_frame.rowconfigure(index, weight=0, minsize=0)
             self.cards_frame.columnconfigure(index, weight=0, minsize=0)
 
+        if self.current_menu == "auto_installer":
+            self._render_auto_installer()
+            return
+
         items = MENU_TREE[self.current_menu]["items"]
         page_size = MENU_PAGE_SIZE.get(self.current_menu, CARDS_PER_PAGE)
         total_pages = max(1, math.ceil(len(items) / page_size))
@@ -2231,6 +2249,192 @@ class MainMenuUI:
         self.page_label.config(text=f"Page {self.current_page + 1} / {total_pages}")
         self.prev_button.config(state="normal" if self.current_page > 0 else "disabled")
         self.next_button.config(state="normal" if self.current_page < total_pages - 1 else "disabled")
+        self.back_button.config(state="normal" if self.history else "disabled")
+
+    def _auto_install_tasks(self) -> list[dict[str, str]]:
+        tasks: list[dict[str, str]] = []
+        for installer in OFFICE_OFFLINE_INSTALLERS.values():
+            tasks.append(
+                {
+                    "id": installer.action_id,
+                    "label": installer.label,
+                    "category": "Office offline",
+                    "description": f"Инсталация от Installers папката: {installer.folder}",
+                    "type": "office_offline",
+                }
+            )
+        tasks.append(
+            {
+                "id": "install_adobe_reader",
+                "label": "Adobe Reader",
+                "category": "Основен софтуер",
+                "description": "Инсталира или обновява Adobe Reader през winget.",
+                "type": "adobe",
+            }
+        )
+        for package in OFFICE_ONLINE_PACKAGES.values():
+            tasks.append(
+                {
+                    "id": package.action_id,
+                    "label": package.label,
+                    "category": "Office online",
+                    "description": f"Online инсталация през winget: {package.winget_id}",
+                    "type": "office_online",
+                }
+            )
+        for action_id, label in (
+            ("toggle_bulgarian_language_pack", "Български езиков пакет"),
+            ("toggle_bulgarian_bds", "Българска БДС клавиатура"),
+            ("toggle_bulgarian_phonetic", "Българска фонетична клавиатура"),
+            ("toggle_bulgarian_traditional", "Традиционна фонетична клавиатура"),
+        ):
+            tasks.append(
+                {
+                    "id": action_id,
+                    "label": label,
+                    "category": "Език и клавиатури",
+                    "description": "Добавя компонента само ако липсва.",
+                    "type": "language",
+                }
+            )
+        return tasks
+
+    def _render_auto_installer(self) -> None:
+        self.cards_frame.columnconfigure(0, weight=1)
+        self.cards_frame.rowconfigure(0, weight=1)
+
+        outer = tk.Frame(
+            self.cards_frame,
+            bg="#102515",
+            bd=0,
+            highlightthickness=1,
+            highlightbackground="#2d7f4a",
+        )
+        outer.grid(row=0, column=0, sticky="nsew", padx=8, pady=8)
+
+        header = tk.Frame(outer, bg="#102515")
+        header.pack(fill="x", padx=16, pady=(14, 8))
+        tk.Label(
+            header,
+            text="Автоматичен инсталатор",
+            font=("Segoe UI Semibold", 16),
+            bg="#102515",
+            fg="#edffef",
+        ).pack(anchor="w")
+        tk.Label(
+            header,
+            text="Избери какво да се инсталира. Задачите ще се изпълнят една след друга и ще получиш общ отчет.",
+            font=("Segoe UI", 10),
+            bg="#102515",
+            fg="#9bc39e",
+            wraplength=780,
+            justify="left",
+        ).pack(anchor="w", pady=(4, 0))
+
+        canvas = tk.Canvas(outer, bg="#0b1d0f", highlightthickness=0, height=360)
+        scrollbar = ttk.Scrollbar(outer, orient="vertical", command=canvas.yview)
+        task_frame = tk.Frame(canvas, bg="#0b1d0f")
+        task_frame.bind("<Configure>", lambda event: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.create_window((0, 0), window=task_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        canvas.pack(side="left", fill="both", expand=True, padx=(16, 0), pady=8)
+        scrollbar.pack(side="right", fill="y", padx=(0, 16), pady=8)
+
+        tasks = self._auto_install_tasks()
+        if not self.auto_install_vars:
+            self.auto_install_vars = {task["id"]: tk.BooleanVar(value=False) for task in tasks}
+        for task in tasks:
+            self.auto_install_vars.setdefault(task["id"], tk.BooleanVar(value=False))
+
+        current_category = ""
+        for task in tasks:
+            if task["category"] != current_category:
+                current_category = task["category"]
+                tk.Label(
+                    task_frame,
+                    text=current_category,
+                    font=("Segoe UI Semibold", 12),
+                    bg="#0b1d0f",
+                    fg="#c9ffd0",
+                ).pack(anchor="w", padx=12, pady=(12, 4))
+
+            row = tk.Frame(task_frame, bg="#112716", padx=10, pady=8)
+            row.pack(fill="x", padx=12, pady=4)
+            tk.Checkbutton(
+                row,
+                variable=self.auto_install_vars[task["id"]],
+                bg="#112716",
+                activebackground="#112716",
+                selectcolor="#174327",
+                fg="#edffef",
+                activeforeground="#ffffff",
+                text=task["label"],
+                font=("Segoe UI Semibold", 10),
+                anchor="w",
+            ).pack(anchor="w", fill="x")
+            tk.Label(
+                row,
+                text=task["description"],
+                bg="#112716",
+                fg="#91b897",
+                font=("Segoe UI", 9),
+                wraplength=760,
+                justify="left",
+            ).pack(anchor="w", padx=(24, 0), pady=(2, 0))
+
+        controls = tk.Frame(outer, bg="#102515")
+        controls.pack(fill="x", padx=16, pady=(8, 16))
+
+        def set_all(value: bool) -> None:
+            for var in self.auto_install_vars.values():
+                var.set(value)
+
+        tk.Button(
+            controls,
+            text="Избери всичко",
+            command=lambda: set_all(True),
+            font=("Segoe UI Semibold", 10),
+            bg="#1f6fb2",
+            fg="#f4fbff",
+            activebackground="#2b8ddd",
+            activeforeground="#ffffff",
+            bd=0,
+            padx=16,
+            pady=9,
+            cursor="hand2",
+        ).pack(side="left", padx=(0, 8))
+        tk.Button(
+            controls,
+            text="Изчисти",
+            command=lambda: set_all(False),
+            font=("Segoe UI Semibold", 10),
+            bg="#36403a",
+            fg="#d8e2db",
+            activebackground="#465049",
+            activeforeground="#ffffff",
+            bd=0,
+            padx=16,
+            pady=9,
+            cursor="hand2",
+        ).pack(side="left")
+        tk.Button(
+            controls,
+            text="Инсталирай избраните",
+            command=self._start_auto_installer,
+            font=("Segoe UI Semibold", 11),
+            bg="#1f8f43",
+            fg="#f5fff7",
+            activebackground="#28b155",
+            activeforeground="#ffffff",
+            bd=0,
+            padx=20,
+            pady=10,
+            cursor="hand2",
+        ).pack(side="right")
+
+        self.page_label.config(text="Автоматичен режим")
+        self.prev_button.config(state="disabled")
+        self.next_button.config(state="disabled")
         self.back_button.config(state="normal" if self.history else "disabled")
 
     def _card_columns(self) -> int:
@@ -2705,6 +2909,194 @@ class MainMenuUI:
             return
 
         self.status_var.set(f"Selected action: {item['label']}. This is ready to connect to a real Python or PowerShell task.")
+
+    def _start_auto_installer(self) -> None:
+        if self.auto_install_running:
+            messagebox.showinfo("Автоматичен инсталатор", "Вече има стартирана автоматична инсталация.", parent=self.root)
+            return
+
+        tasks = [task for task in self._auto_install_tasks() if self.auto_install_vars.get(task["id"]) and self.auto_install_vars[task["id"]].get()]
+        if not tasks:
+            messagebox.showinfo("Автоматичен инсталатор", "Избери поне една задача за инсталиране.", parent=self.root)
+            return
+
+        confirmed = messagebox.askyesno(
+            "Автоматичен инсталатор",
+            f"Ще бъдат изпълнени {len(tasks)} задачи една след друга.\n\nДа започнем ли?",
+            parent=self.root,
+        )
+        if not confirmed:
+            return
+
+        self.auto_install_running = True
+        self.status_var.set("Автоматичният инсталатор стартира...")
+        self._open_activation_window(
+            title="Автоматичен инсталатор",
+            heading="Автоматичен инсталатор",
+            intro="Избраните задачи се изпълняват последователно. Не затваряй приложението, докато процесът работи.",
+        )
+        threading.Thread(target=self._run_auto_installer, args=(tasks,), daemon=True).start()
+
+    def _run_auto_installer(self, tasks: list[dict[str, str]]) -> None:
+        results: list[str] = []
+        failures = 0
+        total = len(tasks)
+        for index, task in enumerate(tasks, start=1):
+            base_progress = int((index - 1) * 90 / max(1, total))
+            self.root.after(
+                0,
+                lambda task=task, index=index, total=total, base_progress=base_progress: self._update_activation_progress(
+                    base_progress,
+                    f"Задача {index}/{total}: {task['label']}",
+                    f"Стартиране: {task['label']}",
+                ),
+            )
+            try:
+                detail = self._run_auto_install_task(task)
+                results.append(f"✓ {task['label']}\n{detail}")
+                self.root.after(0, lambda task=task: self._append_activation_log(f"Готово: {task['label']}"))
+            except Exception as exc:
+                failures += 1
+                results.append(f"✗ {task['label']}\n{exc}")
+                self.root.after(0, lambda task=task, exc=exc: self._append_activation_log(f"Проблем: {task['label']}\n{exc}"))
+
+        success = failures == 0
+        summary = "\n\n".join(results)
+        subject = "Автоматичен инсталатор"
+
+        def finish() -> None:
+            self.auto_install_running = False
+            self._show_activation_result(success, summary, subject)
+            self._refresh_resource_panel()
+            if self.current_menu == "auto_installer":
+                self._render_cards()
+
+        self.root.after(0, finish)
+
+    def _run_auto_install_task(self, task: dict[str, str]) -> str:
+        task_type = task["type"]
+        action_id = task["id"]
+        if task_type == "office_offline":
+            return self._run_auto_office_offline(action_id)
+        if task_type == "office_online":
+            return self._run_auto_office_online(action_id)
+        if task_type == "adobe":
+            return self._run_auto_adobe_reader()
+        if task_type == "language":
+            return self._run_auto_language_action(action_id)
+        raise ValueError(f"Непознат тип задача: {task_type}")
+
+    def _run_auto_office_offline(self, action_id: str) -> str:
+        installer = get_office_offline_installer(action_id)
+        missing_parts: list[str] = []
+        if not installer.installers_root.exists():
+            missing_parts.append(f"Installers папката липсва: {installer.installers_root}")
+        if not installer.setup_path.exists():
+            missing_parts.append(f"setup.exe липсва: {installer.setup_path}")
+        if not installer.config_path.exists():
+            missing_parts.append(f"Configuration файлът липсва: {installer.config_path}")
+        if missing_parts:
+            raise RuntimeError("\n".join(missing_parts))
+
+        command = [str(installer.setup_path), "/configure", str(installer.config_path)]
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            check=False,
+            cwd=str(installer.setup_path.parent),
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+        output = "\n".join(part.strip() for part in (result.stdout, result.stderr) if part and part.strip())
+        if result.returncode != 0:
+            raise RuntimeError(output or f"Office installer върна код {result.returncode}.")
+        return output or f"{installer.label} завърши успешно."
+
+    def _run_auto_office_online(self, action_id: str) -> str:
+        package = get_online_package(action_id)
+        status = check_online_package(action_id)
+        if not status.available:
+            raise RuntimeError(status.message)
+        winget_exe = find_winget_executable()
+        if not winget_exe:
+            raise RuntimeError("Winget не е открит.")
+
+        command = [
+            winget_exe,
+            "install",
+            "--id",
+            package.winget_id,
+            "--source",
+            "winget",
+            "--silent",
+            "--accept-package-agreements",
+            "--accept-source-agreements",
+        ]
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            check=False,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+        output = "\n".join(part.strip() for part in (result.stdout, result.stderr) if part and part.strip())
+        if result.returncode != 0:
+            raise RuntimeError(output or f"Winget върна код {result.returncode}.")
+        return output or f"{package.label} е инсталиран успешно."
+
+    def _run_auto_adobe_reader(self) -> str:
+        winget_exe = find_winget_executable()
+        if not winget_exe:
+            raise RuntimeError("Winget не е открит.")
+
+        command = [
+            winget_exe,
+            "install",
+            "--id",
+            ADOBE_READER_WINGET_ID,
+            "--source",
+            "winget",
+            "--silent",
+            "--accept-package-agreements",
+            "--accept-source-agreements",
+        ]
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            check=False,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+        output = "\n".join(part.strip() for part in (result.stdout, result.stderr) if part and part.strip())
+        if result.returncode != 0:
+            raise RuntimeError(output or f"Adobe Reader winget инсталацията върна код {result.returncode}.")
+        self.adobe_reader_status_cache = None
+        return output or "Adobe Reader е инсталиран/обновен успешно."
+
+    def _run_auto_language_action(self, action_id: str) -> str:
+        status = get_language_status()
+        already_ready = {
+            "toggle_bulgarian_language_pack": status.has_language_pack,
+            "toggle_bulgarian_bds": status.has_bds,
+            "toggle_bulgarian_phonetic": status.has_phonetic,
+            "toggle_bulgarian_traditional": status.has_traditional,
+        }
+        if already_ready.get(action_id, False):
+            return "Компонентът вече е наличен. Пропуснато."
+
+        title, command = build_language_action(action_id, status)
+        result = subprocess.run(
+            ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", command],
+            capture_output=True,
+            text=True,
+            check=False,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+        output = "\n".join(part.strip() for part in (result.stdout, result.stderr) if part and part.strip())
+        if result.returncode != 0:
+            raise RuntimeError(output or f"{title} върна код {result.returncode}.")
+        self.language_status_cache = None
+        return output or f"{title} завърши успешно."
 
     def _center_window(self, window: tk.Toplevel, width: int, height: int) -> None:
         window.update_idletasks()
