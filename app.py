@@ -60,6 +60,7 @@ from resource_manager import (
     download_resource,
     missing_resource_report,
 )
+from self_updater import launch_helper_and_exit, prepare_update_install
 from system_health import HealthItem, collect_health_items
 from update_checker import UpdateResult, check_for_updates
 
@@ -1105,6 +1106,8 @@ class MainMenuUI:
         self.health_scroll_job: str | None = None
         self.update_result: UpdateResult | None = None
         self.update_download_url = ""
+        self.update_package_url = ""
+        self.update_installing = False
         self.office_inventory_cache: dict[str, object] = {}
         self.office_online_cache: dict[str, object] = {}
         self.office_maintenance_cache: dict[str, object] = {}
@@ -1816,7 +1819,7 @@ class MainMenuUI:
                 "border": "#8a6a2a",
                 "fg": "#ffeec5",
                 "button_bg": "#8a6a2a",
-                "button_text": "Изтегли",
+                "button_text": "Инсталирай",
                 "button_state": "normal",
                 "message": f"Налична е нова версия: v{result.latest_version}. {result.notes or 'Има по-нова версия в GitHub.'}",
             },
@@ -1853,6 +1856,7 @@ class MainMenuUI:
         }
         style = status_map.get(result.status, status_map["error"])
         self.update_download_url = result.download_url or self.version_info.get("download_url", "")
+        self.update_package_url = result.package_url
 
         self.update_banner.config(bg=style["bg"], highlightbackground=style["border"])
         self.update_icon_label.config(text=style["icon"], bg=style["bg"], fg=style["fg"])
@@ -1866,14 +1870,105 @@ class MainMenuUI:
         )
 
     def _open_update_download(self) -> None:
+        package_url = self.update_package_url.strip()
+        if package_url:
+            self._install_update_package(package_url)
+            return
+
         if not self.update_download_url.strip():
             messagebox.showinfo(
                 "Няма адрес за изтегляне",
-                "За тази актуализация не е зададен адрес за изтегляне.",
+                "За тази актуализация не е зададен автоматичен update пакет.",
                 parent=self.root,
             )
             return
         webbrowser.open(self.update_download_url.strip())
+
+    def _restart_command(self) -> list[str]:
+        if getattr(sys, "frozen", False):
+            return [sys.executable]
+        return [sys.executable, str(Path(__file__).resolve())]
+
+    def _install_update_package(self, package_url: str) -> None:
+        if self.update_installing:
+            return
+        if not messagebox.askyesno(
+            "Инсталиране на актуализация",
+            "Приложението ще изтегли актуализацията, ще подмени файловете, след това ще се затвори и ще се отвори отново. Да продължим ли?",
+            parent=self.root,
+        ):
+            return
+
+        self.update_installing = True
+        progress_window = tk.Toplevel(self.root)
+        progress_window.title("WGA актуализация")
+        progress_window.transient(self.root)
+        progress_window.resizable(False, False)
+        apply_app_icon(progress_window)
+
+        panel = tk.Frame(progress_window, bg="#101820", padx=22, pady=18)
+        panel.pack(fill="both", expand=True)
+        tk.Label(
+            panel,
+            text="Инсталиране на актуализация",
+            font=("Segoe UI Semibold", 13),
+            bg="#101820",
+            fg="#f1fff5",
+        ).pack(anchor="w")
+        status_var = tk.StringVar(value="Подготовка...")
+        tk.Label(
+            panel,
+            textvariable=status_var,
+            font=("Segoe UI", 10),
+            bg="#101820",
+            fg="#b9d8c3",
+            wraplength=420,
+            justify="left",
+        ).pack(anchor="w", pady=(8, 12))
+        progress_var = tk.IntVar(value=0)
+        progress_bar = ttk.Progressbar(panel, maximum=100, variable=progress_var, length=420)
+        progress_bar.pack(fill="x")
+
+        progress_window.update_idletasks()
+        width = progress_window.winfo_width()
+        height = progress_window.winfo_height()
+        x = self.root.winfo_rootx() + max(0, (self.root.winfo_width() - width) // 2)
+        y = self.root.winfo_rooty() + max(0, (self.root.winfo_height() - height) // 2)
+        progress_window.geometry(f"+{x}+{y}")
+
+        def update_progress(value: int) -> None:
+            self.root.after(0, lambda: progress_var.set(value))
+
+        def worker() -> None:
+            try:
+                self.root.after(0, lambda: status_var.set("Сваляне на update пакета..."))
+                helper_path = prepare_update_install(
+                    package_url=package_url,
+                    target_root=PROJECT_ROOT,
+                    restart_command=self._restart_command(),
+                    progress_callback=update_progress,
+                )
+
+                def finish() -> None:
+                    status_var.set("Готово. Приложението ще се рестартира...")
+                    progress_var.set(100)
+                    launch_helper_and_exit(helper_path)
+                    self.root.after(500, self.root.destroy)
+
+                self.root.after(0, finish)
+            except Exception as exc:
+                def fail() -> None:
+                    self.update_installing = False
+                    progress_window.destroy()
+                    messagebox.showerror(
+                        "Грешка при актуализация",
+                        f"Актуализацията не успя:\n{exc}",
+                        parent=self.root,
+                    )
+
+                self.root.after(0, fail)
+
+        threading.Thread(target=worker, daemon=True).start()
 
     def _make_nav_button(
         self,

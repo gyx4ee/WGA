@@ -12,6 +12,7 @@ class UpdateResult:
     status: str
     latest_version: str = ""
     download_url: str = ""
+    package_url: str = ""
     notes: str = ""
     error: str = ""
 
@@ -67,6 +68,7 @@ def check_for_updates(current_version: str, version_info_url: str) -> UpdateResu
 
     latest_version = str(remote_info.get("version", "")).strip()
     download_url = str(remote_info.get("download_url", "")).strip()
+    package_url = str(remote_info.get("package_url", "")).strip()
     notes = str(remote_info.get("notes", "")).strip()
 
     if not latest_version:
@@ -77,6 +79,7 @@ def check_for_updates(current_version: str, version_info_url: str) -> UpdateResu
             status="update_available",
             latest_version=latest_version,
             download_url=download_url,
+            package_url=package_url,
             notes=notes,
         )
 
@@ -84,5 +87,6 @@ def check_for_updates(current_version: str, version_info_url: str) -> UpdateResu
         status="up_to_date",
         latest_version=latest_version,
         download_url=download_url,
+        package_url=package_url,
         notes=notes,
     )

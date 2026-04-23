@@ -22,7 +22,12 @@ Remove-Item -Recurse -Force "$projectRoot\installer-output" -ErrorAction Silentl
 Write-Host "Building WinSys Guardian Advanced executable..." -ForegroundColor Cyan
 cmd /c "$pyInstallerCmd --noconfirm --clean --onedir --windowed --name WGA --icon `"assets\wga-icon.ico`" --add-data `"assets\wga-icon.ico;assets`" --add-data `"installers_manifest.json;.`" --add-data `"version.json;.`" app.py"
 
+Write-Host "Creating portable update package..." -ForegroundColor Cyan
+$portableZip = "$projectRoot\installer-output\WGA-portable.zip"
+New-Item -ItemType Directory -Force "$projectRoot\installer-output" | Out-Null
+Compress-Archive -Path "$projectRoot\dist\WGA\*" -DestinationPath $portableZip -Force
+
 Write-Host "Compiling Inno Setup installer..." -ForegroundColor Cyan
 & $iscc "$projectRoot\WGAInstaller.iss"
 
-Write-Host "Done. Check installer-output for the final setup." -ForegroundColor Green
+Write-Host "Done. Check installer-output for the setup and WGA-portable.zip update package." -ForegroundColor Green
