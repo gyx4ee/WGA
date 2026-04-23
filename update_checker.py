@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import json
+import time
 from dataclasses import dataclass
 from urllib.error import HTTPError, URLError
-from urllib.parse import quote, urlsplit, urlunsplit
+from urllib.parse import parse_qsl, quote, urlencode, urlsplit, urlunsplit
 from urllib.request import urlopen
 
 
@@ -30,6 +31,7 @@ def _normalize_version(version: str) -> tuple[int, ...]:
 
 def _fetch_json(url: str, timeout: int = 6) -> dict[str, str]:
     prepared_url = _prepare_url(url)
+    prepared_url = _with_cache_buster(prepared_url)
     with urlopen(prepared_url, timeout=timeout) as response:
         raw = response.read().decode("utf-8")
     data = json.loads(raw)
@@ -49,6 +51,13 @@ def _prepare_url(url: str) -> str:
     encoded_query = quote(parts.query, safe="=&-._~")
     encoded_fragment = quote(parts.fragment, safe="-._~")
     return urlunsplit((parts.scheme, parts.netloc, encoded_path, encoded_query, encoded_fragment))
+
+
+def _with_cache_buster(url: str) -> str:
+    parts = urlsplit(url)
+    query = dict(parse_qsl(parts.query, keep_blank_values=True))
+    query["_wga_ts"] = str(int(time.time()))
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment))
 
 
 def check_for_updates(current_version: str, version_info_url: str) -> UpdateResult:

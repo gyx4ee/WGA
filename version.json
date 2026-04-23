@@ -1,10 +1,11 @@
 {
-  "version": "0.1.8",
+  "version": "0.1.9",
   "version_info_url": "https://raw.githubusercontent.com/gyx4ee/WGA/refs/heads/main/version.json",
   "download_url": "https://github.com/gyx4ee/WGA/releases/latest",
   "package_url": "https://raw.githubusercontent.com/gyx4ee/WGA/refs/heads/main/WGA-portable.zip",
-  "notes": "Switched update metadata and package downloads to refs/heads/main to avoid stale GitHub raw cache.",
+  "notes": "Added cache-busting update metadata checks to prevent stale GitHub raw responses.",
   "changelog": [
+    "v0.1.9 - Added cache-busting update metadata checks to prevent stale GitHub raw responses.",
     "v0.1.8 - Switched update metadata and package downloads to refs/heads/main to avoid stale GitHub raw cache.",
     "v0.1.7 - Fixed automatic updater download path and added WGA-update.log diagnostics.",
     "v0.1.6 - Added automatic installer menu with checkboxes and one-click sequential installation.",
