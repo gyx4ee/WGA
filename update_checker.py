@@ -13,6 +13,7 @@ class UpdateResult:
     latest_version: str = ""
     download_url: str = ""
     package_url: str = ""
+    changelog: tuple[str, ...] = ()
     notes: str = ""
     error: str = ""
 
@@ -70,6 +71,8 @@ def check_for_updates(current_version: str, version_info_url: str) -> UpdateResu
     download_url = str(remote_info.get("download_url", "")).strip()
     package_url = str(remote_info.get("package_url", "")).strip()
     notes = str(remote_info.get("notes", "")).strip()
+    raw_changelog = remote_info.get("changelog", [])
+    changelog = tuple(str(item).strip() for item in raw_changelog if str(item).strip()) if isinstance(raw_changelog, list) else ()
 
     if not latest_version:
         return UpdateResult(status="error", error="Remote version metadata is missing a version field.")
@@ -80,6 +83,7 @@ def check_for_updates(current_version: str, version_info_url: str) -> UpdateResu
             latest_version=latest_version,
             download_url=download_url,
             package_url=package_url,
+            changelog=changelog,
             notes=notes,
         )
 
@@ -88,5 +92,6 @@ def check_for_updates(current_version: str, version_info_url: str) -> UpdateResu
         latest_version=latest_version,
         download_url=download_url,
         package_url=package_url,
+        changelog=changelog,
         notes=notes,
     )

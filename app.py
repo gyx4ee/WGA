@@ -696,12 +696,14 @@ def save_settings(settings: dict[str, str]) -> None:
     SETTINGS_FILE.write_text(json.dumps(settings, indent=2), encoding="utf-8")
 
 
-def load_version_info() -> dict[str, str]:
+def load_version_info() -> dict[str, object]:
     defaults = {
         "version": "0.1.1",
         "version_info_url": "",
         "download_url": "",
+        "package_url": "",
         "notes": "",
+        "changelog": [],
     }
     if not VERSION_FILE.exists():
         return defaults
@@ -712,7 +714,13 @@ def load_version_info() -> dict[str, str]:
     if not isinstance(data, dict):
         return defaults
     merged = defaults.copy()
-    merged.update({key: str(value) for key, value in data.items() if value is not None})
+    for key, value in data.items():
+        if value is None:
+            continue
+        if key == "changelog" and isinstance(value, list):
+            merged[key] = [str(item) for item in value if str(item).strip()]
+        else:
+            merged[key] = str(value)
     return merged
 
 
@@ -1118,6 +1126,7 @@ class MainMenuUI:
         self.update_download_url = ""
         self.update_package_url = ""
         self.update_installing = False
+        self.update_popup_shown = False
         self.office_inventory_cache: dict[str, object] = {}
         self.office_online_cache: dict[str, object] = {}
         self.office_maintenance_cache: dict[str, object] = {}
@@ -1367,6 +1376,22 @@ class MainMenuUI:
             cursor="hand2",
         )
         self.update_action_button.pack(side="right", padx=12, pady=8)
+
+        self.update_history_button = tk.Button(
+            self.update_banner,
+            text="История",
+            command=self._show_update_history,
+            font=("Segoe UI Semibold", 9),
+            bg="#1d4254",
+            fg="#f3fbff",
+            activebackground="#2b607a",
+            activeforeground="#ffffff",
+            bd=0,
+            padx=12,
+            pady=7,
+            cursor="hand2",
+        )
+        self.update_history_button.pack(side="right", padx=(0, 0), pady=8)
 
         self.resource_frame = tk.Frame(
             self.right_panel,
@@ -1795,8 +1820,8 @@ class MainMenuUI:
 
     def _perform_update_check(self) -> None:
         result = check_for_updates(
-            self.version_info["version"],
-            self.version_info.get("version_info_url", ""),
+            str(self.version_info["version"]),
+            str(self.version_info.get("version_info_url", "")),
         )
         self.root.after(0, lambda: self._apply_update_result(result))
 
@@ -1878,6 +1903,101 @@ class MainMenuUI:
             activebackground=style["button_bg"],
             state=style["button_state"],
         )
+
+        self.update_history_button.config(bg=style["button_bg"], activebackground=style["button_bg"])
+
+        if result.status == "update_available" and not self.update_popup_shown:
+            self.update_popup_shown = True
+            self.root.after(250, lambda: self._show_update_available_dialog(result))
+
+    def _update_history_lines(self) -> list[str]:
+        if self.update_result and self.update_result.changelog:
+            return list(self.update_result.changelog)
+        raw_changelog = self.version_info.get("changelog", [])
+        if isinstance(raw_changelog, list):
+            return [str(item) for item in raw_changelog if str(item).strip()]
+        return []
+
+    def _show_update_available_dialog(self, result: UpdateResult) -> None:
+        details = "\n".join(f"- {item}" for item in (result.changelog or ())[:6])
+        message = (
+            f"Налична е нова версия: v{result.latest_version}\n\n"
+            f"{result.notes or 'Има по-нова версия в GitHub.'}"
+        )
+        if details:
+            message += f"\n\nИстория на промените:\n{details}"
+        if messagebox.askyesno("Налична актуализация", f"{message}\n\nДа я инсталираме ли сега?", parent=self.root):
+            self._open_update_download()
+
+    def _show_update_history(self) -> None:
+        history_window = tk.Toplevel(self.root)
+        history_window.title("История на актуализациите")
+        history_window.geometry("620x430")
+        history_window.transient(self.root)
+        apply_app_icon(history_window)
+
+        wrapper = tk.Frame(history_window, bg="#0d1711", padx=18, pady=16)
+        wrapper.pack(fill="both", expand=True)
+
+        tk.Label(
+            wrapper,
+            text="История на актуализациите",
+            font=("Segoe UI Semibold", 15),
+            bg="#0d1711",
+            fg="#effff2",
+        ).pack(anchor="w")
+
+        latest = self.update_result.latest_version if self.update_result else str(self.version_info.get("version", ""))
+        status = "Няма намерена нова версия."
+        if self.update_result and self.update_result.status == "update_available":
+            status = f"Налична е нова версия: v{latest}"
+        elif self.update_result and self.update_result.status == "up_to_date":
+            status = f"Приложението е актуално: v{self.version_info.get('version', '')}"
+
+        tk.Label(
+            wrapper,
+            text=status,
+            font=("Segoe UI", 10),
+            bg="#0d1711",
+            fg="#aee8b8",
+        ).pack(anchor="w", pady=(4, 12))
+
+        text_box = tk.Text(
+            wrapper,
+            bg="#07100a",
+            fg="#e7ffe9",
+            insertbackground="#e7ffe9",
+            relief="flat",
+            wrap="word",
+            font=("Segoe UI", 10),
+            padx=12,
+            pady=12,
+        )
+        text_box.pack(fill="both", expand=True)
+
+        lines = self._update_history_lines()
+        if lines:
+            text_box.insert("end", "\n\n".join(lines))
+        else:
+            text_box.insert("end", "Все още няма добавена история на актуализациите.")
+        text_box.config(state="disabled")
+
+        bottom = tk.Frame(wrapper, bg="#0d1711")
+        bottom.pack(fill="x", pady=(12, 0))
+        tk.Button(
+            bottom,
+            text="Затвори",
+            command=history_window.destroy,
+            font=("Segoe UI Semibold", 10),
+            bg="#245634",
+            fg="#f3fff5",
+            activebackground="#2f7044",
+            activeforeground="#ffffff",
+            bd=0,
+            padx=18,
+            pady=8,
+            cursor="hand2",
+        ).pack(side="right")
 
     def _open_update_download(self) -> None:
         package_url = self.update_package_url.strip()

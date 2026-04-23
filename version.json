@@ -1,7 +1,13 @@
 {
-  "version": "0.1.4",
+  "version": "0.1.5",
   "version_info_url": "https://raw.githubusercontent.com/gyx4ee/WGA/main/version.json",
   "download_url": "https://github.com/gyx4ee/WGA/releases/latest",
   "package_url": "https://github.com/gyx4ee/WGA/releases/latest/download/WGA-portable.zip",
-  "notes": "Automatic update installer with download, file replacement, and app restart."
+  "notes": "Update history window and popup notification when a new version is available.",
+  "changelog": [
+    "v0.1.5 - Added update history button and popup notification for available updates.",
+    "v0.1.4 - Added automatic update installer with download, file replacement, and restart.",
+    "v0.1.3 - Added Bulgarian update messages and clearer GitHub raw diagnostics.",
+    "v0.1.2 - Added language status panel, Adobe Reader version check, resource manager, icon, and UI fixes."
+  ]
 }
