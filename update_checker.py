@@ -58,8 +58,8 @@ def check_for_updates(current_version: str, version_info_url: str) -> UpdateResu
     except HTTPError as exc:
         if exc.code == 404:
             return UpdateResult(
-                status="not_configured",
-                error="GitHub raw version.json is not published yet.",
+                status="raw_unavailable",
+                error="GitHub raw version.json is not publicly available yet.",
             )
         return UpdateResult(status="error", error=str(exc))
     except (URLError, json.JSONDecodeError, TimeoutError, ValueError) as exc:

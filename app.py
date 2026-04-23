@@ -1798,7 +1798,7 @@ class MainMenuUI:
                 "button_bg": "#2b607a",
                 "button_text": "",
                 "button_state": "disabled",
-                "message": f"Checking for updates for v{self.version_info['version']}...",
+                "message": f"Проверка за актуализации за v{self.version_info['version']}...",
             },
             "up_to_date": {
                 "icon": "\u2713",
@@ -1808,7 +1808,7 @@ class MainMenuUI:
                 "button_bg": "#245634",
                 "button_text": "",
                 "button_state": "disabled",
-                "message": f"Application is up to date. Current version: v{self.version_info['version']}.",
+                "message": f"Приложението е актуално. Текуща версия: v{self.version_info['version']}.",
             },
             "update_available": {
                 "icon": "\u2191",
@@ -1816,9 +1816,9 @@ class MainMenuUI:
                 "border": "#8a6a2a",
                 "fg": "#ffeec5",
                 "button_bg": "#8a6a2a",
-                "button_text": "Download",
+                "button_text": "Изтегли",
                 "button_state": "normal",
-                "message": f"Update available: v{result.latest_version}. {result.notes or 'A newer build is ready on GitHub.'}",
+                "message": f"Налична е нова версия: v{result.latest_version}. {result.notes or 'Има по-нова версия в GitHub.'}",
             },
             "not_configured": {
                 "icon": "!",
@@ -1828,7 +1828,17 @@ class MainMenuUI:
                 "button_bg": "#7d6a2d",
                 "button_text": "",
                 "button_state": "disabled",
-                "message": "Online update check is configured, but the GitHub raw version.json is not available yet. Upload the latest version.json to your repo.",
+                "message": "Онлайн проверката не е конфигурирана. Добави GitHub raw адрес към version.json.",
+            },
+            "raw_unavailable": {
+                "icon": "!",
+                "bg": "#352b13",
+                "border": "#7d6a2d",
+                "fg": "#f9e6a8",
+                "button_bg": "#7d6a2d",
+                "button_text": "",
+                "button_state": "disabled",
+                "message": "Онлайн проверката е конфигурирана, но GitHub raw version.json не е публично достъпен. Провери дали repo-то е Public и дали файлът version.json е качен в main.",
             },
             "error": {
                 "icon": "\u2717",
@@ -1838,7 +1848,7 @@ class MainMenuUI:
                 "button_bg": "#7b2d2d",
                 "button_text": "",
                 "button_state": "disabled",
-                "message": f"Update check failed: {result.error or 'Unknown error'}",
+                "message": f"Проверката за актуализация не успя: {result.error or 'неизвестна грешка'}",
             },
         }
         style = status_map.get(result.status, status_map["error"])
