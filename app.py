@@ -72,10 +72,20 @@ MAIN_MIN_WIDTH = 1120
 MAIN_MIN_HEIGHT = 760
 MAIN_CARD_COLUMNS = 3
 PROJECT_ROOT = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
+RESOURCE_ROOT = Path(getattr(sys, "_MEIPASS", PROJECT_ROOT)).resolve()
 SETTINGS_FILE = PROJECT_ROOT / "settings.json"
 SECURE_STORE_FILE = PROJECT_ROOT / ".wga_secure_store.json"
-VERSION_FILE = PROJECT_ROOT / "version.json"
-APP_ICON_FILE = PROJECT_ROOT / "assets" / "wga-icon.ico"
+
+
+def runtime_file(relative_path: str) -> Path:
+    portable_path = PROJECT_ROOT / relative_path
+    if portable_path.exists():
+        return portable_path
+    return RESOURCE_ROOT / relative_path
+
+
+VERSION_FILE = runtime_file("version.json")
+APP_ICON_FILE = runtime_file("assets/wga-icon.ico")
 DEFAULT_WINDOWS11_MENU_PASSWORD = "Zinzibar2"
 CARD_COLUMNS = 2
 CARDS_PER_PAGE = 6

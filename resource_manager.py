@@ -49,7 +49,13 @@ class ResourceStatus:
 
 
 def manifest_path(program_root: Path) -> Path:
-    return program_root / MANIFEST_FILE_NAME
+    portable_manifest = program_root / MANIFEST_FILE_NAME
+    if portable_manifest.exists():
+        return portable_manifest
+    bundled_manifest = program_root / "_internal" / MANIFEST_FILE_NAME
+    if bundled_manifest.exists():
+        return bundled_manifest
+    return portable_manifest
 
 
 def load_resource_manifest(program_root: Path) -> list[ResourceItem]:

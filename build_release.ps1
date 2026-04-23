@@ -10,10 +10,6 @@ $isccCandidates = @(
 )
 $iscc = $isccCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
 
-if (-not $iscc) {
-    throw "ISCC.exe was not found. Inno Setup 6 is required."
-}
-
 Write-Host "Cleaning previous build folders..." -ForegroundColor Cyan
 Remove-Item -Recurse -Force "$projectRoot\build" -ErrorAction SilentlyContinue
 Remove-Item -Recurse -Force "$projectRoot\dist" -ErrorAction SilentlyContinue
@@ -27,7 +23,12 @@ $portableZip = "$projectRoot\installer-output\WGA-portable.zip"
 New-Item -ItemType Directory -Force "$projectRoot\installer-output" | Out-Null
 Compress-Archive -Path "$projectRoot\dist\WGA\*" -DestinationPath $portableZip -Force
 
-Write-Host "Compiling Inno Setup installer..." -ForegroundColor Cyan
-& $iscc "$projectRoot\WGAInstaller.iss"
+if ($iscc) {
+    Write-Host "Compiling Inno Setup installer..." -ForegroundColor Cyan
+    & $iscc "$projectRoot\WGAInstaller.iss"
+}
+else {
+    Write-Host "Inno Setup was not found. Skipping Setup Wizard build." -ForegroundColor Yellow
+}
 
-Write-Host "Done. Check installer-output for the setup and WGA-portable.zip update package." -ForegroundColor Green
+Write-Host "Done. Check dist\WGA for the portable EXE and installer-output for WGA-portable.zip." -ForegroundColor Green
