@@ -1248,6 +1248,9 @@ class MainMenuUI:
         self.auto_remove_vars: dict[str, tk.BooleanVar] = {}
         self.auto_install_running = False
         self.program_selector_window: tk.Toplevel | None = None
+        self.program_selector_tasks_cache: list[dict[str, str]] = []
+        self.program_selector_status_cache: dict[str, tuple[bool, str]] = {}
+        self.program_selector_scan_running = False
         self.office_inventory_cache: dict[str, object] = {}
         self.office_online_cache: dict[str, object] = {}
         self.office_maintenance_cache: dict[str, object] = {}
@@ -2705,7 +2708,54 @@ class MainMenuUI:
                     "type": "language",
                 }
             )
+        known_relative_files = {
+            item.required_files[0]
+            for item in load_resource_manifest(PROJECT_ROOT)
+            if item.required_files
+        }
+        tasks.extend(self._discover_standalone_installers(known_relative_files))
         return tasks
+
+    def _discover_standalone_installers(self, known_relative_files: set[str]) -> list[dict[str, str]]:
+        # Намира локални installer файлове в Installers, които още не са описани ръчно.
+        installers_root = self.resource_status.installers_root
+        if not installers_root.exists():
+            return []
+
+        office_folders = {
+            installer.folder.casefold()
+            for installer in OFFICE_OFFLINE_INSTALLERS.values()
+        }
+        discovered: list[dict[str, str]] = []
+        runnable_extensions = {".exe", ".msi", ".bat", ".cmd"}
+        seen_paths: set[str] = set()
+
+        for child in installers_root.iterdir():
+            child_name = child.name.casefold()
+            if child_name in office_folders:
+                continue
+            candidates: list[Path] = []
+            if child.is_file() and child.suffix.lower() in runnable_extensions:
+                candidates.append(child)
+            elif child.is_dir():
+                candidates.extend(path for path in child.rglob("*") if path.is_file() and path.suffix.lower() in runnable_extensions)
+
+            for path in candidates:
+                relative_path = path.relative_to(installers_root).as_posix()
+                if relative_path in known_relative_files or relative_path in seen_paths:
+                    continue
+                seen_paths.add(relative_path)
+                discovered.append(
+                    {
+                        "id": f"standalone_{relative_path.replace('/', '_').replace(' ', '_').replace('.', '_')}",
+                        "label": path.stem,
+                        "category": "Локални инструменти",
+                        "description": f"Стартира локалния файл: {relative_path}",
+                        "type": "standalone_local",
+                        "local_path": str(path),
+                    }
+                )
+        return discovered
 
     def _render_auto_installer(self) -> None:
         self.cards_frame.columnconfigure(0, weight=1)
@@ -2756,7 +2806,7 @@ class MainMenuUI:
 
         current_category = ""
         for task in tasks:
-            installed_now, installed_text = self._task_install_state(task)
+            installed_now, installed_text = status_map.get(task["id"], (False, ""))
             if task["category"] != current_category:
                 current_category = task["category"]
                 tk.Label(
@@ -3918,6 +3968,9 @@ class MainMenuUI:
         if task_type == "resource_info":
             local_file = self._find_resource_local_file(task["resource_id"])
             return bool(local_file), str(local_file) if local_file else "Файлът още липсва"
+        if task_type == "standalone_local":
+            local_file = Path(task["local_path"])
+            return local_file.exists(), str(local_file) if local_file.exists() else "Файлът липсва"
         return False, ""
 
     def _set_auto_install_selection(self, value: bool) -> None:
@@ -3942,6 +3995,11 @@ class MainMenuUI:
             local_file = self._find_resource_local_file(task["resource_id"])
             if not local_file:
                 raise RuntimeError("Локалният файл за този ресурс още липсва.")
+            return self._run_generic_resource_task(task["label"], local_file)
+        if task_type == "standalone_local":
+            local_file = Path(task["local_path"])
+            if not local_file.exists():
+                raise RuntimeError("Локалният installer файл липсва.")
             return self._run_generic_resource_task(task["label"], local_file)
         if task_type == "language":
             return self._run_auto_language_action(action_id)
@@ -4172,6 +4230,103 @@ class MainMenuUI:
         widget.bind("<Button-4>", lambda event: self._on_program_selector_mousewheel(canvas, event))
         widget.bind("<Button-5>", lambda event: self._on_program_selector_mousewheel(canvas, event))
 
+    def _render_program_selector_loading(
+        self,
+        parent: tk.Widget,
+        *,
+        percent_var: tk.IntVar,
+        status_var: tk.StringVar,
+        detail_var: tk.StringVar,
+    ) -> None:
+        # Показва loading екран, докато се проверява наличният софтуер.
+        for child in parent.winfo_children():
+            child.destroy()
+
+        wrapper = tk.Frame(parent, bg="#0b1d0f")
+        wrapper.pack(fill="both", expand=True, padx=18, pady=18)
+
+        tk.Label(
+            wrapper,
+            text="Проверка на наличния софтуер",
+            font=("Segoe UI Semibold", 16),
+            bg="#0b1d0f",
+            fg="#edffef",
+        ).pack(anchor="center", pady=(34, 10))
+        tk.Label(
+            wrapper,
+            textvariable=status_var,
+            font=("Segoe UI", 11),
+            bg="#0b1d0f",
+            fg="#bff3c8",
+            justify="center",
+            wraplength=780,
+        ).pack(anchor="center", pady=(4, 6))
+        ttk.Progressbar(wrapper, maximum=100, variable=percent_var, length=520).pack(pady=(8, 10))
+        tk.Label(
+            wrapper,
+            textvariable=detail_var,
+            font=("Consolas", 10),
+            bg="#0b1d0f",
+            fg="#ffe08a",
+            justify="center",
+            wraplength=780,
+        ).pack(anchor="center", pady=(4, 0))
+
+    def _load_program_selector_async(
+        self,
+        parent: tk.Widget,
+        *,
+        wraplength: int,
+        start_button_text: str,
+        show_close_button: bool,
+    ) -> None:
+        # Зарежда проверките във фонов режим и после рисува менюто наведнъж.
+        percent_var = tk.IntVar(value=0)
+        status_var = tk.StringVar(value="Подготовка на списъка с програми...")
+        detail_var = tk.StringVar(value="0%")
+        self._render_program_selector_loading(
+            parent,
+            percent_var=percent_var,
+            status_var=status_var,
+            detail_var=detail_var,
+        )
+
+        def worker() -> None:
+            self.program_selector_scan_running = True
+            tasks = self._auto_install_tasks()
+            total = max(1, len(tasks))
+            status_map: dict[str, tuple[bool, str]] = {}
+            for index, task in enumerate(tasks, start=1):
+                status_map[task["id"]] = self._task_install_state(task)
+                percent = int(index * 100 / total)
+                self.root.after(
+                    0,
+                    lambda percent=percent, task=task, index=index, total=total: (
+                        percent_var.set(percent),
+                        status_var.set(f"Проверка {index}/{total}: {task['label']}"),
+                        detail_var.set(f"{percent}%"),
+                    ),
+                )
+
+            def finish() -> None:
+                self.program_selector_scan_running = False
+                self.program_selector_tasks_cache = tasks
+                self.program_selector_status_cache = status_map
+                if not parent.winfo_exists():
+                    return
+                self._build_program_selector_content(
+                    parent,
+                    wraplength=wraplength,
+                    start_button_text=start_button_text,
+                    show_close_button=show_close_button,
+                    tasks=tasks,
+                    status_map=status_map,
+                )
+
+            self.root.after(0, finish)
+
+        threading.Thread(target=worker, daemon=True).start()
+
     def _build_program_selector_content(
         self,
         parent: tk.Widget,
@@ -4179,9 +4334,14 @@ class MainMenuUI:
         wraplength: int,
         start_button_text: str,
         show_close_button: bool = False,
+        tasks: list[dict[str, str]] | None = None,
+        status_map: dict[str, tuple[bool, str]] | None = None,
     ) -> None:
         # Рисува общия списък с категории, тикчета и бутони за избор.
-        tasks = self._auto_install_tasks()
+        for child in parent.winfo_children():
+            child.destroy()
+        tasks = tasks or self._auto_install_tasks()
+        status_map = status_map or {}
         self._ensure_auto_install_vars(tasks)
 
         canvas = tk.Canvas(parent, bg="#0b1d0f", highlightthickness=0, height=360)
@@ -4197,7 +4357,7 @@ class MainMenuUI:
 
         current_category = ""
         for task in tasks:
-            installed_now, installed_text = self._task_install_state(task)
+            installed_now, installed_text = status_map.get(task["id"], (False, ""))
             if task["category"] != current_category:
                 current_category = task["category"]
                 category_label = tk.Label(
@@ -4393,8 +4553,10 @@ class MainMenuUI:
             justify="left",
         ).pack(anchor="w", pady=(4, 0))
 
-        self._build_program_selector_content(
-            outer,
+        content_holder = tk.Frame(outer, bg="#102515")
+        content_holder.pack(fill="both", expand=True)
+        self._load_program_selector_async(
+            content_holder,
             wraplength=860,
             start_button_text="Инсталирай избраните",
             show_close_button=True,
@@ -4433,8 +4595,10 @@ class MainMenuUI:
             justify="left",
         ).pack(anchor="w", pady=(4, 0))
 
-        self._build_program_selector_content(
-            outer,
+        content_holder = tk.Frame(outer, bg="#102515")
+        content_holder.pack(fill="both", expand=True)
+        self._load_program_selector_async(
+            content_holder,
             wraplength=760,
             start_button_text="Инсталирай избраните",
             show_close_button=False,
