@@ -1,10 +1,11 @@
 {
-  "version": "0.2.6",
+  "version": "0.2.7",
   "version_info_url": "https://raw.githubusercontent.com/gyx4ee/WGA/refs/heads/main/version.json",
   "download_url": "https://github.com/gyx4ee/WGA/releases/latest",
   "package_url": "https://raw.githubusercontent.com/gyx4ee/WGA/refs/heads/main/WGA-portable.zip",
-  "notes": "Added install flow checks for existing software, optional removal, and clearer progress steps.",
+  "notes": "Expanded the program selector, improved installed software detection, and fixed Adobe Reader replacement flow.",
   "changelog": [
+    "v0.2.7 - Expanded the program selector, improved installed software detection, and fixed Adobe Reader replacement flow.",
     "v0.2.6 - Added install flow checks for existing software, optional removal, and clearer progress steps.",
     "v0.2.5 - Added a new separate program selector window with checkboxes for bulk installation.",
     "v0.2.4 - Fixed portable Installers folder creation next to WGA.exe on flash drives.",

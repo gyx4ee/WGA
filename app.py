@@ -58,6 +58,7 @@ from resource_manager import (
     ResourceStatus,
     check_resource_status,
     download_resource,
+    load_resource_manifest,
     missing_resource_report,
 )
 from self_updater import launch_helper_and_exit, prepare_update_install
@@ -118,6 +119,41 @@ OFFICE_ACTION_IDS = [
     "office_2019_activation",
     "office_2021_activation",
 ]
+
+PROGRAM_SELECTOR_LOCAL_TASKS: tuple[dict[str, str], ...] = (
+    {
+        "id": "install_ninite",
+        "label": "Ninite",
+        "category": "Основен софтуер",
+        "description": "Стартира локалния Ninite installer от папката Installers.",
+        "type": "local_installer",
+        "resource_id": "ninite_installer",
+        "detect_mode": "none",
+        "silent_args": "",
+    },
+    {
+        "id": "install_visual_studio_setup",
+        "label": "Visual Studio Setup",
+        "category": "Development",
+        "description": "Стартира локалния installer за Visual Studio от Installers папката.",
+        "type": "local_installer",
+        "resource_id": "visual_studio_setup",
+        "detect_mode": "winget",
+        "detect_value": "Microsoft.VisualStudio.2022.Community",
+        "silent_args": "",
+    },
+    {
+        "id": "install_vscode_arm64",
+        "label": "VS Code ARM64",
+        "category": "Development",
+        "description": "Инсталира локалния VS Code installer, ако е наличен.",
+        "type": "local_installer",
+        "resource_id": "vscode_user_setup_arm64",
+        "detect_mode": "winget",
+        "detect_value": "Microsoft.VisualStudioCode",
+        "silent_args": "/VERYSILENT /NORESTART",
+    },
+)
 
 
 MENU_TREE = {
@@ -292,7 +328,7 @@ MENU_TREE = {
                 "target": "office_install_center",
                 "description": "Всички Office offline и online инсталации са събрани тук в едно меню.",
             },
-            {"label": "Install Ninite", "kind": "action"},
+            {"label": "Install Ninite", "kind": "action", "action_id": "install_ninite"},
             {
                 "label": "Install Adobe Reader",
                 "kind": "action",
@@ -1209,6 +1245,7 @@ class MainMenuUI:
         self.update_installing = False
         self.update_popup_shown = False
         self.auto_install_vars: dict[str, tk.BooleanVar] = {}
+        self.auto_remove_vars: dict[str, tk.BooleanVar] = {}
         self.auto_install_running = False
         self.program_selector_window: tk.Toplevel | None = None
         self.office_inventory_cache: dict[str, object] = {}
@@ -2615,6 +2652,15 @@ class MainMenuUI:
 
     def _auto_install_tasks(self) -> list[dict[str, str]]:
         tasks: list[dict[str, str]] = []
+        tasks.append(
+            {
+                "id": "install_ninite",
+                "label": "Ninite",
+                "category": "Основен софтуер",
+                "description": "Стартира локалния Ninite installer от Installers папката, ако е наличен.",
+                "type": "ninite",
+            }
+        )
         for installer in OFFICE_OFFLINE_INSTALLERS.values():
             tasks.append(
                 {
@@ -2710,6 +2756,7 @@ class MainMenuUI:
 
         current_category = ""
         for task in tasks:
+            installed_now, installed_text = self._task_install_state(task)
             if task["category"] != current_category:
                 current_category = task["category"]
                 tk.Label(
@@ -3309,6 +3356,12 @@ class MainMenuUI:
         if action_id == "install_adobe_reader":
             self._install_adobe_reader()
             return
+        if action_id == "install_ninite":
+            self._install_local_installer("install_ninite")
+            return
+        if action_id in {"install_visual_studio_setup", "install_vscode_arm64"}:
+            self._install_local_installer(action_id)
+            return
         if action_id == "office_check_activation_status":
             self._check_office_activation_status()
             return
@@ -3339,7 +3392,13 @@ class MainMenuUI:
             messagebox.showinfo("Автоматичен инсталатор", "Вече има стартирана автоматична инсталация.", parent=self.root)
             return
 
-        tasks = [task for task in self._auto_install_tasks() if self.auto_install_vars.get(task["id"]) and self.auto_install_vars[task["id"]].get()]
+        tasks = []
+        for task in self._auto_install_tasks():
+            task_id = task["id"]
+            if self.auto_install_vars.get(task_id) and self.auto_install_vars[task_id].get():
+                prepared_task = dict(task)
+                prepared_task["remove_first"] = bool(self.auto_remove_vars.get(task_id) and self.auto_remove_vars[task_id].get())
+                tasks.append(prepared_task)
         if not tasks:
             messagebox.showinfo("Автоматичен инсталатор", "Избери поне една задача за инсталиране.", parent=self.root)
             return
@@ -3565,11 +3624,535 @@ class MainMenuUI:
             self.auto_install_vars = {task["id"]: tk.BooleanVar(value=False) for task in tasks}
         for task in tasks:
             self.auto_install_vars.setdefault(task["id"], tk.BooleanVar(value=False))
+            self.auto_remove_vars.setdefault(task["id"], tk.BooleanVar(value=False))
+
+    def _task_supports_remove(self, task: dict[str, str]) -> bool:
+        # Връща дали за тази задача можем първо да махнем старата версия.
+        return task["type"] in {"office_offline", "office_online", "adobe"}
+
+    def _task_install_state(self, task: dict[str, str]) -> tuple[bool, str]:
+        # Проверява дали този софтуер вече е инсталиран.
+        task_type = task["type"]
+        action_id = task["id"]
+        if task_type == "office_offline":
+            info = self._office_install_info(action_id)
+            return bool(info.installed), info.display_name or "Office package"
+        if task_type == "office_online":
+            package = get_online_package(action_id)
+            installed, output = self._is_winget_package_installed(package.winget_id)
+            return installed, output or package.winget_id
+        if task_type == "adobe":
+            status = self._adobe_reader_status()
+            installed_version = getattr(status, "installed_version", "") or ""
+            return bool(installed_version), installed_version or "Adobe Reader"
+        return False, ""
 
     def _set_auto_install_selection(self, value: bool) -> None:
         # С едно действие маркира или изчиства всички задачи.
         for var in self.auto_install_vars.values():
             var.set(value)
+
+    def _auto_install_tasks(self) -> list[dict[str, str]]:
+        # Събира всички налични инсталации за прозореца с тикчета.
+        tasks: list[dict[str, str]] = [dict(task) for task in PROGRAM_SELECTOR_LOCAL_TASKS]
+        known_resource_ids = {
+            task["resource_id"]
+            for task in PROGRAM_SELECTOR_LOCAL_TASKS
+            if task.get("resource_id")
+        }
+
+        for installer in OFFICE_OFFLINE_INSTALLERS.values():
+            tasks.append(
+                {
+                    "id": installer.action_id,
+                    "label": installer.label,
+                    "category": "Office offline",
+                    "description": f"Инсталация от Installers папката: {installer.folder}",
+                    "type": "office_offline",
+                }
+            )
+
+        tasks.append(
+            {
+                "id": "install_adobe_reader",
+                "label": "Adobe Reader",
+                "category": "Основен софтуер",
+                "description": "Инсталира или обновява Adobe Reader през winget.",
+                "type": "adobe",
+            }
+        )
+
+        for package in OFFICE_ONLINE_PACKAGES.values():
+            tasks.append(
+                {
+                    "id": package.action_id,
+                    "label": package.label,
+                    "category": "Office online",
+                    "description": f"Online инсталация през winget: {package.winget_id}",
+                    "type": "office_online",
+                }
+            )
+
+        for item in load_resource_manifest(PROJECT_ROOT):
+            if item.resource_id in known_resource_ids:
+                continue
+            if item.resource_id == "adobe_reader":
+                continue
+            if item.resource_id.startswith("office_"):
+                continue
+            tasks.append(
+                {
+                    "id": f"resource_{item.resource_id}",
+                    "label": item.name,
+                    "category": item.category or "Допълнителни ресурси",
+                    "description": f"Локален ресурс в Installers папката: {item.required_files[0]}",
+                    "type": "resource_info",
+                    "resource_id": item.resource_id,
+                }
+            )
+
+        for action_id, label in (
+            ("toggle_bulgarian_language_pack", "Български езиков пакет"),
+            ("toggle_bulgarian_bds", "Българска БДС клавиатура"),
+            ("toggle_bulgarian_phonetic", "Българска фонетична клавиатура"),
+            ("toggle_bulgarian_traditional", "Традиционна фонетична клавиатура"),
+        ):
+            tasks.append(
+                {
+                    "id": action_id,
+                    "label": label,
+                    "category": "Език и клавиатури",
+                    "description": "Добавя компонента само ако липсва.",
+                    "type": "language",
+                }
+            )
+        return tasks
+
+    def _local_task_spec(self, task_id: str) -> dict[str, str] | None:
+        # Връща настройките за локален installer, ако задачата е такава.
+        for task in PROGRAM_SELECTOR_LOCAL_TASKS:
+            if task["id"] == task_id:
+                return dict(task)
+        return None
+
+    def _manifest_items_by_id(self) -> dict[str, object]:
+        # Зарежда manifest елементите в удобен речник по ID.
+        return {item.resource_id: item for item in load_resource_manifest(PROJECT_ROOT)}
+
+    def _find_resource_local_file(self, resource_id: str) -> Path | None:
+        # Намира първия наличен локален файл за даден ресурс.
+        item = self._manifest_items_by_id().get(resource_id)
+        if not item:
+            return None
+        installers_root = self.resource_status.installers_root
+        for relative_path in item.required_files:
+            candidate = installers_root / relative_path
+            if candidate.exists():
+                return candidate
+        return None
+
+    def _find_installed_registry_app(self, patterns: tuple[str, ...]) -> tuple[bool, str, str]:
+        # Търси програма в Windows registry и връща име, версия и команда за махане.
+        if not patterns:
+            return False, "", ""
+        regex = "|".join("(" + pattern.replace("'", "''") + ")" for pattern in patterns)
+        script = (
+            "$paths=@("
+            "'HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',"
+            "'HKLM:\\Software\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',"
+            "'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'"
+            ");"
+            "$item=Get-ItemProperty -Path $paths -ErrorAction SilentlyContinue | "
+            f"Where-Object {{ $_.DisplayName -and $_.DisplayName -match '{regex}' }} | "
+            "Select-Object -First 1 DisplayName,DisplayVersion,UninstallString;"
+            "if($item){$item|ConvertTo-Json -Compress}"
+        )
+        result = subprocess.run(
+            ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script],
+            capture_output=True,
+            text=True,
+            check=False,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+        output = self._collect_command_output(result).strip()
+        if not output:
+            return False, "", ""
+        try:
+            data = json.loads(output)
+        except json.JSONDecodeError:
+            return False, "", ""
+        name = str(data.get("DisplayName") or "").strip()
+        version = str(data.get("DisplayVersion") or "").strip()
+        uninstall_string = str(data.get("UninstallString") or "").strip()
+        if not name:
+            return False, "", ""
+        return True, f"{name} {version}".strip(), uninstall_string
+
+    def _adobe_install_state(self) -> tuple[bool, str, str]:
+        # Събира на едно място проверката за Adobe, за да работи и без winget запис.
+        installed, detail, uninstall_string = self._find_installed_registry_app(
+            ("Adobe Acrobat.*Reader", "Adobe Reader", "Acrobat Reader"),
+        )
+        if installed:
+            return True, detail, uninstall_string
+        status = self._adobe_reader_status()
+        installed_version = getattr(status, "installed_version", "") or ""
+        return bool(installed_version), installed_version or "Adobe Reader", ""
+
+    def _run_uninstall_string_command(self, display_name: str, uninstall_string: str) -> str:
+        # Стартира намерената команда за деинсталация от registry.
+        command_text = uninstall_string.strip()
+        if not command_text:
+            raise RuntimeError(f"Няма команда за премахване на {display_name}.")
+        normalized = command_text.lower()
+        if "msiexec" in normalized and "/qn" not in normalized and "/quiet" not in normalized:
+            command_text = f"{command_text} /qn /norestart"
+        result = subprocess.run(
+            ["cmd", "/c", command_text],
+            capture_output=True,
+            text=True,
+            check=False,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+        output = self._collect_command_output(result)
+        self._append_command_output(output)
+        if result.returncode != 0:
+            raise RuntimeError(output or f"Премахването на {display_name} върна код {result.returncode}.")
+        return output or f"{display_name} беше премахнат успешно."
+
+    def _is_winget_package_installed(self, package_id: str) -> tuple[bool, str]:
+        # Проверява дали даден winget пакет вече е инсталиран.
+        winget_exe = find_winget_executable()
+        if not winget_exe:
+            return False, ""
+        result = subprocess.run(
+            [winget_exe, "list", "--id", package_id, "--exact", "--accept-source-agreements"],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=60,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+        output = self._collect_command_output(result)
+        normalized = output.lower()
+        if "no installed package found" in normalized or "no package found matching input criteria" in normalized:
+            return False, output
+        if package_id.lower() in normalized:
+            return True, output
+        useful_lines = [
+            line.strip()
+            for line in output.splitlines()
+            if line.strip() and "---" not in line and not line.strip().lower().startswith("name")
+        ]
+        return bool(useful_lines), output
+
+    def _run_winget_uninstall_command(self, winget_exe: str, package_id: str, label: str) -> str:
+        # Премахва winget пакет преди нова инсталация.
+        result = subprocess.run(
+            [
+                winget_exe,
+                "uninstall",
+                "--id",
+                package_id,
+                "--exact",
+                "--silent",
+                "--disable-interactivity",
+                "--accept-package-agreements",
+                "--accept-source-agreements",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+        output = self._collect_command_output(result)
+        self._append_command_output(output)
+        normalized = output.lower()
+        if result.returncode != 0 and "no installed package found" not in normalized and "no package found matching input criteria" not in normalized:
+            raise RuntimeError(output or f"{label} uninstall returned code {result.returncode}.")
+        return output or f"{label} removal finished."
+
+    def _ensure_auto_install_vars(self, tasks: list[dict[str, str]]) -> None:
+        # Подготвя променливите за тикчетата в списъка с програми.
+        if not self.auto_install_vars:
+            self.auto_install_vars = {task["id"]: tk.BooleanVar(value=False) for task in tasks}
+        for task in tasks:
+            self.auto_install_vars.setdefault(task["id"], tk.BooleanVar(value=False))
+            self.auto_remove_vars.setdefault(task["id"], tk.BooleanVar(value=False))
+
+    def _task_supports_remove(self, task: dict[str, str]) -> bool:
+        # Връща дали за тази задача може първо да махнем старата версия.
+        if task["type"] in {"office_offline", "office_online", "adobe"}:
+            return True
+        spec = self._local_task_spec(task["id"])
+        if not spec:
+            return False
+        return spec.get("detect_mode") in {"winget", "registry"}
+
+    def _task_install_state(self, task: dict[str, str]) -> tuple[bool, str]:
+        # Проверява дали този софтуер вече е инсталиран.
+        task_type = task["type"]
+        action_id = task["id"]
+        if task_type == "office_offline":
+            info = self._office_install_info(action_id)
+            return bool(info.installed), info.display_name or "Office пакет"
+        if task_type == "office_online":
+            package = get_online_package(action_id)
+            installed, output = self._is_winget_package_installed(package.winget_id)
+            return installed, output or package.winget_id
+        if task_type == "adobe":
+            installed, detail, _ = self._adobe_install_state()
+            return installed, detail or "Adobe Reader"
+        if task_type == "local_installer":
+            spec = self._local_task_spec(action_id)
+            if not spec:
+                return False, ""
+            detect_mode = spec.get("detect_mode", "")
+            detect_value = spec.get("detect_value", "")
+            if detect_mode == "winget" and detect_value:
+                installed, output = self._is_winget_package_installed(detect_value)
+                return installed, output or detect_value
+            if detect_mode == "registry" and detect_value:
+                installed, detail, _ = self._find_installed_registry_app((detect_value,))
+                return installed, detail
+        if task_type == "resource_info":
+            local_file = self._find_resource_local_file(task["resource_id"])
+            return bool(local_file), str(local_file) if local_file else "Файлът още липсва"
+        return False, ""
+
+    def _set_auto_install_selection(self, value: bool) -> None:
+        # С едно действие маркира или изчиства всички задачи.
+        for var in self.auto_install_vars.values():
+            var.set(value)
+
+    def _run_auto_install_task(self, task: dict[str, str]) -> str:
+        # Пуска избраната задача от общия списък.
+        task_type = task["type"]
+        action_id = task["id"]
+        remove_first = str(task.get("remove_first", "")).lower() in {"1", "true", "yes"} or bool(task.get("remove_first"))
+        if task_type == "office_offline":
+            return self._run_auto_office_offline(action_id, remove_first)
+        if task_type == "office_online":
+            return self._run_auto_office_online(action_id, remove_first)
+        if task_type == "adobe":
+            return self._run_auto_adobe_reader(remove_first)
+        if task_type == "local_installer":
+            return self._run_auto_local_installer(action_id, remove_first)
+        if task_type == "resource_info":
+            local_file = self._find_resource_local_file(task["resource_id"])
+            if not local_file:
+                raise RuntimeError("Локалният файл за този ресурс още липсва.")
+            return self._run_generic_resource_task(task["label"], local_file)
+        if task_type == "language":
+            return self._run_auto_language_action(action_id)
+        raise ValueError(f"Непознат тип задача: {task_type}")
+
+    def _run_auto_office_offline(self, action_id: str, remove_first: bool = False) -> str:
+        # Стартира offline Office инсталация и маха старата версия само ако е избрано.
+        installer = get_office_offline_installer(action_id)
+        office_info = detect_installed_office(action_id)
+        missing_parts: list[str] = []
+        if not installer.installers_root.exists():
+            missing_parts.append(f"Installers папката липсва: {installer.installers_root}")
+        if not installer.setup_path.exists():
+            missing_parts.append(f"setup.exe липсва: {installer.setup_path}")
+        if not installer.config_path.exists():
+            missing_parts.append(f"Configuration файлът липсва: {installer.config_path}")
+        if missing_parts:
+            raise RuntimeError("\n".join(missing_parts))
+
+        if remove_first and office_info.installed and office_info.uninstall_string:
+            self.root.after(
+                0,
+                lambda: self._update_activation_progress(
+                    35,
+                    f"Премахване на стара версия за {installer.label}...",
+                    office_info.display_name,
+                ),
+            )
+            self._run_office_uninstall_command(action_id, office_info.display_name, office_info.uninstall_string)
+
+        command = [str(installer.setup_path), "/configure", str(installer.config_path)]
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            check=False,
+            cwd=str(installer.setup_path.parent),
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+        output = self._collect_command_output(result)
+        if result.returncode != 0:
+            raise RuntimeError(output or f"Office installer върна код {result.returncode}.")
+        return output or f"{installer.label} завърши успешно."
+
+    def _run_auto_office_online(self, action_id: str, remove_first: bool = False) -> str:
+        # Стартира online Office инсталация и по желание маха старата версия.
+        package = get_online_package(action_id)
+        status = check_online_package(action_id)
+        if not status.available:
+            raise RuntimeError(status.message)
+        winget_exe = find_winget_executable()
+        if not winget_exe:
+            raise RuntimeError("Winget не е открит.")
+
+        installed_now, installed_output = self._is_winget_package_installed(package.winget_id)
+        if remove_first and installed_now:
+            self.root.after(
+                0,
+                lambda: self._update_activation_progress(
+                    35,
+                    f"Премахване на стара версия за {package.label}...",
+                    installed_output or package.winget_id,
+                ),
+            )
+            self._run_winget_uninstall_command(winget_exe, package.winget_id, package.label)
+
+        command = [
+            winget_exe,
+            "install",
+            "--id",
+            package.winget_id,
+            "--source",
+            "winget",
+            "--silent",
+            "--disable-interactivity",
+            "--accept-package-agreements",
+            "--accept-source-agreements",
+        ]
+        self._append_command_output("Стартира winget online инсталация...")
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            check=False,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+        output = self._collect_command_output(result)
+        self._append_command_output(output)
+        if result.returncode != 0:
+            raise RuntimeError(output or f"Winget върна код {result.returncode}.")
+        return output or f"{package.label} е инсталиран успешно."
+
+    def _run_auto_adobe_reader(self, remove_first: bool = False) -> str:
+        # Стартира Adobe Reader с по-ясна проверка и по желание маха старата версия.
+        winget_exe = find_winget_executable()
+        if not winget_exe:
+            raise RuntimeError("Winget не е открит.")
+
+        installed_now, installed_output, uninstall_string = self._adobe_install_state()
+        if remove_first and installed_now:
+            self.root.after(
+                0,
+                lambda: self._update_activation_progress(
+                    35,
+                    "Премахване на стара версия на Adobe Reader...",
+                    installed_output or ADOBE_READER_WINGET_ID,
+                ),
+            )
+            winget_installed, _ = self._is_winget_package_installed(ADOBE_READER_WINGET_ID)
+            if winget_installed:
+                self._run_winget_uninstall_command(winget_exe, ADOBE_READER_WINGET_ID, "Adobe Reader")
+            elif uninstall_string:
+                self._run_uninstall_string_command("Adobe Reader", uninstall_string)
+
+        command = [
+            winget_exe,
+            "install",
+            "--id",
+            ADOBE_READER_WINGET_ID,
+            "--source",
+            "winget",
+            "--silent",
+            "--disable-interactivity",
+            "--accept-package-agreements",
+            "--accept-source-agreements",
+        ]
+        self._append_command_output("Проверка и стартиране на Adobe Reader чрез winget...")
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            check=False,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+        output = self._collect_command_output(result)
+        self._append_command_output(output)
+        if result.returncode != 0:
+            raise RuntimeError(output or f"Adobe Reader инсталацията върна код {result.returncode}.")
+        self.adobe_reader_status_cache = None
+        return output or "Adobe Reader е инсталиран/обновен успешно."
+
+    def _run_auto_local_installer(self, action_id: str, remove_first: bool = False) -> str:
+        # Стартира локален installer от Installers папката.
+        spec = self._local_task_spec(action_id)
+        if not spec:
+            raise RuntimeError("Липсва настройка за този локален installer.")
+        local_file = self._find_resource_local_file(spec["resource_id"])
+        if not local_file:
+            raise RuntimeError(f"Локалният installer липсва за {spec['label']}.")
+
+        detect_mode = spec.get("detect_mode", "")
+        detect_value = spec.get("detect_value", "")
+        if remove_first and detect_mode == "winget" and detect_value:
+            installed_now, installed_output = self._is_winget_package_installed(detect_value)
+            if installed_now:
+                self.root.after(
+                    0,
+                    lambda: self._update_activation_progress(
+                        35,
+                        f"Премахване на стара версия за {spec['label']}...",
+                        installed_output or detect_value,
+                    ),
+                )
+                winget_exe = find_winget_executable()
+                if winget_exe:
+                    self._run_winget_uninstall_command(winget_exe, detect_value, spec["label"])
+
+        command = [str(local_file)]
+        silent_args = str(spec.get("silent_args", "")).strip()
+        if silent_args:
+            command.extend(part for part in silent_args.split(" ") if part)
+        self._append_command_output(f"Стартиране на локален installer: {local_file.name}")
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            check=False,
+            cwd=str(local_file.parent),
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+        output = self._collect_command_output(result)
+        self._append_command_output(output)
+        if result.returncode != 0:
+            raise RuntimeError(output or f"{spec['label']} върна код {result.returncode}.")
+        return output or f"{spec['label']} стартира успешно."
+
+    def _run_generic_resource_task(self, label: str, local_file: Path) -> str:
+        # Стартира общ локален .exe/.msi/.bat/.cmd ресурс от Installers папката.
+        extension = local_file.suffix.lower()
+        if extension not in {".exe", ".msi", ".bat", ".cmd"}:
+            return f"Наличен локален ресурс: {local_file}"
+        if extension == ".msi":
+            command = ["msiexec", "/i", str(local_file)]
+        elif extension in {".bat", ".cmd"}:
+            command = ["cmd", "/c", str(local_file)]
+        else:
+            command = [str(local_file)]
+        self._append_command_output(f"Стартиране на локален ресурс: {local_file.name}")
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            check=False,
+            cwd=str(local_file.parent),
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+        output = self._collect_command_output(result)
+        self._append_command_output(output)
+        if result.returncode != 0:
+            raise RuntimeError(output or f"{label} върна код {result.returncode}.")
+        return output or f"{label} стартира успешно."
 
     def _on_program_selector_mousewheel(self, canvas: tk.Canvas, event: tk.Event) -> str:
         # Позволява скрол с мишката в прозореца за избор на програми.
@@ -3614,6 +4197,7 @@ class MainMenuUI:
 
         current_category = ""
         for task in tasks:
+            installed_now, installed_text = self._task_install_state(task)
             if task["category"] != current_category:
                 current_category = task["category"]
                 category_label = tk.Label(
@@ -3654,6 +4238,38 @@ class MainMenuUI:
             )
             description_label.pack(anchor="w", padx=(24, 0), pady=(2, 0))
             self._bind_program_selector_mousewheel(description_label, canvas)
+
+            if installed_now:
+                installed_label = tk.Label(
+                    row,
+                    text=f"Намерено: {installed_text}",
+                    bg="#112716",
+                    fg="#c8f7cb",
+                    font=("Segoe UI", 9),
+                    justify="left",
+                )
+                installed_label.pack(anchor="w", padx=(24, 0), pady=(4, 0))
+                self._bind_program_selector_mousewheel(installed_label, canvas)
+
+            if self._task_supports_remove(task):
+                remove_text = "Премахни старата версия и после инсталирай новата"
+                remove_check = tk.Checkbutton(
+                    row,
+                    variable=self.auto_remove_vars[task["id"]],
+                    bg="#112716",
+                    activebackground="#112716",
+                    selectcolor="#3e1b1b",
+                    fg="#ffd9d9",
+                    activeforeground="#ffffff",
+                    text=remove_text,
+                    font=("Segoe UI", 9),
+                    anchor="w",
+                )
+                if not installed_now:
+                    self.auto_remove_vars[task["id"]].set(False)
+                    remove_check.config(state="disabled", fg="#8e7b7b")
+                remove_check.pack(anchor="w", fill="x", padx=(24, 0), pady=(4, 0))
+                self._bind_program_selector_mousewheel(remove_check, canvas)
 
         controls = tk.Frame(parent, bg="#102515")
         controls.pack(fill="x", padx=16, pady=(8, 16))
@@ -4898,6 +5514,52 @@ class MainMenuUI:
             daemon=True,
         ).start()
 
+    def _install_local_installer(self, action_id: str) -> None:
+        # Пуска локален installer от списъка с програми.
+        spec = self._local_task_spec(action_id)
+        if not spec:
+            messagebox.showerror("Локален installer", "Липсва настройка за този installer.", parent=self.root)
+            return
+        local_file = self._find_resource_local_file(spec["resource_id"])
+        if not local_file:
+            messagebox.showerror(
+                "Локален installer",
+                f"Файлът за {spec['label']} не е намерен в папката Installers.",
+                parent=self.root,
+            )
+            self.status_var.set(f"Липсва локален installer за {spec['label']}.")
+            return
+
+        installed_now, installed_text = self._task_install_state(spec)
+        remove_existing = False
+        if installed_now and self._task_supports_remove(spec):
+            remove_existing = messagebox.askyesno(
+                "Намерена е стара версия",
+                f"Намерено е:\n{installed_text}\n\nДа я премахна ли първо и после да стартирам новия installer?",
+                parent=self.root,
+            )
+
+        confirmed = messagebox.askyesno(
+            "Локален installer",
+            f"Да стартирам ли {spec['label']} от:\n\n{local_file}",
+            parent=self.root,
+        )
+        if not confirmed:
+            self.status_var.set(f"Инсталацията за {spec['label']} беше отказана.")
+            return
+
+        self.status_var.set(f"Стартиране на {spec['label']}...")
+        self._open_activation_window(
+            title=spec["label"],
+            heading=spec["label"],
+            intro="Стартира се локален installer от папката Installers.",
+        )
+        threading.Thread(
+            target=self._run_local_installer_installation,
+            args=(action_id, local_file, remove_existing),
+            daemon=True,
+        ).start()
+
     def _install_adobe_reader(self) -> None:
         self.adobe_reader_status_cache = None
         status = self._adobe_reader_status()
@@ -4924,7 +5586,7 @@ class MainMenuUI:
             self.status_var.set("Adobe Reader проверката приключи: winget липсва.")
             return
 
-        installed_now, installed_output = self._is_winget_package_installed(ADOBE_READER_WINGET_ID)
+        installed_now, installed_output, uninstall_string = self._adobe_install_state()
         remove_existing = False
         if installed_now:
             remove_existing = messagebox.askyesno(
@@ -4956,15 +5618,77 @@ class MainMenuUI:
         )
         threading.Thread(
             target=self._run_adobe_reader_installation,
-            args=(winget_exe, remove_existing, installed_output),
+            args=(winget_exe, remove_existing, installed_output, uninstall_string),
             daemon=True,
         ).start()
+
+    def _run_local_installer_installation(
+        self,
+        action_id: str,
+        local_file: Path,
+        remove_existing: bool = False,
+    ) -> None:
+        # Изпълнява локалния installer и показва статуса в прозореца за прогрес.
+        spec = self._local_task_spec(action_id)
+        if not spec:
+            self.root.after(0, lambda: self._show_activation_result(False, "Липсва настройка за installer.", "Installer"))
+            return
+        output_lines: list[str] = []
+        try:
+            detect_mode = spec.get("detect_mode", "")
+            detect_value = spec.get("detect_value", "")
+            if remove_existing and detect_mode == "winget" and detect_value:
+                installed_now, installed_output = self._is_winget_package_installed(detect_value)
+                if installed_now:
+                    self.root.after(
+                        0,
+                        lambda: self._update_activation_progress(
+                            35,
+                            f"Премахване на стара версия за {spec['label']}...",
+                            installed_output or detect_value,
+                        ),
+                    )
+                    winget_exe = find_winget_executable()
+                    if winget_exe:
+                        output_lines.append(self._run_winget_uninstall_command(winget_exe, detect_value, spec["label"]))
+
+            command = [str(local_file)]
+            silent_args = str(spec.get("silent_args", "")).strip()
+            if silent_args:
+                command.extend(part for part in silent_args.split(" ") if part)
+            self.root.after(
+                0,
+                lambda: self._update_activation_progress(
+                    60,
+                    f"Стартиране на {spec['label']}...",
+                    f"Файл: {local_file.name}",
+                ),
+            )
+            result = subprocess.run(
+                command,
+                capture_output=True,
+                text=True,
+                check=False,
+                cwd=str(local_file.parent),
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+            )
+            output = self._collect_command_output(result)
+            if output:
+                output_lines.append(output)
+                self.root.after(0, lambda text=output: self._append_activation_log(text))
+            if result.returncode != 0:
+                raise RuntimeError(output or f"{spec['label']} върна код {result.returncode}.")
+            final_message = "\n\n".join(output_lines) or f"{spec['label']} завърши успешно."
+            self.root.after(0, lambda: self._show_activation_result(True, final_message, spec["label"]))
+        except Exception as exc:
+            self.root.after(0, lambda: self._show_activation_result(False, str(exc), spec["label"]))
 
     def _run_adobe_reader_installation(
         self,
         winget_exe: str,
         remove_existing: bool = False,
         installed_output: str = "",
+        uninstall_string: str = "",
     ) -> None:
         command = [
             winget_exe,
@@ -4974,6 +5698,7 @@ class MainMenuUI:
             "--source",
             "winget",
             "--silent",
+            "--disable-interactivity",
             "--accept-package-agreements",
             "--accept-source-agreements",
         ]
@@ -4996,7 +5721,11 @@ class MainMenuUI:
                         installed_output or ADOBE_READER_WINGET_ID,
                     ),
                 )
-                removal_text = self._run_winget_uninstall_command(winget_exe, ADOBE_READER_WINGET_ID, "Adobe Reader")
+                winget_installed, _ = self._is_winget_package_installed(ADOBE_READER_WINGET_ID)
+                if winget_installed:
+                    removal_text = self._run_winget_uninstall_command(winget_exe, ADOBE_READER_WINGET_ID, "Adobe Reader")
+                else:
+                    removal_text = self._run_uninstall_string_command("Adobe Reader", uninstall_string)
                 output_lines.append(removal_text)
             self.root.after(
                 0,
