@@ -2987,6 +2987,65 @@ class MainMenuUI:
             self.nexus_admin_status_cache = check_nexus_admin_status()
         return self.nexus_admin_status_cache
 
+    def _collect_command_output(self, result: subprocess.CompletedProcess[str]) -> str:
+        # Събира stdout и stderr в един удобен текст.
+        return "\n".join(part.strip() for part in (result.stdout, result.stderr) if part and part.strip())
+
+    def _append_command_output(self, output_text: str) -> None:
+        # Добавя текст от команда в прозореца за прогрес, ако има такъв.
+        if output_text.strip():
+            self.root.after(0, lambda text=output_text.strip(): self._append_activation_log(text))
+
+    def _is_winget_package_installed(self, package_id: str) -> tuple[bool, str]:
+        # Проверява дали даден winget пакет вече е инсталиран.
+        winget_exe = find_winget_executable()
+        if not winget_exe:
+            return False, ""
+        result = subprocess.run(
+            [winget_exe, "list", "--id", package_id, "--source", "winget"],
+            capture_output=True,
+            text=True,
+            check=False,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+        output = self._collect_command_output(result)
+        normalized = output.lower()
+        if "no installed package found" in normalized or "no package found matching input criteria" in normalized:
+            return False, output
+        return package_id.lower() in normalized, output
+
+    def _run_office_uninstall_command(self, action_id: str, display_name: str, uninstall_string: str) -> str:
+        # Изпълнява реалната деинсталация на намерен Office пакет.
+        result = subprocess.run(
+            ["cmd", "/c", uninstall_string],
+            capture_output=True,
+            text=True,
+            check=False,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+        output = self._collect_command_output(result)
+        self._append_command_output(output)
+        if result.returncode != 0:
+            raise RuntimeError(output or f"Uninstall command returned code {result.returncode}.")
+        self.office_inventory_cache.pop(action_id, None)
+        return output or f"{display_name} removal finished."
+
+    def _run_winget_uninstall_command(self, winget_exe: str, package_id: str, label: str) -> str:
+        # Премахва winget пакет преди нова инсталация.
+        result = subprocess.run(
+            [winget_exe, "uninstall", "--id", package_id, "--silent", "--accept-source-agreements"],
+            capture_output=True,
+            text=True,
+            check=False,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+        output = self._collect_command_output(result)
+        self._append_command_output(output)
+        normalized = output.lower()
+        if result.returncode != 0 and "no installed package found" not in normalized and "no package found matching input criteria" not in normalized:
+            raise RuntimeError(output or f"{label} uninstall returned code {result.returncode}.")
+        return output or f"{label} removal finished."
+
     def _item_description(self, item: dict[str, str]) -> str:
         description = item.get("description", self._kind_description(item["kind"]))
         if self._is_office_install_item(item):
@@ -3354,6 +3413,7 @@ class MainMenuUI:
 
     def _run_auto_office_offline(self, action_id: str) -> str:
         installer = get_office_offline_installer(action_id)
+        office_info = detect_installed_office(action_id)
         missing_parts: list[str] = []
         if not installer.installers_root.exists():
             missing_parts.append(f"Installers папката липсва: {installer.installers_root}")
@@ -3363,6 +3423,17 @@ class MainMenuUI:
             missing_parts.append(f"Configuration файлът липсва: {installer.config_path}")
         if missing_parts:
             raise RuntimeError("\n".join(missing_parts))
+
+        if office_info.installed and office_info.uninstall_string:
+            self.root.after(
+                0,
+                lambda: self._update_activation_progress(
+                    35,
+                    f"Премахване на стара версия за {installer.label}...",
+                    office_info.display_name,
+                ),
+            )
+            self._run_office_uninstall_command(action_id, office_info.display_name, office_info.uninstall_string)
 
         command = [str(installer.setup_path), "/configure", str(installer.config_path)]
         result = subprocess.run(
@@ -3386,6 +3457,18 @@ class MainMenuUI:
         winget_exe = find_winget_executable()
         if not winget_exe:
             raise RuntimeError("Winget не е открит.")
+
+        installed_now, installed_output = self._is_winget_package_installed(package.winget_id)
+        if installed_now:
+            self.root.after(
+                0,
+                lambda: self._update_activation_progress(
+                    35,
+                    f"Премахване на стара версия за {package.label}...",
+                    installed_output or package.winget_id,
+                ),
+            )
+            self._run_winget_uninstall_command(winget_exe, package.winget_id, package.label)
 
         command = [
             winget_exe,
@@ -3414,6 +3497,18 @@ class MainMenuUI:
         winget_exe = find_winget_executable()
         if not winget_exe:
             raise RuntimeError("Winget не е открит.")
+
+        installed_now, installed_output = self._is_winget_package_installed(ADOBE_READER_WINGET_ID)
+        if installed_now:
+            self.root.after(
+                0,
+                lambda: self._update_activation_progress(
+                    35,
+                    "Премахване на стара версия на Adobe Reader...",
+                    installed_output or ADOBE_READER_WINGET_ID,
+                ),
+            )
+            self._run_winget_uninstall_command(winget_exe, ADOBE_READER_WINGET_ID, "Adobe Reader")
 
         command = [
             winget_exe,
@@ -3476,6 +3571,24 @@ class MainMenuUI:
         for var in self.auto_install_vars.values():
             var.set(value)
 
+    def _on_program_selector_mousewheel(self, canvas: tk.Canvas, event: tk.Event) -> str:
+        # Позволява скрол с мишката в прозореца за избор на програми.
+        delta = getattr(event, "delta", 0)
+        if getattr(event, "num", None) == 4:
+            delta = 120
+        elif getattr(event, "num", None) == 5:
+            delta = -120
+        if delta == 0:
+            return "break"
+        canvas.yview_scroll(-1 if delta > 0 else 1, "units")
+        return "break"
+
+    def _bind_program_selector_mousewheel(self, widget: tk.Widget, canvas: tk.Canvas) -> None:
+        # Връзва колелцето на мишката към дадения списък.
+        widget.bind("<MouseWheel>", lambda event: self._on_program_selector_mousewheel(canvas, event))
+        widget.bind("<Button-4>", lambda event: self._on_program_selector_mousewheel(canvas, event))
+        widget.bind("<Button-5>", lambda event: self._on_program_selector_mousewheel(canvas, event))
+
     def _build_program_selector_content(
         self,
         parent: tk.Widget,
@@ -3496,22 +3609,27 @@ class MainMenuUI:
         canvas.configure(yscrollcommand=scrollbar.set)
         canvas.pack(side="left", fill="both", expand=True, padx=(16, 0), pady=8)
         scrollbar.pack(side="right", fill="y", padx=(0, 16), pady=8)
+        self._bind_program_selector_mousewheel(canvas, canvas)
+        self._bind_program_selector_mousewheel(task_frame, canvas)
 
         current_category = ""
         for task in tasks:
             if task["category"] != current_category:
                 current_category = task["category"]
-                tk.Label(
+                category_label = tk.Label(
                     task_frame,
                     text=current_category,
                     font=("Segoe UI Semibold", 12),
                     bg="#0b1d0f",
                     fg="#c9ffd0",
-                ).pack(anchor="w", padx=12, pady=(12, 4))
+                )
+                category_label.pack(anchor="w", padx=12, pady=(12, 4))
+                self._bind_program_selector_mousewheel(category_label, canvas)
 
             row = tk.Frame(task_frame, bg="#112716", padx=10, pady=8)
             row.pack(fill="x", padx=12, pady=4)
-            tk.Checkbutton(
+            self._bind_program_selector_mousewheel(row, canvas)
+            check_button = tk.Checkbutton(
                 row,
                 variable=self.auto_install_vars[task["id"]],
                 bg="#112716",
@@ -3522,8 +3640,10 @@ class MainMenuUI:
                 text=task["label"],
                 font=("Segoe UI Semibold", 10),
                 anchor="w",
-            ).pack(anchor="w", fill="x")
-            tk.Label(
+            )
+            check_button.pack(anchor="w", fill="x")
+            self._bind_program_selector_mousewheel(check_button, canvas)
+            description_label = tk.Label(
                 row,
                 text=task["description"],
                 bg="#112716",
@@ -3531,12 +3651,15 @@ class MainMenuUI:
                 font=("Segoe UI", 9),
                 wraplength=wraplength,
                 justify="left",
-            ).pack(anchor="w", padx=(24, 0), pady=(2, 0))
+            )
+            description_label.pack(anchor="w", padx=(24, 0), pady=(2, 0))
+            self._bind_program_selector_mousewheel(description_label, canvas)
 
         controls = tk.Frame(parent, bg="#102515")
         controls.pack(fill="x", padx=16, pady=(8, 16))
+        self._bind_program_selector_mousewheel(controls, canvas)
 
-        tk.Button(
+        select_all_button = tk.Button(
             controls,
             text="Избери всичко",
             command=lambda: self._set_auto_install_selection(True),
@@ -3549,8 +3672,10 @@ class MainMenuUI:
             padx=16,
             pady=9,
             cursor="hand2",
-        ).pack(side="left", padx=(0, 8))
-        tk.Button(
+        )
+        select_all_button.pack(side="left", padx=(0, 8))
+        self._bind_program_selector_mousewheel(select_all_button, canvas)
+        clear_button = tk.Button(
             controls,
             text="Изчисти",
             command=lambda: self._set_auto_install_selection(False),
@@ -3563,10 +3688,12 @@ class MainMenuUI:
             padx=16,
             pady=9,
             cursor="hand2",
-        ).pack(side="left")
+        )
+        clear_button.pack(side="left")
+        self._bind_program_selector_mousewheel(clear_button, canvas)
 
         if show_close_button:
-            tk.Button(
+            close_button = tk.Button(
                 controls,
                 text="Затвори",
                 command=self._close_program_selector_window,
@@ -3579,9 +3706,11 @@ class MainMenuUI:
                 padx=16,
                 pady=9,
                 cursor="hand2",
-            ).pack(side="right", padx=(8, 0))
+            )
+            close_button.pack(side="right", padx=(8, 0))
+            self._bind_program_selector_mousewheel(close_button, canvas)
 
-        tk.Button(
+        start_button = tk.Button(
             controls,
             text=start_button_text,
             command=self._start_auto_installer,
@@ -3594,7 +3723,9 @@ class MainMenuUI:
             padx=20,
             pady=10,
             cursor="hand2",
-        ).pack(side="right")
+        )
+        start_button.pack(side="right")
+        self._bind_program_selector_mousewheel(start_button, canvas)
 
     def _close_program_selector_window(self) -> None:
         # Затваря отделния прозорец за избор на програми.
@@ -4658,6 +4789,7 @@ class MainMenuUI:
     def _install_office_offline(self, action_id: str) -> None:
         self._refresh_resource_panel()
         installer = get_office_offline_installer(action_id)
+        office_info = self._office_install_info(action_id)
         missing_parts: list[str] = []
         if not installer.installers_root.exists():
             missing_parts.append(f"Installers folder not found: {installer.installers_root}")
@@ -4674,6 +4806,17 @@ class MainMenuUI:
             )
             self.status_var.set(f"{installer.label} could not start because installer files are missing.")
             return
+
+        remove_existing = False
+        if office_info.installed and office_info.uninstall_string:
+            remove_existing = messagebox.askyesno(
+                "Existing Office Found",
+                (
+                    f"Detected installed version:\n{office_info.display_name}\n\n"
+                    "Remove the old version first and then install the selected one?"
+                ),
+                parent=self.root,
+            )
 
         confirmed = messagebox.askyesno(
             "Start Office Installation",
@@ -4696,7 +4839,7 @@ class MainMenuUI:
         )
         threading.Thread(
             target=self._run_office_offline_installation,
-            args=(installer,),
+            args=(installer, remove_existing, office_info.display_name, office_info.uninstall_string),
             daemon=True,
         ).start()
 
@@ -4722,6 +4865,18 @@ class MainMenuUI:
             self.status_var.set("Online Office installation could not start because winget is missing.")
             return
 
+        installed_now, installed_output = self._is_winget_package_installed(package.winget_id)
+        remove_existing = False
+        if installed_now:
+            remove_existing = messagebox.askyesno(
+                "Existing Package Found",
+                (
+                    f"Detected installed package for:\n{package.label}\n\n"
+                    "Remove the current version first and then install the new one?"
+                ),
+                parent=self.root,
+            )
+
         confirmed = messagebox.askyesno(
             "Start Online Installation",
             f"Start online installation for {package.label} now?",
@@ -4739,7 +4894,7 @@ class MainMenuUI:
         )
         threading.Thread(
             target=self._run_office_online_installation,
-            args=(package.label, package.winget_id, winget_exe),
+            args=(package.label, package.winget_id, winget_exe, remove_existing, installed_output),
             daemon=True,
         ).start()
 
@@ -4769,6 +4924,18 @@ class MainMenuUI:
             self.status_var.set("Adobe Reader проверката приключи: winget липсва.")
             return
 
+        installed_now, installed_output = self._is_winget_package_installed(ADOBE_READER_WINGET_ID)
+        remove_existing = False
+        if installed_now:
+            remove_existing = messagebox.askyesno(
+                "Existing Adobe Reader Found",
+                (
+                    f"Detected installed Adobe Reader version: {installed}\n\n"
+                    "Remove the current version first and then install the latest one?"
+                ),
+                parent=self.root,
+            )
+
         confirmed = messagebox.askyesno(
             "Adobe Reader",
             (
@@ -4789,11 +4956,16 @@ class MainMenuUI:
         )
         threading.Thread(
             target=self._run_adobe_reader_installation,
-            args=(winget_exe,),
+            args=(winget_exe, remove_existing, installed_output),
             daemon=True,
         ).start()
 
-    def _run_adobe_reader_installation(self, winget_exe: str) -> None:
+    def _run_adobe_reader_installation(
+        self,
+        winget_exe: str,
+        remove_existing: bool = False,
+        installed_output: str = "",
+    ) -> None:
         command = [
             winget_exe,
             "install",
@@ -4815,10 +4987,21 @@ class MainMenuUI:
                     f"Package ID: {ADOBE_READER_WINGET_ID}",
                 ),
             )
+            if remove_existing:
+                self.root.after(
+                    0,
+                    lambda: self._update_activation_progress(
+                        35,
+                        "Открит е инсталиран Adobe Reader...",
+                        installed_output or ADOBE_READER_WINGET_ID,
+                    ),
+                )
+                removal_text = self._run_winget_uninstall_command(winget_exe, ADOBE_READER_WINGET_ID, "Adobe Reader")
+                output_lines.append(removal_text)
             self.root.after(
                 0,
                 lambda: self._update_activation_progress(
-                    55,
+                    60,
                     "Стартиране на Adobe Reader инсталация...",
                     f"Running: {' '.join(command)}",
                 ),
@@ -4846,7 +5029,13 @@ class MainMenuUI:
         except Exception as exc:
             self.root.after(0, lambda: self._show_activation_result(False, str(exc), "Adobe Reader"))
 
-    def _run_office_offline_installation(self, installer: object) -> None:
+    def _run_office_offline_installation(
+        self,
+        installer: object,
+        remove_existing: bool = False,
+        existing_name: str = "",
+        uninstall_string: str = "",
+    ) -> None:
         output_lines: list[str] = []
         command = [
             str(installer.setup_path),
@@ -4862,10 +5051,21 @@ class MainMenuUI:
                     f"Setup: {installer.setup_path}\nConfig: {installer.config_path}",
                 ),
             )
+            if remove_existing and uninstall_string:
+                self.root.after(
+                    0,
+                    lambda: self._update_activation_progress(
+                        35,
+                        "Открита е стара Office версия...",
+                        f"Подготвя се премахване на: {existing_name}",
+                    ),
+                )
+                removal_text = self._run_office_uninstall_command(installer.action_id, existing_name, uninstall_string)
+                output_lines.append(removal_text)
             self.root.after(
                 0,
                 lambda: self._update_activation_progress(
-                    45,
+                    60,
                     f"Стартиране на {installer.label}...",
                     f"Running: {' '.join(command)}",
                 ),
@@ -4896,7 +5096,14 @@ class MainMenuUI:
         except Exception as exc:
             self.root.after(0, lambda: self._finish_office_installation(installer.action_id, installer.label, False, str(exc)))
 
-    def _run_office_online_installation(self, label: str, winget_id: str, winget_exe: str) -> None:
+    def _run_office_online_installation(
+        self,
+        label: str,
+        winget_id: str,
+        winget_exe: str,
+        remove_existing: bool = False,
+        installed_output: str = "",
+    ) -> None:
         output_lines: list[str] = []
         command = [
             winget_exe,
@@ -4918,10 +5125,21 @@ class MainMenuUI:
                     f"Package ID: {winget_id}",
                 ),
             )
+            if remove_existing:
+                self.root.after(
+                    0,
+                    lambda: self._update_activation_progress(
+                        35,
+                        "Открит е инсталиран пакет...",
+                        installed_output or f"Package ID: {winget_id}",
+                    ),
+                )
+                removal_text = self._run_winget_uninstall_command(winget_exe, winget_id, label)
+                output_lines.append(removal_text)
             self.root.after(
                 0,
                 lambda: self._update_activation_progress(
-                    45,
+                    60,
                     f"Стартиране на online инсталацията за {label}...",
                     f"Running: {' '.join(command)}",
                 ),
