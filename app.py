@@ -78,6 +78,7 @@ SECURE_STORE_FILE = PROJECT_ROOT / ".wga_secure_store.json"
 
 
 def runtime_file(relative_path: str) -> Path:
+    # Търси файл първо до програмата, после в bundled ресурсите на build-а.
     portable_path = PROJECT_ROOT / relative_path
     if portable_path.exists():
         return portable_path
@@ -137,6 +138,12 @@ MENU_TREE = {
                 "kind": "menu",
                 "target": "auto_installer",
                 "description": "Избери няколко инсталации и ги стартирай с едно копче.",
+            },
+            {
+                "label": "Избор на програми",
+                "kind": "action",
+                "action_id": "open_program_selector",
+                "description": "Отваря отделен прозорец с тикчета за избор на програми и компоненти за инсталиране.",
             },
             {"label": "Language Menu", "kind": "menu", "target": "language"},
             {
@@ -291,6 +298,12 @@ MENU_TREE = {
                 "kind": "action",
                 "action_id": "install_adobe_reader",
                 "description": "Проверява актуалната Adobe Reader версия през winget и предупреждава, ако локалният installer е стар.",
+            },
+            {
+                "label": "Избор на програми",
+                "kind": "action",
+                "action_id": "open_program_selector",
+                "description": "Отваря нов прозорец, в който с отметки се избират програмите за инсталиране.",
             },
             {"label": "Secret Install Interface", "kind": "menu", "target": "secret_install"},
             {"label": "Return to Main Menu", "kind": "menu", "target": "main"},
@@ -695,6 +708,7 @@ FILE_ATTRIBUTE_NORMAL = 0x80
 
 
 def load_settings() -> dict[str, str]:
+    # Зарежда обикновените настройки на приложението.
     if not SETTINGS_FILE.exists():
         return {}
     try:
@@ -705,10 +719,12 @@ def load_settings() -> dict[str, str]:
 
 
 def save_settings(settings: dict[str, str]) -> None:
+    # Записва настройките в settings.json.
     SETTINGS_FILE.write_text(json.dumps(settings, indent=2), encoding="utf-8")
 
 
 def load_version_info() -> dict[str, object]:
+    # Зарежда локалната версия и адресите за online update.
     defaults = {
         "version": "0.1.1",
         "version_info_url": "",
@@ -737,6 +753,7 @@ def load_version_info() -> dict[str, object]:
 
 
 def format_bytes_per_second(value: float) -> str:
+    # Форматира скоростта в удобен за четене вид.
     units = ("B/s", "KB/s", "MB/s", "GB/s")
     current = float(max(0.0, value))
     for unit in units:
@@ -747,6 +764,7 @@ def format_bytes_per_second(value: float) -> str:
 
 
 def format_file_size(value: int) -> str:
+    # Форматира размер на файл в B, KB, MB или GB.
     units = ("B", "KB", "MB", "GB")
     current = float(max(0, value))
     for unit in units:
@@ -757,6 +775,7 @@ def format_file_size(value: int) -> str:
 
 
 def format_duration(seconds: int) -> str:
+    # Форматира секунди като оставащо време.
     seconds = max(0, int(seconds))
     hours, remainder = divmod(seconds, 3600)
     minutes, secs = divmod(remainder, 60)
@@ -768,11 +787,13 @@ def format_duration(seconds: int) -> str:
 
 
 def _portable_secret_key() -> bytes:
+    # Прави локален ключ за леко скриване на чувствителните данни.
     secret_seed = f"{APP_TITLE}|WGA-Portable-Store|{PROJECT_ROOT.name}"
     return hashlib.sha256(secret_seed.encode("utf-8")).digest()
 
 
 def encrypt_for_current_user(text: str) -> str:
+    # Кодира текста преди да се запише в защитения файл.
     source = text.encode("utf-8")
     key = _portable_secret_key()
     encrypted = bytes(byte ^ key[index % len(key)] for index, byte in enumerate(source))
@@ -780,6 +801,7 @@ def encrypt_for_current_user(text: str) -> str:
 
 
 def decrypt_for_current_user(encoded_text: str) -> str:
+    # Декодира текста, записан в защитения файл.
     encrypted = base64.b64decode(encoded_text.encode("ascii"))
     key = _portable_secret_key()
     decrypted = bytes(byte ^ key[index % len(key)] for index, byte in enumerate(encrypted))
@@ -787,19 +809,23 @@ def decrypt_for_current_user(encoded_text: str) -> str:
 
 
 def hash_secret(value: str) -> str:
+    # Прави hash на парола или ключ, без да пазим оригинала.
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
 def ensure_hidden_file(path: Path) -> None:
+    # Скрива файла в Windows Explorer.
     ctypes.windll.kernel32.SetFileAttributesW(str(path), FILE_ATTRIBUTE_HIDDEN)
 
 
 def ensure_normal_file(path: Path) -> None:
+    # Връща файла в нормален вид, за да може да се редактира или замени.
     if path.exists():
         ctypes.windll.kernel32.SetFileAttributesW(str(path), FILE_ATTRIBUTE_NORMAL)
 
 
 def get_drive_label(path: Path) -> str:
+    # Връща името на устройството, например името на флашката.
     drive_root = path.anchor or str(path.drive)
     if not drive_root:
         return "Unknown"
@@ -822,6 +848,7 @@ def get_drive_label(path: Path) -> str:
 
 
 def get_launch_location_info() -> dict[str, str]:
+    # Събира информация откъде е стартирано приложението.
     storage_info = get_runtime_storage_info(PROJECT_ROOT)
     return {
         "program_path": str(PROJECT_ROOT),
@@ -835,6 +862,7 @@ def get_launch_location_info() -> dict[str, str]:
 
 
 def load_secure_store() -> dict[str, str]:
+    # Зарежда скрития файл с ключове и служебни пароли.
     if not SECURE_STORE_FILE.exists():
         store = {"admin_menu_password_hash": hash_secret(DEFAULT_WINDOWS11_MENU_PASSWORD)}
         save_secure_store(store)
@@ -865,6 +893,7 @@ def load_secure_store() -> dict[str, str]:
 
 
 def save_secure_store(store: dict[str, str]) -> None:
+    # Записва защитените данни обратно в скрития файл.
     serialized = json.dumps(store, indent=2)
     encrypted = encrypt_for_current_user(serialized)
     payload = {"data": encrypted}
@@ -874,6 +903,7 @@ def save_secure_store(store: dict[str, str]) -> None:
 
 
 def is_running_as_admin() -> bool:
+    # Проверява дали приложението има администраторски права.
     try:
         return bool(ctypes.windll.shell32.IsUserAnAdmin())
     except OSError:
@@ -881,6 +911,7 @@ def is_running_as_admin() -> bool:
 
 
 def apply_app_icon(root: tk.Tk | tk.Toplevel) -> None:
+    # Слага иконата на прозорците на приложението.
     if not APP_ICON_FILE.exists():
         return
     try:
@@ -890,6 +921,7 @@ def apply_app_icon(root: tk.Tk | tk.Toplevel) -> None:
 
 
 def relaunch_as_admin() -> bool:
+    # Опитва да стартира приложението отново с admin права.
     script_path = str(Path(__file__).resolve())
     result = ctypes.windll.shell32.ShellExecuteW(
         None,
@@ -900,8 +932,10 @@ def relaunch_as_admin() -> bool:
         1,
     )
     return result > 32
+# Началният loading екран на приложението.
 class SplashScreen:
     def __init__(self, root: tk.Tk) -> None:
+        # Подготвя splash екрана и стартира анимацията.
         self.root = root
         self.root.title(APP_TITLE)
         apply_app_icon(self.root)
@@ -922,6 +956,7 @@ class SplashScreen:
         self._start_boot_sequence()
 
     def _draw_background(self) -> None:
+        # Рисува зеления фон и линиите в стил WGA.
         width = 930
         height = 630
         band_count = 240
@@ -957,6 +992,7 @@ class SplashScreen:
             self.canvas.create_oval(left, top, right, bottom, fill=color, outline="")
 
     def _create_loader(self) -> None:
+        # Създава самия loading bar и текстовете около него.
         self.canvas.create_text(465, 120, text=APP_TITLE, fill="#d9ffd9", font=("Segoe UI Semibold", 24))
         self.canvas.create_text(465, 160, text="System Startup Interface", fill="#7cf97c", font=("Segoe UI", 12))
 
@@ -1145,8 +1181,10 @@ class SplashScreen:
         MainMenuUI(self.root)
 
 
+# Основният интерфейс след зареждане на splash екрана.
 class MainMenuUI:
     def __init__(self, root: tk.Tk) -> None:
+        # Тук пазим почти всички състояния, кешове и UI променливи.
         self.root = root
         self.root.configure(bg="#08130a")
         self.settings = load_settings()
@@ -1172,6 +1210,7 @@ class MainMenuUI:
         self.update_popup_shown = False
         self.auto_install_vars: dict[str, tk.BooleanVar] = {}
         self.auto_install_running = False
+        self.program_selector_window: tk.Toplevel | None = None
         self.office_inventory_cache: dict[str, object] = {}
         self.office_online_cache: dict[str, object] = {}
         self.office_maintenance_cache: dict[str, object] = {}
@@ -1797,6 +1836,7 @@ class MainMenuUI:
         self.root.after(0, finish)
 
     def _open_resource_download_window(self, total_items: int) -> dict[str, object]:
+        # Този прозорец само показва информация. Самото теглене върви отделно.
         progress_window = tk.Toplevel(self.root)
         progress_window.title("Изтегляне на инсталационни ресурси")
         progress_window.geometry("660x350")
@@ -1856,6 +1896,7 @@ class MainMenuUI:
         log_box.insert("end", "Стартиране на изтеглянето...\n")
         log_box.config(state="disabled")
 
+        # Ако прозорецът се затвори, не спираме процеса. Просто скриваме визуалната част.
         progress_window.protocol("WM_DELETE_WINDOW", progress_window.destroy)
         self.root.after(0, lambda: self._center_window(progress_window, 660, 350))
 
@@ -1904,6 +1945,7 @@ class MainMenuUI:
         eta: int = 0,
         phase: str = "",
     ) -> None:
+        # Показваме два прогреса: текущ пакет и общ прогрес за всички пакети.
         percent = int((downloaded / total) * 100) if total else 0
         total_percent = int(((item_index - 1) + (percent / 100)) * 100 / max(1, total_items))
         action = phase or "Изтегляне"
@@ -1926,6 +1968,7 @@ class MainMenuUI:
             return
 
     def _run_resource_downloads(self, items: list[object], ui: dict[str, object] | None = None) -> None:
+        # Тази функция върви във фонов thread, за да не блокира самото приложение.
         errors: list[str] = []
         total_items = len(items)
 
@@ -1941,6 +1984,7 @@ class MainMenuUI:
                 phase: str = "",
                 item_index: int = index,
             ) -> None:
+                # Всички промени по Tkinter ги връщаме към главния прозорец с root.after.
                 self.root.after(
                     0,
                     lambda: self._update_resource_download_ui(
@@ -3150,6 +3194,9 @@ class MainMenuUI:
 
     def _handle_action(self, item: dict[str, str]) -> None:
         action_id = item.get("action_id", "")
+        if action_id == "open_program_selector":
+            self._open_program_selector_window()
+            return
         if action_id == "save_windows11_key":
             self._save_windows11_key()
             return
@@ -3246,6 +3293,7 @@ class MainMenuUI:
         if not confirmed:
             return
 
+        self._close_program_selector_window()
         self.auto_install_running = True
         self.status_var.set("Автоматичният инсталатор стартира...")
         self._open_activation_window(
@@ -3415,6 +3463,240 @@ class MainMenuUI:
             raise RuntimeError(output or f"{title} върна код {result.returncode}.")
         self.language_status_cache = None
         return output or f"{title} завърши успешно."
+
+    def _ensure_auto_install_vars(self, tasks: list[dict[str, str]]) -> None:
+        # Подготвя променливите за тикчетата в списъка с програми.
+        if not self.auto_install_vars:
+            self.auto_install_vars = {task["id"]: tk.BooleanVar(value=False) for task in tasks}
+        for task in tasks:
+            self.auto_install_vars.setdefault(task["id"], tk.BooleanVar(value=False))
+
+    def _set_auto_install_selection(self, value: bool) -> None:
+        # С едно действие маркира или изчиства всички задачи.
+        for var in self.auto_install_vars.values():
+            var.set(value)
+
+    def _build_program_selector_content(
+        self,
+        parent: tk.Widget,
+        *,
+        wraplength: int,
+        start_button_text: str,
+        show_close_button: bool = False,
+    ) -> None:
+        # Рисува общия списък с категории, тикчета и бутони за избор.
+        tasks = self._auto_install_tasks()
+        self._ensure_auto_install_vars(tasks)
+
+        canvas = tk.Canvas(parent, bg="#0b1d0f", highlightthickness=0, height=360)
+        scrollbar = ttk.Scrollbar(parent, orient="vertical", command=canvas.yview)
+        task_frame = tk.Frame(canvas, bg="#0b1d0f")
+        task_frame.bind("<Configure>", lambda event: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.create_window((0, 0), window=task_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        canvas.pack(side="left", fill="both", expand=True, padx=(16, 0), pady=8)
+        scrollbar.pack(side="right", fill="y", padx=(0, 16), pady=8)
+
+        current_category = ""
+        for task in tasks:
+            if task["category"] != current_category:
+                current_category = task["category"]
+                tk.Label(
+                    task_frame,
+                    text=current_category,
+                    font=("Segoe UI Semibold", 12),
+                    bg="#0b1d0f",
+                    fg="#c9ffd0",
+                ).pack(anchor="w", padx=12, pady=(12, 4))
+
+            row = tk.Frame(task_frame, bg="#112716", padx=10, pady=8)
+            row.pack(fill="x", padx=12, pady=4)
+            tk.Checkbutton(
+                row,
+                variable=self.auto_install_vars[task["id"]],
+                bg="#112716",
+                activebackground="#112716",
+                selectcolor="#174327",
+                fg="#edffef",
+                activeforeground="#ffffff",
+                text=task["label"],
+                font=("Segoe UI Semibold", 10),
+                anchor="w",
+            ).pack(anchor="w", fill="x")
+            tk.Label(
+                row,
+                text=task["description"],
+                bg="#112716",
+                fg="#91b897",
+                font=("Segoe UI", 9),
+                wraplength=wraplength,
+                justify="left",
+            ).pack(anchor="w", padx=(24, 0), pady=(2, 0))
+
+        controls = tk.Frame(parent, bg="#102515")
+        controls.pack(fill="x", padx=16, pady=(8, 16))
+
+        tk.Button(
+            controls,
+            text="Избери всичко",
+            command=lambda: self._set_auto_install_selection(True),
+            font=("Segoe UI Semibold", 10),
+            bg="#1f6fb2",
+            fg="#f4fbff",
+            activebackground="#2b8ddd",
+            activeforeground="#ffffff",
+            bd=0,
+            padx=16,
+            pady=9,
+            cursor="hand2",
+        ).pack(side="left", padx=(0, 8))
+        tk.Button(
+            controls,
+            text="Изчисти",
+            command=lambda: self._set_auto_install_selection(False),
+            font=("Segoe UI Semibold", 10),
+            bg="#36403a",
+            fg="#d8e2db",
+            activebackground="#465049",
+            activeforeground="#ffffff",
+            bd=0,
+            padx=16,
+            pady=9,
+            cursor="hand2",
+        ).pack(side="left")
+
+        if show_close_button:
+            tk.Button(
+                controls,
+                text="Затвори",
+                command=self._close_program_selector_window,
+                font=("Segoe UI Semibold", 10),
+                bg="#5a2424",
+                fg="#fff0f0",
+                activebackground="#7b3030",
+                activeforeground="#ffffff",
+                bd=0,
+                padx=16,
+                pady=9,
+                cursor="hand2",
+            ).pack(side="right", padx=(8, 0))
+
+        tk.Button(
+            controls,
+            text=start_button_text,
+            command=self._start_auto_installer,
+            font=("Segoe UI Semibold", 11),
+            bg="#1f8f43",
+            fg="#f5fff7",
+            activebackground="#28b155",
+            activeforeground="#ffffff",
+            bd=0,
+            padx=20,
+            pady=10,
+            cursor="hand2",
+        ).pack(side="right")
+
+    def _close_program_selector_window(self) -> None:
+        # Затваря отделния прозорец за избор на програми.
+        if self.program_selector_window and self.program_selector_window.winfo_exists():
+            self.program_selector_window.destroy()
+        self.program_selector_window = None
+
+    def _open_program_selector_window(self) -> None:
+        # Отваря нов прозорец с пълния избор от програми за инсталиране.
+        if self.program_selector_window and self.program_selector_window.winfo_exists():
+            self.program_selector_window.focus_force()
+            return
+
+        window = tk.Toplevel(self.root)
+        self.program_selector_window = window
+        window.title("Избор на програми")
+        window.configure(bg="#102515")
+        window.minsize(920, 700)
+        window.transient(self.root)
+        apply_app_icon(window)
+        self._center_window(window, 980, 720)
+        window.protocol("WM_DELETE_WINDOW", self._close_program_selector_window)
+
+        outer = tk.Frame(
+            window,
+            bg="#102515",
+            bd=0,
+            highlightthickness=1,
+            highlightbackground="#2d7f4a",
+        )
+        outer.pack(fill="both", expand=True, padx=12, pady=12)
+
+        header = tk.Frame(outer, bg="#102515")
+        header.pack(fill="x", padx=16, pady=(14, 8))
+        tk.Label(
+            header,
+            text="Избор на програми",
+            font=("Segoe UI Semibold", 16),
+            bg="#102515",
+            fg="#edffef",
+        ).pack(anchor="w")
+        tk.Label(
+            header,
+            text="Тук можеш с тикче да отбележиш всичко, което искаш да се инсталира. След това задачите ще се изпълнят една след друга.",
+            font=("Segoe UI", 10),
+            bg="#102515",
+            fg="#9bc39e",
+            wraplength=880,
+            justify="left",
+        ).pack(anchor="w", pady=(4, 0))
+
+        self._build_program_selector_content(
+            outer,
+            wraplength=860,
+            start_button_text="Инсталирай избраните",
+            show_close_button=True,
+        )
+
+    def _render_auto_installer(self) -> None:
+        # Това е обновената версия на страницата за автоматичен инсталатор.
+        self.cards_frame.columnconfigure(0, weight=1)
+        self.cards_frame.rowconfigure(0, weight=1)
+
+        outer = tk.Frame(
+            self.cards_frame,
+            bg="#102515",
+            bd=0,
+            highlightthickness=1,
+            highlightbackground="#2d7f4a",
+        )
+        outer.grid(row=0, column=0, sticky="nsew", padx=8, pady=8)
+
+        header = tk.Frame(outer, bg="#102515")
+        header.pack(fill="x", padx=16, pady=(14, 8))
+        tk.Label(
+            header,
+            text="Автоматичен инсталатор",
+            font=("Segoe UI Semibold", 16),
+            bg="#102515",
+            fg="#edffef",
+        ).pack(anchor="w")
+        tk.Label(
+            header,
+            text="Избери какво да се инсталира. Задачите ще се изпълнят една след друга и ще получиш общ отчет.",
+            font=("Segoe UI", 10),
+            bg="#102515",
+            fg="#9bc39e",
+            wraplength=780,
+            justify="left",
+        ).pack(anchor="w", pady=(4, 0))
+
+        self._build_program_selector_content(
+            outer,
+            wraplength=760,
+            start_button_text="Инсталирай избраните",
+            show_close_button=False,
+        )
+
+        self.page_label.config(text="Автоматичен режим")
+        self.prev_button.config(state="disabled")
+        self.next_button.config(state="disabled")
+        self.back_button.config(state="normal" if self.history else "disabled")
 
     def _center_window(self, window: tk.Toplevel, width: int, height: int) -> None:
         window.update_idletasks()
@@ -5198,6 +5480,7 @@ class MainMenuUI:
 
 
 def main() -> None:
+    # Главна входна точка: иска admin права и после стартира UI.
     if not is_running_as_admin():
         started = relaunch_as_admin()
         if not started:
