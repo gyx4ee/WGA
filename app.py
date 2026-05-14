@@ -109,6 +109,9 @@ CARD_ACTION_HEIGHT = 52
 CARD_ACTION_DOUBLE_HEIGHT = 108
 NAV_BUTTON_WIDTH = 11
 CARD_MIN_HEIGHT = 185
+MENU_CARD_MIN_HEIGHT = {
+    "office_center": 230,
+}
 DESKTOP_ICON_PATHS = (
     r"Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel",
     r"Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\ClassicStartMenu",
@@ -2830,8 +2833,9 @@ class MainMenuUI:
         for column in range(card_columns):
             self.cards_frame.columnconfigure(column, weight=1, uniform="cards")
         row_count = max(1, math.ceil(len(page_items) / card_columns))
+        row_minsize = MENU_CARD_MIN_HEIGHT.get(self.current_menu, CARD_MIN_HEIGHT)
         for row in range(row_count):
-            self.cards_frame.rowconfigure(row, weight=1, minsize=CARD_MIN_HEIGHT)
+            self.cards_frame.rowconfigure(row, weight=1, minsize=row_minsize)
 
         for index, item in enumerate(page_items):
             row = index // card_columns
@@ -3108,13 +3112,14 @@ class MainMenuUI:
         accent = self._card_accent(item)
         card_bg = "#122d19" if item["kind"] == "menu" else "#102515"
         border_color = "#2d7f4a" if item["kind"] == "menu" else "#1f5928"
+        card_height = MENU_CARD_MIN_HEIGHT.get(self.current_menu, CARD_MIN_HEIGHT)
         card = tk.Frame(
             parent,
             bg=card_bg,
             bd=0,
             highlightthickness=1,
             highlightbackground=border_color,
-            height=CARD_MIN_HEIGHT,
+            height=card_height,
         )
         card.grid_propagate(False)
 
@@ -3125,26 +3130,29 @@ class MainMenuUI:
         dot.create_oval(2, 2, 14, 14, fill=accent, outline="")
         dot.pack(side="left")
 
+        title_font = ("Segoe UI Semibold", 11) if self.current_menu == "office_center" else ("Segoe UI Semibold", 12)
+        title_wraplength = 350 if self.current_menu == "office_center" else 320
         title = tk.Label(
             top,
             text=item["label"],
-            font=("Segoe UI Semibold", 12),
+            font=title_font,
             fg="#edffef",
             bg=card_bg,
             anchor="w",
-            wraplength=320,
+            wraplength=title_wraplength,
             justify="left",
         )
         title.pack(side="left", padx=(8, 0), fill="x", expand=True)
 
         description = self._item_description(item)
+        desc_wraplength = 350 if self.current_menu == "office_center" else 320
         desc_label = tk.Label(
             card,
             text=description,
             font=("Segoe UI", 9),
             fg="#96b79a",
             bg=card_bg,
-            wraplength=320,
+            wraplength=desc_wraplength,
             justify="left",
             anchor="nw",
         )

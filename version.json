@@ -1,10 +1,11 @@
 {
-  "version": "0.2.21",
+  "version": "0.2.22",
   "version_info_url": "https://raw.githubusercontent.com/gyx4ee/WGA/refs/heads/main/version.json",
   "download_url": "https://github.com/gyx4ee/WGA/releases/latest",
   "package_url": "https://raw.githubusercontent.com/gyx4ee/WGA/refs/heads/main/WGA-portable.zip",
-  "notes": "Fixed the Office Install Center card layout so the last two boxes keep the same button area and match the other cards.",
+  "notes": "Adjusted the Office Deployment Center layout so the long cards on page 4 have enough height and wider text wrapping.",
   "changelog": [
+    "v0.2.22 - Adjusted the Office Deployment Center layout so the long cards on page 4 have enough height and wider text wrapping.",
     "v0.2.21 - Fixed the Office Install Center card layout so the last two boxes keep the same button area and match the other cards.",
     "v0.2.20 - Added a full Windows 10 activation menu with save, show, clear, and run actions, matching the Windows 11 workflow.",
     "v0.2.19 - Fixed product key entry so Windows 11 and Office key dialogs switch to English keyboard layout and normalize Cyrillic input automatically.",
