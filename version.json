@@ -1,10 +1,11 @@
 {
-  "version": "0.2.16",
+  "version": "0.2.17",
   "version_info_url": "https://raw.githubusercontent.com/gyx4ee/WGA/refs/heads/main/version.json",
   "download_url": "https://github.com/gyx4ee/WGA/releases/latest",
   "package_url": "https://raw.githubusercontent.com/gyx4ee/WGA/refs/heads/main/WGA-portable.zip",
-  "notes": "Removed the password prompt from the Windows 11 activation menu and kept the updated version detection fix.",
+  "notes": "Fixed the desktop icons button so it now creates working WGA shortcuts on the desktop, including direct menu shortcuts.",
   "changelog": [
+    "v0.2.17 - Fixed the desktop icons button so it now creates working WGA shortcuts on the desktop, including direct menu shortcuts.",
     "v0.2.16 - Removed the password prompt from the Windows 11 activation menu and kept the updated version detection fix.",
     "v0.2.15 - Fixed repeated update notifications after updating by syncing and reading the correct version file from the installed build.",
     "v0.2.14 - Improved online package downloads so extraction shows live progress and the next package starts visibly after the current one finishes.",

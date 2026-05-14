@@ -171,7 +171,12 @@ MENU_TREE = {
         "subtitle": "Central control hub for deployment, activation, language, recovery and admin tools.",
         "items": [
             {"label": "Activation Menu", "kind": "menu", "target": "activation"},
-            {"label": "Add Desktop Icons", "kind": "action", "description": "Create standard support shortcuts."},
+            {
+                "label": "Add Desktop Icons",
+                "kind": "action",
+                "action_id": "add_desktop_icons",
+                "description": "Create standard support shortcuts.",
+            },
             {
                 "label": "Reset OneDrive",
                 "kind": "menu",
@@ -966,17 +971,37 @@ def apply_app_icon(root: tk.Tk | tk.Toplevel) -> None:
 
 
 def relaunch_as_admin() -> bool:
-    # Опитва да стартира приложението отново с admin права.
-    script_path = str(Path(__file__).resolve())
+    # Стартира приложението отново с admin права и запазва подадените параметри.
+    current_args = sys.argv[1:]
+    if getattr(sys, "frozen", False):
+        target_path = str(Path(sys.executable).resolve())
+        run_args = subprocess.list2cmdline(current_args)
+    else:
+        script_path = str(Path(__file__).resolve())
+        target_path = sys.executable
+        run_args = subprocess.list2cmdline([script_path, *current_args])
     result = ctypes.windll.shell32.ShellExecuteW(
         None,
         "runas",
-        sys.executable,
-        f'"{script_path}"',
+        target_path,
+        run_args,
         None,
         1,
     )
     return result > 32
+
+
+def get_startup_menu_from_args() -> str | None:
+    # Чете подаденото меню от shortcut аргумент като: --menu windows11_activation
+    args = sys.argv[1:]
+    for index, value in enumerate(args):
+        if value == "--menu" and index + 1 < len(args):
+            menu_key = args[index + 1].strip()
+            if menu_key in MENU_TREE:
+                return menu_key
+    return None
+
+
 # Началният loading екран на приложението.
 class SplashScreen:
     def __init__(self, root: tk.Tk) -> None:
@@ -1223,12 +1248,12 @@ class SplashScreen:
             self.root.state("zoomed")
         except tk.TclError:
             pass
-        MainMenuUI(self.root)
+        MainMenuUI(self.root, startup_menu=get_startup_menu_from_args())
 
 
 # Основният интерфейс след зареждане на splash екрана.
 class MainMenuUI:
-    def __init__(self, root: tk.Tk) -> None:
+    def __init__(self, root: tk.Tk, startup_menu: str | None = None) -> None:
         # Тук пазим почти всички състояния, кешове и UI променливи.
         self.root = root
         self.root.configure(bg="#08130a")
@@ -1271,6 +1296,7 @@ class MainMenuUI:
         self.history: list[str] = []
         self.current_menu = "main"
         self.current_page = 0
+        self.startup_menu = startup_menu if startup_menu in MENU_TREE else "main"
 
         self.container = tk.Frame(self.root, bg="#08130a")
         self.container.pack(fill="both", expand=True)
@@ -1663,7 +1689,7 @@ class MainMenuUI:
         )
         self.language_status_label.pack(anchor="w", fill="x", padx=12, pady=10)
 
-        self.render_menu("main", reset_history=True)
+        self.render_menu(self.startup_menu, reset_history=True)
         self._load_language_status_async()
         self._load_system_health_async()
         self._check_updates_async()
@@ -3330,6 +3356,9 @@ class MainMenuUI:
 
     def _handle_action(self, item: dict[str, str]) -> None:
         action_id = item.get("action_id", "")
+        if action_id == "add_desktop_icons":
+            self._add_desktop_icons()
+            return
         if action_id == "open_program_selector":
             self._open_program_selector_window()
             return
@@ -3416,6 +3445,81 @@ class MainMenuUI:
             return
 
         self.status_var.set(f"Selected action: {item['label']}. This is ready to connect to a real Python or PowerShell task.")
+
+    def _shortcut_launch_parts(self, menu_key: str | None = None) -> tuple[str, str, str]:
+        # Подготвя как да стартира приложението от shortcut според това дали е build или проект.
+        if getattr(sys, "frozen", False):
+            target_path = str(Path(sys.executable).resolve())
+            arguments = f'--menu {menu_key}' if menu_key else ""
+            working_dir = str(PROJECT_ROOT)
+            return target_path, arguments, working_dir
+
+        script_path = str(Path(__file__).resolve())
+        target_path = sys.executable
+        base_args = [script_path]
+        if menu_key:
+            base_args.extend(["--menu", menu_key])
+        arguments = subprocess.list2cmdline(base_args)
+        working_dir = str(Path(__file__).resolve().parent)
+        return target_path, arguments, working_dir
+
+    def _create_windows_shortcut(self, shortcut_path: Path, target_path: str, arguments: str, working_dir: str) -> None:
+        # Създава .lnk shortcut през PowerShell и WScript.Shell.
+        icon_path = str(APP_ICON_FILE.resolve())
+        escaped_shortcut = str(shortcut_path).replace("'", "''")
+        escaped_target = target_path.replace("'", "''")
+        escaped_arguments = arguments.replace("'", "''")
+        escaped_working_dir = working_dir.replace("'", "''")
+        escaped_icon = icon_path.replace("'", "''")
+        script = (
+            "$WshShell = New-Object -ComObject WScript.Shell; "
+            f"$Shortcut = $WshShell.CreateShortcut('{escaped_shortcut}'); "
+            f"$Shortcut.TargetPath = '{escaped_target}'; "
+            f"$Shortcut.Arguments = '{escaped_arguments}'; "
+            f"$Shortcut.WorkingDirectory = '{escaped_working_dir}'; "
+            f"$Shortcut.IconLocation = '{escaped_icon}'; "
+            "$Shortcut.Save()"
+        )
+        subprocess.run(
+            ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+
+    def _add_desktop_icons(self) -> None:
+        # Създава полезни икони на работния плот за бърз достъп до важните менюта.
+        desktop_dir = desktop_path()
+        shortcuts = [
+            ("WinSys Guardian Advanced", None),
+            ("WGA - Activation Menu", "activation"),
+            ("WGA - Windows 11 Activation", "windows11_activation"),
+            ("WGA - Office Activation", "office_activation"),
+            ("WGA - Install Software", "install_software"),
+        ]
+
+        created: list[str] = []
+        try:
+            for label, menu_key in shortcuts:
+                shortcut_path = desktop_dir / f"{label}.lnk"
+                target_path, arguments, working_dir = self._shortcut_launch_parts(menu_key)
+                self._create_windows_shortcut(shortcut_path, target_path, arguments, working_dir)
+                created.append(shortcut_path.name)
+        except (OSError, subprocess.CalledProcessError) as exc:
+            self.status_var.set("Неуспешно създаване на икони на работния плот.")
+            messagebox.showerror(
+                "Добавяне на икони",
+                f"Иконите не можаха да бъдат създадени.\n\n{exc}",
+                parent=self.root,
+            )
+            return
+
+        self.status_var.set("Иконите на работния плот бяха създадени успешно.")
+        messagebox.showinfo(
+            "Добавяне на икони",
+            "Създадени са следните икони на работния плот:\n\n" + "\n".join(created),
+            parent=self.root,
+        )
 
     def _start_auto_installer(self) -> None:
         if self.auto_install_running:
