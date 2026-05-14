@@ -1,10 +1,11 @@
 {
-  "version": "0.2.14",
+  "version": "0.2.15",
   "version_info_url": "https://raw.githubusercontent.com/gyx4ee/WGA/refs/heads/main/version.json",
   "download_url": "https://github.com/gyx4ee/WGA/releases/latest",
   "package_url": "https://raw.githubusercontent.com/gyx4ee/WGA/refs/heads/main/WGA-portable.zip",
-  "notes": "Improved online package downloads so extraction shows live progress and the next package starts visibly after the current one finishes.",
+  "notes": "Fixed repeated update notifications after updating by syncing and reading the correct version file from the installed build.",
   "changelog": [
+    "v0.2.15 - Fixed repeated update notifications after updating by syncing and reading the correct version file from the installed build.",
     "v0.2.14 - Improved online package downloads so extraction shows live progress and the next package starts visibly after the current one finishes.",
     "v0.2.13 - Added a faster startup USB check and blocked the installer before opening when no allowed USB device is found.",
     "v0.2.12 - Restricted setup to USB storage only and blocked all local installations.",

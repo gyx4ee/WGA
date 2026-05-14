@@ -79,11 +79,20 @@ SECURE_STORE_FILE = PROJECT_ROOT / ".wga_secure_store.json"
 
 
 def runtime_file(relative_path: str) -> Path:
-    # Търси файл първо до програмата, после в bundled ресурсите на build-а.
+    # Търси файла на правилното място според това дали работим от build или от проект.
     portable_path = PROJECT_ROOT / relative_path
+    bundled_path = RESOURCE_ROOT / relative_path
+
+    # При build първо ползваме bundled файла, за да не четем старо копие до exe-то.
+    if getattr(sys, "frozen", False) and bundled_path.exists():
+        return bundled_path
+
+    # При portable или dev режим ползваме файла до програмата, ако го има.
     if portable_path.exists():
         return portable_path
-    return RESOURCE_ROOT / relative_path
+
+    # Ако няма локално копие, връщаме bundled ресурса като резервен вариант.
+    return bundled_path
 
 
 VERSION_FILE = runtime_file("version.json")

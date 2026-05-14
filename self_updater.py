@@ -26,6 +26,7 @@ SKIPPED_DIRS = {
 
 
 def _prepare_url(url: str) -> str:
+    # Подготвя и валидира адреса за update пакета.
     stripped_url = url.strip()
     if not stripped_url:
         raise ValueError("Липсва адрес за update пакет.")
@@ -41,6 +42,7 @@ def _prepare_url(url: str) -> str:
 
 
 def download_update_package(url: str, destination: Path, progress_callback=None) -> Path:
+    # Изтегля zip пакета за update във временна папка.
     destination.mkdir(parents=True, exist_ok=True)
     package_path = destination / "wga-update.zip"
     prepared_url = _prepare_url(url)
@@ -70,6 +72,7 @@ def download_update_package(url: str, destination: Path, progress_callback=None)
 
 
 def extract_update_package(package_path: Path, destination: Path, progress_callback=None) -> Path:
+    # Разархивира update пакета и връща реалната начална папка.
     extract_dir = destination / "extracted"
     if extract_dir.exists():
         shutil.rmtree(extract_dir)
@@ -87,10 +90,12 @@ def extract_update_package(package_path: Path, destination: Path, progress_callb
 
 
 def _cmd_quote(value: str) -> str:
+    # Пази cmd параметрите от счупване при интервали и кавички.
     return '"' + value.replace('"', '""') + '"'
 
 
 def _restart_line(restart_command: list[str]) -> str:
+    # Подготвя командата, с която приложението ще се стартира отново.
     if not restart_command:
         return ""
     executable = _cmd_quote(restart_command[0])
@@ -105,6 +110,7 @@ def create_update_helper(
     restart_command: list[str],
     work_dir: Path,
 ) -> Path:
+    # Прави временен .cmd файл, който копира новите файлове след затваряне на WGA.
     helper_path = work_dir / "install_wga_update.cmd"
     restart_line = _restart_line(restart_command)
     skipped_dirs = " ".join(_cmd_quote(item) for item in sorted(SKIPPED_DIRS))
@@ -128,6 +134,8 @@ if %ROBOCOPY_CODE% GEQ 8 (
     pause
     exit /b %ROBOCOPY_CODE%
 )
+rem Копира текущата версия и до основната папка за съвместимост със стари build-ове.
+if exist "{target_root}\\_internal\\version.json" copy /Y "{target_root}\\_internal\\version.json" "{target_root}\\version.json" >nul
 echo Update installed.
 echo Update installed. Robocopy code: %ROBOCOPY_CODE% >> "%LOG_FILE%"
 {restart_line}
@@ -145,6 +153,7 @@ def prepare_update_install(
     restart_command: list[str],
     progress_callback=None,
 ) -> Path:
+    # Изпълнява целия update процес до готов helper скрипт.
     work_dir = Path(tempfile.mkdtemp(prefix="wga_update_"))
     if progress_callback:
         progress_callback(5)
@@ -166,4 +175,5 @@ def prepare_update_install(
 
 
 def launch_helper_and_exit(helper_path: Path) -> None:
+    # Стартира helper файла отвън, за да може текущото приложение да се затвори.
     os.startfile(str(helper_path))
