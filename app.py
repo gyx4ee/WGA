@@ -111,6 +111,7 @@ NAV_BUTTON_WIDTH = 11
 CARD_MIN_HEIGHT = 185
 MENU_CARD_MIN_HEIGHT = {
     "office_center": 230,
+    "nexus_admin": 230,
 }
 DESKTOP_ICON_PATHS = (
     r"Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel",
@@ -202,12 +203,6 @@ MENU_TREE = {
                 "kind": "menu",
                 "target": "auto_installer",
                 "description": "Избери няколко инсталации и ги стартирай с едно копче.",
-            },
-            {
-                "label": "Избор на програми",
-                "kind": "action",
-                "action_id": "open_program_selector",
-                "description": "Отваря отделен прозорец с тикчета за избор на програми и компоненти за инсталиране.",
             },
             {"label": "Language Menu", "kind": "menu", "target": "language"},
             {
@@ -397,12 +392,6 @@ MENU_TREE = {
                 "kind": "action",
                 "action_id": "install_adobe_reader",
                 "description": "Проверява актуалната Adobe Reader версия през winget и предупреждава, ако локалният installer е стар.",
-            },
-            {
-                "label": "Избор на програми",
-                "kind": "action",
-                "action_id": "open_program_selector",
-                "description": "Отваря нов прозорец, в който с отметки се избират програмите за инсталиране.",
             },
             {"label": "Secret Install Interface", "kind": "menu", "target": "secret_install"},
             {"label": "Return to Main Menu", "kind": "menu", "target": "main"},
@@ -3130,8 +3119,9 @@ class MainMenuUI:
         dot.create_oval(2, 2, 14, 14, fill=accent, outline="")
         dot.pack(side="left")
 
-        title_font = ("Segoe UI Semibold", 11) if self.current_menu == "office_center" else ("Segoe UI Semibold", 12)
-        title_wraplength = 350 if self.current_menu == "office_center" else 320
+        compact_text_menus = {"office_center", "nexus_admin"}
+        title_font = ("Segoe UI Semibold", 11) if self.current_menu in compact_text_menus else ("Segoe UI Semibold", 12)
+        title_wraplength = 350 if self.current_menu in compact_text_menus else 320
         title = tk.Label(
             top,
             text=item["label"],
@@ -3145,7 +3135,7 @@ class MainMenuUI:
         title.pack(side="left", padx=(8, 0), fill="x", expand=True)
 
         description = self._item_description(item)
-        desc_wraplength = 350 if self.current_menu == "office_center" else 320
+        desc_wraplength = 350 if self.current_menu in compact_text_menus else 320
         desc_label = tk.Label(
             card,
             text=description,
@@ -3540,7 +3530,7 @@ class MainMenuUI:
             self._add_desktop_icons()
             return
         if action_id == "open_program_selector":
-            self._open_program_selector_window()
+            self.render_menu("auto_installer")
             return
         if action_id == "save_windows11_key":
             self._save_windows11_key()
