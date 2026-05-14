@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-import json
 import hashlib
+import json
 import time
 import urllib.request
 import zipfile
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from path_utils import ensure_installers_root, resolve_installers_root
 
@@ -16,6 +16,7 @@ MANIFEST_FILE_NAME = "installers_manifest.json"
 
 @dataclass(frozen=True)
 class ResourceItem:
+    # Описва един online ресурс: име, файлове, адрес и checksum.
     resource_id: str
     name: str
     category: str
@@ -29,6 +30,7 @@ class ResourceItem:
 
 @dataclass(frozen=True)
 class ResourceCheck:
+    # Показва дали даден ресурс е наличен локално.
     item: ResourceItem
     available: bool
     missing_files: tuple[Path, ...]
@@ -36,6 +38,7 @@ class ResourceCheck:
 
 @dataclass(frozen=True)
 class ResourceStatus:
+    # Обобщен статус за ресурсите от manifest файла.
     installers_root: Path
     total: int
     available: int
@@ -53,6 +56,7 @@ class ResourceStatus:
 
 
 def manifest_path(program_root: Path) -> Path:
+    # Избира кой manifest да се ползва - portable или bundled.
     portable_manifest = program_root / MANIFEST_FILE_NAME
     bundled_manifest = program_root / "_internal" / MANIFEST_FILE_NAME
 
@@ -66,6 +70,7 @@ def manifest_path(program_root: Path) -> Path:
 
 
 def _manifest_has_download_urls(path: Path) -> bool:
+    # Проверява дали manifest файлът наистина има адреси за теглене.
     try:
         data = json.loads(path.read_text(encoding="utf-8-sig"))
     except (OSError, json.JSONDecodeError):
@@ -75,9 +80,11 @@ def _manifest_has_download_urls(path: Path) -> bool:
 
 
 def load_resource_manifest(program_root: Path) -> list[ResourceItem]:
+    # Зарежда installers_manifest.json и го превръща в удобни обекти.
     path = manifest_path(program_root)
     if not path.exists():
         return []
+
     try:
         data = json.loads(path.read_text(encoding="utf-8-sig"))
     except (OSError, json.JSONDecodeError):
@@ -88,11 +95,13 @@ def load_resource_manifest(program_root: Path) -> list[ResourceItem]:
     for raw_item in resources:
         if not isinstance(raw_item, dict):
             continue
+
         resource_id = str(raw_item.get("id", "")).strip()
         name = str(raw_item.get("name", resource_id)).strip()
         required_files = tuple(str(value).strip() for value in raw_item.get("required_files", []) if str(value).strip())
         if not resource_id or not required_files:
             continue
+
         items.append(
             ResourceItem(
                 resource_id=resource_id,
@@ -110,8 +119,10 @@ def load_resource_manifest(program_root: Path) -> list[ResourceItem]:
 
 
 def check_resource_status(program_root: Path) -> ResourceStatus:
+    # Проверява кои нужни файлове са налични и кои липсват.
     installers_root = ensure_installers_root(program_root)
     checks: list[ResourceCheck] = []
+
     for item in load_resource_manifest(program_root):
         missing_files = tuple(
             installers_root / relative_path
@@ -132,6 +143,58 @@ def check_resource_status(program_root: Path) -> ResourceStatus:
     )
 
 
+def _extract_zip_with_progress(target_path: Path, item: ResourceItem, progress_callback: object | None = None) -> None:
+    # Разархивира zip-а по части, за да се вижда реален прогрес и да не изглежда, че е забило.
+    extract_dir = target_path.parent
+    with zipfile.ZipFile(target_path) as archive:
+        archive_entries = [entry for entry in archive.infolist() if not entry.is_dir()]
+        total_unpacked_bytes = sum(max(0, entry.file_size) for entry in archive_entries)
+        total_unpacked_bytes = max(1, total_unpacked_bytes)
+        unpacked_bytes = 0
+
+        if callable(progress_callback):
+            progress_callback(
+                0,
+                total_unpacked_bytes,
+                item.name,
+                0.0,
+                0,
+                "Разархивиране на пакета...",
+            )
+
+        for entry in archive_entries:
+            relative_name = PurePosixPath(entry.filename)
+            destination_path = extract_dir.joinpath(*relative_name.parts)
+            destination_path.parent.mkdir(parents=True, exist_ok=True)
+
+            with archive.open(entry, "r") as source_file, destination_path.open("wb") as destination_file:
+                while True:
+                    chunk = source_file.read(1024 * 512)
+                    if not chunk:
+                        break
+                    destination_file.write(chunk)
+                    unpacked_bytes += len(chunk)
+                    if callable(progress_callback):
+                        progress_callback(
+                            min(unpacked_bytes, total_unpacked_bytes),
+                            total_unpacked_bytes,
+                            item.name,
+                            0.0,
+                            0,
+                            f"Разархивиране: {relative_name.name}",
+                        )
+
+        if callable(progress_callback):
+            progress_callback(
+                total_unpacked_bytes,
+                total_unpacked_bytes,
+                item.name,
+                0.0,
+                0,
+                "Разархивирането приключи.",
+            )
+
+
 def download_resource(
     program_root: Path,
     item: ResourceItem,
@@ -140,11 +203,13 @@ def download_resource(
     if not item.url:
         raise ValueError(f"No download URL configured for {item.name}.")
 
+    # Гарантираме, че папката Installers я има преди да почне записът.
     installers_root = ensure_installers_root(program_root)
     target_relative = item.target or Path(item.url).name or f"{item.resource_id}.download"
     target_path = installers_root / target_relative
     target_path.parent.mkdir(parents=True, exist_ok=True)
 
+    # Теглим на части, за да показваме прогрес, скорост и оставащо време.
     start_time = time.monotonic()
     downloaded = 0
     request = urllib.request.Request(item.url, headers={"User-Agent": "WGA-Resource-Downloader/1.0"})
@@ -164,6 +229,7 @@ def download_resource(
                     progress_callback(downloaded, total_size, item.name, speed, eta)
 
     if item.sha256:
+        # След теглене проверяваме файла, за да не остане счупен архив.
         digest = hashlib.sha256()
         with target_path.open("rb") as downloaded_file:
             for chunk in iter(lambda: downloaded_file.read(1024 * 1024), b""):
@@ -173,32 +239,13 @@ def download_resource(
             raise RuntimeError(f"SHA256 проверката е неуспешна за {item.name}.")
 
     if item.extract and zipfile.is_zipfile(target_path):
-        if callable(progress_callback):
-            progress_callback(
-                target_path.stat().st_size,
-                target_path.stat().st_size,
-                item.name,
-                0.0,
-                0,
-                "Разархивиране на пакета...",
-            )
-        extract_dir = target_path.parent
-        with zipfile.ZipFile(target_path) as archive:
-            archive.extractall(extract_dir)
-        if callable(progress_callback):
-            progress_callback(
-                target_path.stat().st_size,
-                target_path.stat().st_size,
-                item.name,
-                0.0,
-                0,
-                "Разархивирането приключи.",
-            )
+        _extract_zip_with_progress(target_path, item, progress_callback)
 
     return target_path
 
 
 def missing_resource_report(status: ResourceStatus) -> str:
+    # Прави текстов отчет за липсващите online ресурси.
     if not status.configured:
         return "Няма конфигуриран manifest за инсталационните ресурси."
     if status.complete:
