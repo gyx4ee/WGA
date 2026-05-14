@@ -3316,9 +3316,6 @@ class MainMenuUI:
         kind = item["kind"]
         if kind == "menu":
             target = item["target"]
-            if target == "windows11_activation" and not self._authorize_windows11_menu():
-                self.status_var.set("Access to Windows 11 Key Manager was denied.")
-                return
             if target != self.current_menu:
                 self.history.append(self.current_menu)
             self.render_menu(target)
@@ -3328,34 +3325,8 @@ class MainMenuUI:
             self.root.destroy()
 
     def _authorize_windows11_menu(self) -> bool:
-        password = simpledialog.askstring(
-            "Защитено меню",
-            "Въведи парола за менюто за Windows 11:",
-            parent=self.root,
-            show="*",
-        )
-        if password is None:
-            return False
-        expected_hash = self.secure_store.get(
-            "admin_menu_password_hash",
-            hash_secret(DEFAULT_WINDOWS11_MENU_PASSWORD),
-        )
-        entered_hash = hash_secret(password)
-        default_hash = hash_secret(DEFAULT_WINDOWS11_MENU_PASSWORD)
-        if entered_hash == expected_hash:
-            return True
-
-        if entered_hash == default_hash:
-            self.secure_store["admin_menu_password_hash"] = default_hash
-            try:
-                save_secure_store(self.secure_store)
-            except OSError:
-                pass
-            return True
-
-        messagebox.showerror("Достъп отказан", "Въведената парола не е правилна.", parent=self.root)
-        self.status_var.set("Достъпът до менюто за Windows 11 беше отказан.")
-        return False
+        # Менюто за Windows 11 вече е без парола и се отваря директно.
+        return True
 
     def _handle_action(self, item: dict[str, str]) -> None:
         action_id = item.get("action_id", "")
