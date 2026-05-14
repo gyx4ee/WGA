@@ -3158,7 +3158,9 @@ class MainMenuUI:
             office_info = self._office_install_info(item["action_id"])
             has_remove_button = bool(office_info.installed and office_info.uninstall_string)
 
-        action_area_height = CARD_ACTION_DOUBLE_HEIGHT if has_remove_button else CARD_ACTION_HEIGHT
+        # В Office Install Center всички карти пазят еднакво място за бутоните, за да са с еднакъв размер.
+        force_double_action_area = self.current_menu == "office_install_center"
+        action_area_height = CARD_ACTION_DOUBLE_HEIGHT if has_remove_button or force_double_action_area else CARD_ACTION_HEIGHT
         action_area = tk.Frame(card, bg=card_bg, height=action_area_height)
         action_area.pack(fill="x", padx=14, pady=(16, 16), side="bottom")
         action_area.pack_propagate(False)
