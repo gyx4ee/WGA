@@ -1063,6 +1063,76 @@ def refresh_windows_desktop() -> None:
             continue
 
 
+def switch_keyboard_layout_to_english() -> int | None:
+    # Превключва клавиатурата към английска подредба за по-сигурно въвеждане на ключове.
+    user32 = ctypes.windll.user32
+    current_layout = user32.GetKeyboardLayout(0)
+    english_layout = user32.LoadKeyboardLayoutW("00000409", 1)
+    if english_layout:
+        user32.ActivateKeyboardLayout(english_layout, 0)
+    return current_layout if current_layout else None
+
+
+def restore_keyboard_layout(layout_handle: int | None) -> None:
+    # Връща старата клавиатурна подредба след като приключим с въвеждането.
+    if layout_handle:
+        ctypes.windll.user32.ActivateKeyboardLayout(layout_handle, 0)
+
+
+def normalize_product_key_input(raw_value: str) -> str:
+    # Нормализира продуктов ключ и поправя често срещано въвеждане на кирилица.
+    bg_to_latin = str.maketrans(
+        {
+            "А": "A",
+            "В": "B",
+            "С": "C",
+            "Е": "E",
+            "Н": "H",
+            "К": "K",
+            "М": "M",
+            "О": "O",
+            "Р": "P",
+            "Т": "T",
+            "Х": "X",
+            "У": "Y",
+            "а": "A",
+            "в": "B",
+            "с": "C",
+            "е": "E",
+            "н": "H",
+            "к": "K",
+            "м": "M",
+            "о": "O",
+            "р": "P",
+            "т": "T",
+            "х": "X",
+            "у": "Y",
+            "Ь": "B",
+            "ь": "B",
+            "І": "I",
+            "і": "I",
+        }
+    )
+    normalized = raw_value.strip().translate(bg_to_latin).upper()
+    allowed_chars = set("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-")
+    normalized = "".join(char for char in normalized if char in allowed_chars)
+    return normalized
+
+
+def ask_product_key(parent: tk.Misc, title: str, prompt: str, initialvalue: str = "") -> str | None:
+    # Показва поле за ключ, като първо превключва към английска клавиатура.
+    previous_layout = switch_keyboard_layout_to_english()
+    try:
+        return simpledialog.askstring(
+            title,
+            prompt,
+            parent=parent,
+            initialvalue=initialvalue,
+        )
+    finally:
+        restore_keyboard_layout(previous_layout)
+
+
 # Началният loading екран на приложението.
 class SplashScreen:
     def __init__(self, root: tk.Tk) -> None:
@@ -4840,17 +4910,12 @@ class MainMenuUI:
     def _save_windows11_key(self) -> None:
         existing_key = self.secure_store.get("windows11_product_key", "")
         prompt = "Enter the Windows 11 product key to save for your admin workflow:"
-        product_key = simpledialog.askstring(
-            "Save Windows 11 Key",
-            prompt,
-            parent=self.root,
-            initialvalue=existing_key,
-        )
+        product_key = ask_product_key(self.root, "Save Windows 11 Key", prompt, initialvalue=existing_key)
         if product_key is None:
             self.status_var.set("Saving Windows 11 product key was canceled.")
             return
 
-        normalized_key = product_key.strip().upper()
+        normalized_key = normalize_product_key_input(product_key)
         if not normalized_key:
             messagebox.showwarning("Missing Key", "Please enter a product key before saving.", parent=self.root)
             self.status_var.set("No Windows 11 product key was saved.")
@@ -4920,17 +4985,17 @@ class MainMenuUI:
         version_label = get_office_version_label(selected_action)
         store_key = f"{selected_action}_product_key"
         existing_key = self.secure_store.get(store_key, "")
-        product_key = simpledialog.askstring(
+        product_key = ask_product_key(
+            self.root,
             "Save Office Key",
             f"Enter the product key for {version_label}:",
-            parent=self.root,
             initialvalue=existing_key,
         )
         if product_key is None:
             self.status_var.set(f"Saving {version_label} product key was canceled.")
             return
 
-        normalized_key = product_key.strip().upper()
+        normalized_key = normalize_product_key_input(product_key)
         if not normalized_key:
             messagebox.showwarning("Missing Key", f"Please enter a product key for {version_label} before saving.", parent=self.root)
             self.status_var.set(f"No {version_label} product key was saved.")
