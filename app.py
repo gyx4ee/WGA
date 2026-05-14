@@ -15,6 +15,7 @@ import time
 import tkinter as tk
 import json
 import webbrowser
+import winreg
 from tkinter import messagebox, simpledialog, ttk
 from pathlib import Path
 
@@ -108,6 +109,16 @@ CARD_ACTION_HEIGHT = 52
 CARD_ACTION_DOUBLE_HEIGHT = 108
 NAV_BUTTON_WIDTH = 11
 CARD_MIN_HEIGHT = 185
+DESKTOP_ICON_PATHS = (
+    r"Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel",
+    r"Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\ClassicStartMenu",
+)
+DESKTOP_ICON_TARGETS = (
+    ("This PC", "{20D04FE0-3AEA-1069-A2D8-08002B30309D}"),
+    ("Network", "{F02C1A0D-BE21-4350-88B0-7367FC96EF3C}"),
+    ("Control Panel", "{5399E694-6CE5-4D6C-8FCE-1D8870FDCBA0}"),
+    ("User Files", "{59031a47-3f72-44a7-89c5-5595fe6b30ee}"),
+)
 MENU_PAGE_SIZE: dict[str, int] = {
     "activation": 4,
     "reset_onedrive": 4,
@@ -1000,6 +1011,56 @@ def get_startup_menu_from_args() -> str | None:
             if menu_key in MENU_TREE:
                 return menu_key
     return None
+
+
+def enable_windows_desktop_icons(progress_callback=None) -> list[str]:
+    # Показва системните икони на работния плот през Windows registry.
+    enabled_labels: list[str] = []
+    total_steps = len(DESKTOP_ICON_TARGETS) + 2
+    current_step = 0
+
+    for label, clsid in DESKTOP_ICON_TARGETS:
+        current_step += 1
+        progress_value = min(90, int(current_step / total_steps * 100))
+        if progress_callback is not None:
+            progress_callback(
+                progress_value,
+                f"Активиране на {label}...",
+                f"Включва се системната икона {label} на работния плот.",
+            )
+        for registry_path in DESKTOP_ICON_PATHS:
+            key = winreg.CreateKey(winreg.HKEY_CURRENT_USER, registry_path)
+            winreg.SetValueEx(key, clsid, 0, winreg.REG_DWORD, 0)
+            winreg.CloseKey(key)
+        enabled_labels.append(label)
+
+    current_step += 1
+    if progress_callback is not None:
+        progress_callback(94, "Опресняване на работния плот...", "Explorer се опреснява, за да се покажат иконите.")
+    refresh_windows_desktop()
+
+    current_step += 1
+    if progress_callback is not None:
+        progress_callback(100, "Готово.", "Иконите на работния плот са активирани успешно.")
+    return enabled_labels
+
+
+def refresh_windows_desktop() -> None:
+    # Опреснява работния плот след промяна на системните икони.
+    try:
+        ctypes.windll.shell32.SHChangeNotify(0x08000000, 0, None, None)
+    except Exception:
+        pass
+
+    refresh_commands = [
+        ["ie4uinit.exe", "-show"],
+        ["rundll32.exe", "user32.dll,UpdatePerUserSystemParameters"],
+    ]
+    for command in refresh_commands:
+        try:
+            subprocess.run(command, check=False, capture_output=True, text=True)
+        except OSError:
+            continue
 
 
 # Началният loading екран на приложението.
@@ -3488,38 +3549,41 @@ class MainMenuUI:
         )
 
     def _add_desktop_icons(self) -> None:
-        # Създава полезни икони на работния плот за бърз достъп до важните менюта.
-        desktop_dir = desktop_path()
-        shortcuts = [
-            ("WinSys Guardian Advanced", None),
-            ("WGA - Activation Menu", "activation"),
-            ("WGA - Windows 11 Activation", "windows11_activation"),
-            ("WGA - Office Activation", "office_activation"),
-            ("WGA - Install Software", "install_software"),
-        ]
-
-        created: list[str] = []
-        try:
-            for label, menu_key in shortcuts:
-                shortcut_path = desktop_dir / f"{label}.lnk"
-                target_path, arguments, working_dir = self._shortcut_launch_parts(menu_key)
-                self._create_windows_shortcut(shortcut_path, target_path, arguments, working_dir)
-                created.append(shortcut_path.name)
-        except (OSError, subprocess.CalledProcessError) as exc:
-            self.status_var.set("Неуспешно създаване на икони на работния плот.")
-            messagebox.showerror(
-                "Добавяне на икони",
-                f"Иконите не можаха да бъдат създадени.\n\n{exc}",
-                parent=self.root,
-            )
-            return
-
-        self.status_var.set("Иконите на работния плот бяха създадени успешно.")
-        messagebox.showinfo(
+        # Пуска отделен прозорец с прогрес, докато Windows системните икони се включват.
+        confirmed = messagebox.askyesno(
             "Добавяне на икони",
-            "Създадени са следните икони на работния плот:\n\n" + "\n".join(created),
+            "Да се добавят ли на работния плот системните икони This PC, Network, Control Panel и User Files?",
             parent=self.root,
         )
+        if not confirmed:
+            self.status_var.set("Добавянето на икони на работния плот беше отменено.")
+            return
+
+        self.status_var.set("Добавят се системни икони на работния плот...")
+        self._open_activation_window(
+            title="Добавяне на икони",
+            heading="Системни икони на работния плот",
+            intro="Приложението включва системните икони на Windows и опреснява работния плот.",
+        )
+        threading.Thread(target=self._run_add_desktop_icons, daemon=True).start()
+
+    def _run_add_desktop_icons(self) -> None:
+        # Работи във фонов режим, за да не блокира интерфейса по време на промяната.
+        try:
+            enabled_labels = enable_windows_desktop_icons(
+                lambda value, status, details: self.root.after(
+                    0,
+                    lambda v=value, s=status, d=details: self._update_activation_progress(v, s, d),
+                )
+            )
+        except OSError as exc:
+            self.root.after(0, lambda: self._show_activation_result(False, str(exc), "Desktop Icons"))
+            self.root.after(0, lambda: self.status_var.set("Неуспешно добавяне на системни икони на работния плот."))
+            return
+
+        summary = "Активирани икони:\n" + "\n".join(f"- {label}" for label in enabled_labels)
+        self.root.after(0, lambda: self._show_activation_result(True, summary, "Desktop Icons"))
+        self.root.after(0, lambda: self.status_var.set("Системните икони на работния плот бяха добавени успешно."))
 
     def _start_auto_installer(self) -> None:
         if self.auto_install_running:
