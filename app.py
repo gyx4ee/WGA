@@ -231,9 +231,44 @@ MENU_TREE = {
         "title": "Activation Menu",
         "subtitle": "Windows and Office activation shortcuts.",
         "items": [
-            {"label": "Activate Windows 10", "kind": "action"},
+            {"label": "Activate Windows 10", "kind": "menu", "target": "windows10_activation"},
             {"label": "Activate Windows 11", "kind": "menu", "target": "windows11_activation"},
             {"label": "Office Activation Center", "kind": "menu", "target": "office_activation"},
+        ],
+    },
+    "windows10_activation": {
+        "title": "Windows 10 Key Manager",
+        "subtitle": "Save and manage the Windows 10 product key used by your admin team.",
+        "items": [
+            {
+                "label": "Run Windows 10 Activation",
+                "kind": "action",
+                "action_id": "activate_windows10",
+                "description": "Run the Windows activation commands using the saved product key.",
+            },
+            {
+                "label": "Save or Replace Product Key",
+                "kind": "action",
+                "action_id": "save_windows10_key",
+                "description": "Store the currently approved Windows 10 key for later use.",
+            },
+            {
+                "label": "Show Saved Product Key",
+                "kind": "action",
+                "action_id": "show_windows10_key",
+                "description": "Display the key currently stored in this application.",
+            },
+            {
+                "label": "Clear Saved Product Key",
+                "kind": "action",
+                "action_id": "clear_windows10_key",
+                "description": "Remove the saved key if your organization replaces it.",
+            },
+            {
+                "label": "Return to Main Menu",
+                "kind": "menu",
+                "target": "main",
+            },
         ],
     },
     "windows11_activation": {
@@ -637,6 +672,10 @@ UI_TRANSLATIONS = {
     "Activate Windows 10": "Активирай Windows 10",
     "Activate Windows 11": "Активирай Windows 11",
     "Office Activation Center": "Център за активация на Office",
+    "Windows 10 Key Manager": "Управление на ключ за Windows 10",
+    "Save and manage the Windows 10 product key used by your admin team.": "Запис и управление на ключа за Windows 10, използван от администратора.",
+    "Run Windows 10 Activation": "Стартирай активация на Windows 10",
+    "Store the currently approved Windows 10 key for later use.": "Записва текущия одобрен ключ за Windows 10 за по-късно използване.",
     "Windows 11 Key Manager": "Управление на ключ за Windows 11",
     "Save and manage the Windows 11 product key used by your admin team.": "Запис и управление на ключа за Windows 11, използван от администратора.",
     "Run Windows 11 Activation": "Стартирай активация на Windows 11",
@@ -3496,8 +3535,20 @@ class MainMenuUI:
         if action_id == "save_windows11_key":
             self._save_windows11_key()
             return
+        if action_id == "save_windows10_key":
+            self._save_windows10_key()
+            return
+        if action_id == "activate_windows10":
+            self._activate_windows10()
+            return
         if action_id == "activate_windows11":
             self._activate_windows11()
+            return
+        if action_id == "show_windows10_key":
+            self._show_windows10_key()
+            return
+        if action_id == "clear_windows10_key":
+            self._clear_windows10_key()
             return
         if action_id == "show_windows11_key":
             self._show_windows11_key()
@@ -4907,74 +4958,95 @@ class MainMenuUI:
         self.root.wait_window(dialog)
         return selected_version.get() or None
 
-    def _save_windows11_key(self) -> None:
-        existing_key = self.secure_store.get("windows11_product_key", "")
-        prompt = "Enter the Windows 11 product key to save for your admin workflow:"
-        product_key = ask_product_key(self.root, "Save Windows 11 Key", prompt, initialvalue=existing_key)
+    def _save_windows_product_key(self, version_label: str, store_key: str) -> None:
+        # Записва ключ за избраната версия на Windows.
+        existing_key = self.secure_store.get(store_key, "")
+        prompt = f"Enter the {version_label} product key to save for your admin workflow:"
+        product_key = ask_product_key(self.root, f"Save {version_label} Key", prompt, initialvalue=existing_key)
         if product_key is None:
-            self.status_var.set("Saving Windows 11 product key was canceled.")
+            self.status_var.set(f"Saving {version_label} product key was canceled.")
             return
 
         normalized_key = normalize_product_key_input(product_key)
         if not normalized_key:
             messagebox.showwarning("Missing Key", "Please enter a product key before saving.", parent=self.root)
-            self.status_var.set("No Windows 11 product key was saved.")
+            self.status_var.set(f"No {version_label} product key was saved.")
             return
 
-        self.secure_store["windows11_product_key"] = normalized_key
+        self.secure_store[store_key] = normalized_key
         try:
             save_secure_store(self.secure_store)
         except OSError as exc:
             messagebox.showerror(
                 "Save Failed",
-                f"The Windows 11 product key could not be saved.\n\n{exc}",
+                f"The {version_label} product key could not be saved.\n\n{exc}",
                 parent=self.root,
             )
-            self.status_var.set("Saving the Windows 11 product key failed.")
+            self.status_var.set(f"Saving the {version_label} product key failed.")
             return
-        self.status_var.set("Windows 11 product key saved successfully.")
+        self.status_var.set(f"{version_label} product key saved successfully.")
         messagebox.showinfo(
             "Key Saved",
-            f"The Windows 11 product key has been saved.\n\nSecure file:\n{SECURE_STORE_FILE}",
+            f"The {version_label} product key has been saved.\n\nSecure file:\n{SECURE_STORE_FILE}",
             parent=self.root,
         )
 
-    def _show_windows11_key(self) -> None:
-        saved_key = self.secure_store.get("windows11_product_key", "").strip()
+    def _save_windows10_key(self) -> None:
+        self._save_windows_product_key("Windows 10", "windows10_product_key")
+
+    def _save_windows11_key(self) -> None:
+        self._save_windows_product_key("Windows 11", "windows11_product_key")
+
+    def _show_windows_product_key(self, version_label: str, store_key: str) -> None:
+        # Показва записания ключ за избраната версия на Windows.
+        saved_key = self.secure_store.get(store_key, "").strip()
         if not saved_key:
-            messagebox.showinfo("No Saved Key", "There is no saved Windows 11 product key yet.", parent=self.root)
-            self.status_var.set("No Windows 11 product key is currently stored.")
+            messagebox.showinfo("No Saved Key", f"There is no saved {version_label} product key yet.", parent=self.root)
+            self.status_var.set(f"No {version_label} product key is currently stored.")
             return
 
-        messagebox.showinfo("Saved Windows 11 Key", saved_key, parent=self.root)
-        self.status_var.set("Displayed the saved Windows 11 product key.")
+        messagebox.showinfo(f"Saved {version_label} Key", saved_key, parent=self.root)
+        self.status_var.set(f"Displayed the saved {version_label} product key.")
 
-    def _clear_windows11_key(self) -> None:
-        if "windows11_product_key" not in self.secure_store:
-            self.status_var.set("There is no saved Windows 11 product key to remove.")
+    def _show_windows10_key(self) -> None:
+        self._show_windows_product_key("Windows 10", "windows10_product_key")
+
+    def _show_windows11_key(self) -> None:
+        self._show_windows_product_key("Windows 11", "windows11_product_key")
+
+    def _clear_windows_product_key(self, version_label: str, store_key: str) -> None:
+        # Изтрива записания ключ за избраната версия на Windows.
+        if store_key not in self.secure_store:
+            self.status_var.set(f"There is no saved {version_label} product key to remove.")
             return
 
         confirmed = messagebox.askyesno(
             "Clear Saved Key",
-            "Do you want to remove the saved Windows 11 product key?",
+            f"Do you want to remove the saved {version_label} product key?",
             parent=self.root,
         )
         if not confirmed:
-            self.status_var.set("Saved Windows 11 product key was kept.")
+            self.status_var.set(f"Saved {version_label} product key was kept.")
             return
 
-        self.secure_store.pop("windows11_product_key", None)
+        self.secure_store.pop(store_key, None)
         try:
             save_secure_store(self.secure_store)
         except OSError as exc:
             messagebox.showerror(
                 "Remove Failed",
-                f"The saved Windows 11 product key could not be removed.\n\n{exc}",
+                f"The saved {version_label} product key could not be removed.\n\n{exc}",
                 parent=self.root,
             )
-            self.status_var.set("Removing the saved Windows 11 product key failed.")
+            self.status_var.set(f"Removing the saved {version_label} product key failed.")
             return
-        self.status_var.set("Saved Windows 11 product key removed.")
+        self.status_var.set(f"Saved {version_label} product key removed.")
+
+    def _clear_windows10_key(self) -> None:
+        self._clear_windows_product_key("Windows 10", "windows10_product_key")
+
+    def _clear_windows11_key(self) -> None:
+        self._clear_windows_product_key("Windows 11", "windows11_product_key")
 
     def _save_office_key(self) -> None:
         selected_action = self._choose_office_version("Save Office Key")
@@ -5104,33 +5176,40 @@ class MainMenuUI:
             daemon=True,
         ).start()
 
-    def _activate_windows11(self) -> None:
-        saved_key = self.secure_store.get("windows11_product_key", "").strip()
+    def _activate_windows_version(self, version_label: str, store_key: str) -> None:
+        # Стартира активация за избраната версия на Windows с вече записания ключ.
+        saved_key = self.secure_store.get(store_key, "").strip()
         if not saved_key:
             messagebox.showwarning(
                 "Missing Key",
-                "Save a Windows 11 product key first, then run activation.",
+                f"Save a {version_label} product key first, then run activation.",
                 parent=self.root,
             )
-            self.status_var.set("Windows 11 activation could not start because no key is saved.")
+            self.status_var.set(f"{version_label} activation could not start because no key is saved.")
             return
 
         confirmed = messagebox.askyesno(
-            "Activate Windows 11",
-            "Run Windows 11 activation now using the saved product key?",
+            f"Activate {version_label}",
+            f"Run {version_label} activation now using the saved product key?",
             parent=self.root,
         )
         if not confirmed:
-            self.status_var.set("Windows 11 activation was canceled.")
+            self.status_var.set(f"{version_label} activation was canceled.")
             return
 
-        self.status_var.set("Activating Windows 11...")
+        self.status_var.set(f"Activating {version_label}...")
         self._open_activation_window(
-            title="Windows 11 Activation Progress",
-            heading="Windows 11 Activation",
+            title=f"{version_label} Activation Progress",
+            heading=f"{version_label} Activation",
             intro="The application is running the saved activation workflow.",
         )
-        threading.Thread(target=self._run_windows11_activation, args=(saved_key,), daemon=True).start()
+        threading.Thread(target=self._run_windows_activation, args=(version_label, saved_key), daemon=True).start()
+
+    def _activate_windows10(self) -> None:
+        self._activate_windows_version("Windows 10", "windows10_product_key")
+
+    def _activate_windows11(self) -> None:
+        self._activate_windows_version("Windows 11", "windows11_product_key")
 
     def _find_onedrive_executable(self) -> str | None:
         candidates = [
@@ -6615,7 +6694,7 @@ class MainMenuUI:
         final_output = "\n\n".join(output_lines) or f"{version_label} activation completed successfully."
         self.root.after(0, lambda: self._show_activation_result(True, final_output, version_label))
 
-    def _run_windows11_activation(self, product_key: str) -> None:
+    def _run_windows_activation(self, version_label: str, product_key: str) -> None:
         slmgr_path = Path(os.environ.get("WINDIR", r"C:\Windows")) / "System32" / "slmgr.vbs"
         commands = [
             (
@@ -6632,7 +6711,7 @@ class MainMenuUI:
 
         output_lines: list[str] = []
         try:
-            self.root.after(0, lambda: self._update_activation_progress(10, "Preparing activation environment...", "Starting Windows 11 activation workflow."))
+            self.root.after(0, lambda: self._update_activation_progress(10, "Preparing activation environment...", f"Starting {version_label} activation workflow."))
             for progress_value, step_text, command in commands:
                 self.root.after(0, lambda value=progress_value, step=step_text, cmd=command: self._update_activation_progress(value, step, f"Running: {' '.join(cmd[:-1]) if '/ipk' in cmd else ' '.join(cmd)}"))
                 result = subprocess.run(
@@ -6651,11 +6730,11 @@ class MainMenuUI:
                 if result.returncode != 0:
                     raise RuntimeError("\n\n".join(output_lines) or "Activation command failed.")
         except Exception as exc:
-            self.root.after(0, lambda: self._show_activation_result(False, str(exc), "Windows 11"))
+            self.root.after(0, lambda: self._show_activation_result(False, str(exc), version_label))
             return
 
-        final_output = "\n\n".join(output_lines) or "Windows 11 activation completed successfully."
-        self.root.after(0, lambda: self._show_activation_result(True, final_output, "Windows 11"))
+        final_output = "\n\n".join(output_lines) or f"{version_label} activation completed successfully."
+        self.root.after(0, lambda: self._show_activation_result(True, final_output, version_label))
 
     def _show_activation_result(self, success: bool, details: str, subject: str) -> None:
         if success:
