@@ -111,7 +111,7 @@ NAV_BUTTON_WIDTH = 11
 CARD_MIN_HEIGHT = 185
 MENU_CARD_MIN_HEIGHT = {
     "office_center": 230,
-    "nexus_admin": 230,
+    "nexus_admin": 265,
 }
 DESKTOP_ICON_PATHS = (
     r"Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel",
@@ -5764,37 +5764,39 @@ class MainMenuUI:
             return
         if action_id == "nexus_create_user":
             username = simpledialog.askstring("Create New User", "Enter username:", parent=self.root)
+            username = username.strip() if username else ""
             if not username:
                 self.status_var.set("User creation was canceled.")
                 return
-            wants_password = messagebox.askyesno("Create New User", f"Create user {username.strip()} with a password?", parent=self.root)
+            wants_password = messagebox.askyesno("Create New User", f"Create user {username} with a password?", parent=self.root)
             password = None
             if wants_password:
-                password = simpledialog.askstring("Create New User", f"Enter password for {username.strip()}:", parent=self.root, show="*")
-                if password is None:
+                password = simpledialog.askstring("Create New User", f"Enter password for {username}:", parent=self.root, show="*")
+                if password is None or password == "":
                     self.status_var.set("User creation was canceled.")
                     return
-            make_admin = messagebox.askyesno("Create New User", f"Make {username.strip()} an Administrator?", parent=self.root)
+            make_admin = messagebox.askyesno("Create New User", f"Make {username} an Administrator?", parent=self.root)
             self._run_nexus_background(
                 "Create New User",
-                lambda: create_user(username.strip(), password, make_admin),
-                subject=f"User {username.strip()}",
+                lambda: create_user(username, password, make_admin),
+                subject=f"User {username}",
             )
             return
         if action_id == "nexus_delete_user":
             username = simpledialog.askstring("Delete User", "Enter the username to delete:", parent=self.root)
+            username = username.strip() if username else ""
             if not username:
                 self.status_var.set("User deletion was canceled.")
                 return
             confirm_name = simpledialog.askstring(
                 "Delete User",
-                f'Type the username "{username.strip()}" again to confirm permanent deletion:',
+                f'Type the username "{username}" again to confirm permanent deletion:',
                 parent=self.root,
             )
-            if confirm_name != username.strip():
+            if (confirm_name or "").strip() != username:
                 self.status_var.set("User deletion was canceled.")
                 return
-            self._run_nexus_background("Delete User", lambda: delete_user(username.strip()), subject=f"User {username.strip()}")
+            self._run_nexus_background("Delete User", lambda: delete_user(username), subject=f"User {username}")
             return
         if action_id == "nexus_user_details":
             username = simpledialog.askstring("User Details", "Enter username:", parent=self.root)
