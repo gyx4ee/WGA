@@ -7,15 +7,19 @@ import math
 import os
 import platform
 import queue
+import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 import tkinter as tk
 import json
 import webbrowser
 import winreg
+import urllib.error
+import urllib.request
 from tkinter import messagebox, simpledialog, ttk
 from pathlib import Path
 
@@ -53,7 +57,13 @@ from office_maintenance import (
     find_click_to_run_executable,
     find_ospp_vbs,
 )
-from office_online import OFFICE_ONLINE_PACKAGES, check_online_package, find_winget_executable, get_online_package
+from office_online import (
+    OFFICE_ONLINE_PACKAGES,
+    ODT_CONFIRMATION_URL,
+    check_online_package,
+    find_winget_executable,
+    get_online_package,
+)
 from path_utils import get_runtime_storage_info
 from resource_manager import (
     ResourceStatus,
@@ -2893,6 +2903,7 @@ class MainMenuUI:
                     "type": "office_online",
                 }
             )
+            tasks[-1]["description"] = f"Online инсталация през ODT: {package.product_id or 'неподдържан пакет'}"
         for action_id, label in (
             ("toggle_bulgarian_language_pack", "Български езиков пакет"),
             ("toggle_bulgarian_bds", "Българска БДС клавиатура"),
@@ -3317,6 +3328,149 @@ class MainMenuUI:
         if "no installed package found" in normalized or "no package found matching input criteria" in normalized:
             return False, output
         return package_id.lower() in normalized, output
+
+    def _office_online_install_state(self, action_id: str) -> tuple[bool, str, str]:
+        # Търси в registry дали този Office пакет вече го има и връща и команда за махане.
+        package = get_online_package(action_id)
+        installed, details, uninstall_string = self._find_installed_registry_app(package.registry_patterns)
+        return installed, details or package.label, uninstall_string
+
+    def _office_install_architecture(self) -> str:
+        # Избира 64-bit при 64-bit Windows, а 32-bit само ако системата е 32-bitова.
+        return "64" if os.environ.get("ProgramFiles(x86)") else "32"
+
+    def _download_office_deployment_tool(self, target_dir: Path) -> Path:
+        # Дърпа последния ODT installer от официалната Microsoft страница.
+        request = urllib.request.Request(
+            ODT_CONFIRMATION_URL,
+            headers={"User-Agent": "Mozilla/5.0 WinSysGuardianAdvanced"},
+        )
+        with urllib.request.urlopen(request, timeout=30) as response:
+            confirmation_html = response.read().decode("utf-8", errors="replace")
+
+        match = re.search(
+            r"https://download\.microsoft\.com/download/[^\"'<>\\s]+officedeploymenttool_[^\"'<>\\s]+\.exe",
+            confirmation_html,
+            re.IGNORECASE,
+        )
+        if not match:
+            raise RuntimeError("Не намерих валиден Microsoft линк за Office Deployment Tool.")
+
+        odt_url = match.group(0)
+        output_path = target_dir / Path(odt_url.split("?")[0]).name
+        with urllib.request.urlopen(odt_url, timeout=120) as response, output_path.open("wb") as output_file:
+            shutil.copyfileobj(response, output_file)
+        return output_path
+
+    def _extract_office_deployment_tool(self, odt_exe: Path, target_dir: Path) -> Path:
+        # Разпакрира ODT и връща setup.exe, което реално пуска online инсталацията.
+        command = [str(odt_exe), "/quiet", f"/extract:{target_dir}"]
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            check=False,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+        setup_path = target_dir / "setup.exe"
+        if setup_path.exists():
+            return setup_path
+        output = self._collect_command_output(result)
+        raise RuntimeError(output or "Office Deployment Tool не се разпакрира правилно.")
+
+    def _write_office_online_config(self, config_path: Path, package: object) -> None:
+        # Създава временния XML файл за точната online Office инсталация.
+        config_text = f"""<Configuration>
+  <Add OfficeClientEdition="{self._office_install_architecture()}" Channel="{package.channel}">
+    <Product ID="{package.product_id}">
+      <Language ID="MatchOS" Fallback="en-us" />
+    </Product>
+  </Add>
+  <Display Level="None" AcceptEULA="TRUE" />
+  <Property Name="FORCEAPPSHUTDOWN" Value="TRUE" />
+</Configuration>
+"""
+        config_path.write_text(config_text, encoding="utf-8")
+
+    def _run_office_online_install_core(self, action_id: str, remove_existing: bool = False) -> str:
+        # Това е общата логика за online Office, за да работи и при един бутон, и при автоматичния installer.
+        package = get_online_package(action_id)
+        status = check_online_package(action_id)
+        if not status.available:
+            raise RuntimeError(status.message)
+
+        installed_now, installed_details, uninstall_string = self._office_online_install_state(action_id)
+        output_lines: list[str] = []
+
+        with tempfile.TemporaryDirectory(prefix="wga-office-online-") as temp_dir_name:
+            temp_dir = Path(temp_dir_name)
+            odt_dir = temp_dir / "odt"
+            odt_dir.mkdir(parents=True, exist_ok=True)
+
+            self.root.after(
+                0,
+                lambda: self._update_activation_progress(
+                    15,
+                    f"Подготовка на online инсталацията за {package.label}...",
+                    "Търси се последният Office Deployment Tool от Microsoft.",
+                ),
+            )
+            odt_exe = self._download_office_deployment_tool(odt_dir)
+            output_lines.append(f"Office Deployment Tool: {odt_exe.name}")
+
+            self.root.after(
+                0,
+                lambda: self._update_activation_progress(
+                    35,
+                    "Изтегленият Office Deployment Tool се разархивира...",
+                    str(odt_exe),
+                ),
+            )
+            setup_exe = self._extract_office_deployment_tool(odt_exe, odt_dir)
+
+            if remove_existing and installed_now and uninstall_string:
+                self.root.after(
+                    0,
+                    lambda: self._update_activation_progress(
+                        50,
+                        f"Премахване на стара версия за {package.label}...",
+                        installed_details,
+                    ),
+                )
+                removal_text = self._run_office_uninstall_command(action_id, installed_details, uninstall_string)
+                if removal_text:
+                    output_lines.append(removal_text)
+
+            config_path = temp_dir / "configuration.xml"
+            self._write_office_online_config(config_path, package)
+            command = [str(setup_exe), "/configure", str(config_path)]
+
+            self.root.after(
+                0,
+                lambda: self._update_activation_progress(
+                    70,
+                    f"Стартиране на online Office инсталация за {package.label}...",
+                    f"Product ID: {package.product_id}\nChannel: {package.channel}",
+                ),
+            )
+            result = subprocess.run(
+                command,
+                capture_output=True,
+                text=True,
+                check=False,
+                cwd=str(odt_dir),
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+            )
+            output = self._collect_command_output(result)
+            if output:
+                output_lines.append(output)
+                self.root.after(0, lambda text=output: self._append_activation_log(text))
+            if result.returncode != 0:
+                raise RuntimeError("\n\n".join(output_lines) or f"{package.label} върна код {result.returncode}.")
+
+        self.office_online_cache.pop(action_id, None)
+        self.office_inventory_cache.pop(action_id, None)
+        return "\n\n".join(output_lines) or f"{package.label} стартира успешно чрез Office Deployment Tool."
 
     def _run_office_uninstall_command(self, action_id: str, display_name: str, uninstall_string: str) -> str:
         # Изпълнява реалната деинсталация на намерен Office пакет.
@@ -3830,6 +3984,7 @@ class MainMenuUI:
         return output or f"{installer.label} завърши успешно."
 
     def _run_auto_office_online(self, action_id: str) -> str:
+        return self._run_office_online_install_core(action_id, remove_existing=True)
         package = get_online_package(action_id)
         status = check_online_package(action_id)
         if not status.available:
@@ -3959,9 +4114,8 @@ class MainMenuUI:
             info = self._office_install_info(action_id)
             return bool(info.installed), info.display_name or "Office package"
         if task_type == "office_online":
-            package = get_online_package(action_id)
-            installed, output = self._is_winget_package_installed(package.winget_id)
-            return installed, output or package.winget_id
+            installed, details, _ = self._office_online_install_state(action_id)
+            return installed, details
         if task_type == "adobe":
             status = self._adobe_reader_status()
             installed_version = getattr(status, "installed_version", "") or ""
@@ -4013,6 +4167,7 @@ class MainMenuUI:
                     "type": "office_online",
                 }
             )
+            tasks[-1]["description"] = f"Online инсталация през ODT: {package.product_id or 'неподдържан пакет'}"
 
         for item in load_resource_manifest(PROJECT_ROOT):
             if item.resource_id in known_resource_ids:
@@ -4218,6 +4373,8 @@ class MainMenuUI:
             info = self._office_install_info(action_id)
             return bool(info.installed), info.display_name or "Office пакет"
         if task_type == "office_online":
+            installed, details, _ = self._office_online_install_state(action_id)
+            return installed, details
             package = get_online_package(action_id)
             installed, output = self._is_winget_package_installed(package.winget_id)
             return installed, output or package.winget_id
@@ -4316,6 +4473,7 @@ class MainMenuUI:
         return output or f"{installer.label} завърши успешно."
 
     def _run_auto_office_online(self, action_id: str, remove_first: bool = False) -> str:
+        return self._run_office_online_install_core(action_id, remove_existing=remove_first)
         # Стартира online Office инсталация и по желание маха старата версия.
         package = get_online_package(action_id)
         status = check_online_package(action_id)
@@ -5931,23 +6089,13 @@ class MainMenuUI:
             self.status_var.set(f"{package.label} cannot start because the online package is not available.")
             return
 
-        winget_exe = find_winget_executable()
-        if not winget_exe:
-            messagebox.showerror(
-                "Winget Not Found",
-                "Winget is required for online Office installation but was not found.",
-                parent=self.root,
-            )
-            self.status_var.set("Online Office installation could not start because winget is missing.")
-            return
-
-        installed_now, installed_output = self._is_winget_package_installed(package.winget_id)
+        installed_now, installed_output, _ = self._office_online_install_state(action_id)
         remove_existing = False
         if installed_now:
             remove_existing = messagebox.askyesno(
                 "Existing Package Found",
                 (
-                    f"Detected installed package for:\n{package.label}\n\n"
+                    f"Detected installed package for:\n{installed_output}\n\n"
                     "Remove the current version first and then install the new one?"
                 ),
                 parent=self.root,
@@ -5970,7 +6118,7 @@ class MainMenuUI:
         )
         threading.Thread(
             target=self._run_office_online_installation,
-            args=(package.label, package.winget_id, winget_exe, remove_existing, installed_output),
+            args=(action_id, remove_existing),
             daemon=True,
         ).start()
 
@@ -6287,12 +6435,17 @@ class MainMenuUI:
 
     def _run_office_online_installation(
         self,
-        label: str,
-        winget_id: str,
-        winget_exe: str,
+        action_id: str,
         remove_existing: bool = False,
-        installed_output: str = "",
     ) -> None:
+        package = get_online_package(action_id)
+        try:
+            final_message = self._run_office_online_install_core(action_id, remove_existing=remove_existing)
+            self.root.after(0, lambda: self._show_activation_result(True, final_message, package.label))
+            self.root.after(0, self._render_cards)
+        except Exception as exc:
+            self.root.after(0, lambda: self._show_activation_result(False, str(exc), package.label))
+        return
         output_lines: list[str] = []
         command = [
             winget_exe,
