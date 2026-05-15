@@ -112,6 +112,8 @@ CARD_MIN_HEIGHT = 185
 MENU_CARD_MIN_HEIGHT = {
     "office_center": 230,
     "nexus_admin": 265,
+    "office_install_center": 250,
+    "secret_install": 230,
 }
 DESKTOP_ICON_PATHS = (
     r"Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel",
@@ -3119,7 +3121,7 @@ class MainMenuUI:
         dot.create_oval(2, 2, 14, 14, fill=accent, outline="")
         dot.pack(side="left")
 
-        compact_text_menus = {"office_center", "nexus_admin"}
+        compact_text_menus = {"office_center", "nexus_admin", "office_install_center", "secret_install"}
         title_font = ("Segoe UI Semibold", 11) if self.current_menu in compact_text_menus else ("Segoe UI Semibold", 12)
         title_wraplength = 350 if self.current_menu in compact_text_menus else 320
         title = tk.Label(

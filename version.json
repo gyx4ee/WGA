@@ -1,10 +1,11 @@
 {
-  "version": "0.2.24",
+  "version": "0.2.25",
   "version_info_url": "https://raw.githubusercontent.com/gyx4ee/WGA/refs/heads/main/version.json",
   "download_url": "https://github.com/gyx4ee/WGA/releases/latest",
   "package_url": "https://raw.githubusercontent.com/gyx4ee/WGA/refs/heads/main/WGA-portable.zip",
-  "notes": "Fixed the Nexus Admin create/delete user cards so their buttons stay visible and tightened the local user create/delete input handling.",
+  "notes": "Fixed missing buttons in Office Install Center and Secret Install by increasing card height and using more compact text wrapping for those menus.",
   "changelog": [
+    "v0.2.25 - Fixed missing buttons in Office Install Center and Secret Install by increasing card height and using more compact text wrapping for those menus.",
     "v0.2.24 - Fixed the Nexus Admin create/delete user cards so their buttons stay visible and tightened the local user create/delete input handling.",
     "v0.2.23 - Fixed the Nexus Admin card layout and moved all program selection flow into the Automatic Installer, removing the separate selector entry points.",
     "v0.2.22 - Adjusted the Office Deployment Center layout so the long cards on page 4 have enough height and wider text wrapping.",
