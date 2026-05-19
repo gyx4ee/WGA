@@ -15,6 +15,7 @@ import tempfile
 import threading
 import time
 import tkinter as tk
+import tkinter.font as tkfont
 import json
 import webbrowser
 import winreg
@@ -82,6 +83,9 @@ WINDOW_SIZE = "930x630"
 MAIN_WINDOW_SIZE = "1220x820"
 MAIN_MIN_WIDTH = 1120
 MAIN_MIN_HEIGHT = 760
+BASE_DPI = 96.0
+SPLASH_BASE_WIDTH = 930
+SPLASH_BASE_HEIGHT = 630
 MAIN_CARD_COLUMNS = 3
 PROJECT_ROOT = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
 RESOURCE_ROOT = Path(getattr(sys, "_MEIPASS", PROJECT_ROOT)).resolve()
@@ -104,6 +108,82 @@ def runtime_file(relative_path: str) -> Path:
 
     # Ако няма локално копие, връщаме bundled ресурса като резервен вариант.
     return bundled_path
+
+
+def clamp(value: float, minimum: float, maximum: float) -> float:
+    # Ograni4ava stoinost v bezopasen diapazon.
+    return max(minimum, min(maximum, value))
+
+
+def configure_windows_dpi_awareness() -> None:
+    # Kazva na Windows, che prilojenieto trqbva da se ma6abira pravilno na razlichni monitori.
+    try:
+        ctypes.windll.shcore.SetProcessDpiAwareness(2)
+        return
+    except Exception:
+        pass
+    try:
+        ctypes.windll.user32.SetProcessDPIAware()
+    except Exception:
+        pass
+
+
+def apply_tk_dpi_scaling(window: tk.Misc) -> float:
+    # Nastroyva Tkinter spored realniq DPI, za da ne izliza droben ili zamazan tekst.
+    try:
+        dpi = float(window.winfo_fpixels("1i"))
+    except Exception:
+        dpi = BASE_DPI
+    tk_scaling = clamp(dpi / 72.0, 1.0, 2.4)
+    try:
+        window.tk.call("tk", "scaling", tk_scaling)
+    except tk.TclError:
+        pass
+    font_scale = clamp(dpi / BASE_DPI, 0.95, 1.35)
+    for font_name in ("TkDefaultFont", "TkTextFont", "TkHeadingFont", "TkMenuFont", "TkCaptionFont", "TkSmallCaptionFont", "TkIconFont", "TkTooltipFont"):
+        try:
+            named_font = tkfont.nametofont(font_name)
+            base_size = abs(int(named_font.cget("size")))
+            if base_size:
+                named_font.configure(size=max(9, int(base_size * font_scale)))
+        except Exception:
+            continue
+    return dpi
+
+
+def responsive_window_size(screen_width: int, screen_height: int, base_width: int, base_height: int) -> tuple[int, int]:
+    # Smalqva ili uvelichava prozoreca според monitora, za da se vizhda qsno bez da izliza ot ekrana.
+    width_scale = (screen_width - 80) / max(1, base_width)
+    height_scale = (screen_height - 110) / max(1, base_height)
+    scale = clamp(min(width_scale, height_scale), 0.78, 1.35)
+    return max(780, int(base_width * scale)), max(520, int(base_height * scale))
+
+
+def center_geometry(window: tk.Misc, width: int, height: int) -> None:
+    # Centrira prozoreca na ekrana.
+    window.update_idletasks()
+    screen_width = window.winfo_screenwidth()
+    screen_height = window.winfo_screenheight()
+    position_x = max(0, (screen_width - width) // 2)
+    position_y = max(0, (screen_height - height) // 2)
+    window.geometry(f"{width}x{height}+{position_x}+{position_y}")
+
+
+def apply_main_window_layout(window: tk.Tk) -> None:
+    # Podbira podhodyasht razmer za glavniq ekran spored rezolyuciqta na monitora.
+    screen_width = window.winfo_screenwidth()
+    screen_height = window.winfo_screenheight()
+    target_width = max(980, screen_width - max(40, screen_width // 25))
+    target_height = max(700, screen_height - max(70, screen_height // 14))
+    target_width = min(target_width, screen_width - 20)
+    target_height = min(target_height, screen_height - 20)
+    center_geometry(window, target_width, target_height)
+    window.minsize(min(max(900, target_width - 180), target_width), min(max(640, target_height - 120), target_height))
+    if screen_width >= 1500 and screen_height >= 850:
+        try:
+            window.state("zoomed")
+        except tk.TclError:
+            pass
 
 
 VERSION_FILE = runtime_file("version.json")
@@ -1183,7 +1263,17 @@ class SplashScreen:
         self.root = root
         self.root.title(APP_TITLE)
         apply_app_icon(self.root)
-        self.root.geometry(WINDOW_SIZE)
+        self.dpi_value = apply_tk_dpi_scaling(self.root)
+        self.screen_width = self.root.winfo_screenwidth()
+        self.screen_height = self.root.winfo_screenheight()
+        self.splash_width, self.splash_height = responsive_window_size(
+            self.screen_width,
+            self.screen_height,
+            SPLASH_BASE_WIDTH,
+            SPLASH_BASE_HEIGHT,
+        )
+        self.splash_scale = self.splash_width / SPLASH_BASE_WIDTH
+        center_geometry(self.root, self.splash_width, self.splash_height)
         self.root.configure(bg="black")
         self.root.resizable(False, False)
 
@@ -1192,7 +1282,13 @@ class SplashScreen:
         self.status_text = tk.StringVar(value="Initializing core modules...")
         self.message_queue: queue.Queue[tuple[str, float | str]] = queue.Queue()
 
-        self.canvas = tk.Canvas(self.root, width=930, height=630, highlightthickness=0, bd=0)
+        self.canvas = tk.Canvas(
+            self.root,
+            width=self.splash_width,
+            height=self.splash_height,
+            highlightthickness=0,
+            bd=0,
+        )
         self.canvas.pack(fill="both", expand=True)
 
         self._draw_background()
@@ -1201,8 +1297,8 @@ class SplashScreen:
 
     def _draw_background(self) -> None:
         # Рисува зеления фон и линиите в стил WGA.
-        width = 930
-        height = 630
+        width = self.splash_width
+        height = self.splash_height
         band_count = 240
 
         self.canvas.create_rectangle(0, 0, width, height, fill="#000000", outline="")
@@ -1237,14 +1333,16 @@ class SplashScreen:
 
     def _create_loader(self) -> None:
         # Създава самия loading bar и текстовете около него.
-        self.canvas.create_text(465, 120, text=APP_TITLE, fill="#d9ffd9", font=("Segoe UI Semibold", 24))
-        self.canvas.create_text(465, 160, text="System Startup Interface", fill="#7cf97c", font=("Segoe UI", 12))
+        center_x = self.splash_width / 2
+        scale = self.splash_scale
+        self.canvas.create_text(center_x, 120 * scale, text=APP_TITLE, fill="#d9ffd9", font=("Segoe UI Semibold", max(18, int(24 * scale))))
+        self.canvas.create_text(center_x, 160 * scale, text="System Startup Interface", fill="#7cf97c", font=("Segoe UI", max(10, int(12 * scale))))
 
-        self.bar_left = 310
-        self.bar_top = 340
-        self.bar_width = 310
-        self.bar_height = 30
-        self.bar_radius = 12
+        self.bar_left = 310 * scale
+        self.bar_top = 340 * scale
+        self.bar_width = 310 * scale
+        self.bar_height = max(24, 30 * scale)
+        self.bar_radius = max(10, 12 * scale)
 
         self._draw_rounded_rect(
             self.bar_left,
@@ -1265,18 +1363,18 @@ class SplashScreen:
             outline="",
         )
         self.progress_label = self.canvas.create_text(
-            465,
+            center_x,
             self.bar_top + self.bar_height / 2,
             text="0%",
             fill="#111111",
-            font=("Segoe UI Semibold", 14),
+            font=("Segoe UI Semibold", max(11, int(14 * scale))),
         )
         self.status_label = self.canvas.create_text(
-            465,
-            395,
+            center_x,
+            395 * scale,
             text=self.status_text.get(),
             fill="#d4ffd4",
-            font=("Segoe UI", 11),
+            font=("Segoe UI", max(10, int(11 * scale))),
         )
 
     def _draw_rounded_rect(
@@ -1415,13 +1513,8 @@ class SplashScreen:
 
     def _show_dashboard(self) -> None:
         self.canvas.destroy()
-        self.root.geometry(MAIN_WINDOW_SIZE)
-        self.root.minsize(MAIN_MIN_WIDTH, MAIN_MIN_HEIGHT)
         self.root.resizable(True, True)
-        try:
-            self.root.state("zoomed")
-        except tk.TclError:
-            pass
+        apply_main_window_layout(self.root)
         MainMenuUI(self.root, startup_menu=get_startup_menu_from_args())
 
 
@@ -1430,6 +1523,8 @@ class MainMenuUI:
     def __init__(self, root: tk.Tk, startup_menu: str | None = None) -> None:
         # Тук пазим почти всички състояния, кешове и UI променливи.
         self.root = root
+        apply_tk_dpi_scaling(self.root)
+        apply_main_window_layout(self.root)
         self.root.configure(bg="#08130a")
         self.settings = load_settings()
         self.secure_store = load_secure_store()
@@ -1471,6 +1566,8 @@ class MainMenuUI:
         self.current_menu = "main"
         self.current_page = 0
         self.startup_menu = startup_menu if startup_menu in MENU_TREE else "main"
+        self.resize_render_job: str | None = None
+        self.last_layout_bucket: tuple[int, int] = (-1, -1)
 
         self.container = tk.Frame(self.root, bg="#08130a")
         self.container.pack(fill="both", expand=True)
@@ -1864,6 +1961,7 @@ class MainMenuUI:
         self.language_status_label.pack(anchor="w", fill="x", padx=12, pady=10)
 
         self.render_menu(self.startup_menu, reset_history=True)
+        self.root.bind("<Configure>", self._on_root_resize, add="+")
         self._load_language_status_async()
         self._load_system_health_async()
         self._check_updates_async()
@@ -3108,7 +3206,14 @@ class MainMenuUI:
         self.back_button.config(state="normal" if self.history else "disabled")
 
     def _card_columns(self) -> int:
-        return MAIN_CARD_COLUMNS if self.current_menu == "main" else 2
+        current_width = self.root.winfo_width() or self.root.winfo_screenwidth()
+        if self.current_menu == "main":
+            if current_width < 1180:
+                return 2
+            return MAIN_CARD_COLUMNS
+        if current_width < 1040:
+            return 1
+        return 2
 
     def _build_card(self, parent: tk.Widget, item: dict[str, str]) -> tk.Frame:
         accent = self._card_accent(item)
@@ -5039,12 +5144,31 @@ class MainMenuUI:
         self.back_button.config(state="normal" if self.history else "disabled")
 
     def _center_window(self, window: tk.Toplevel, width: int, height: int) -> None:
-        window.update_idletasks()
         screen_width = window.winfo_screenwidth()
         screen_height = window.winfo_screenheight()
-        position_x = max(0, (screen_width - width) // 2)
-        position_y = max(0, (screen_height - height) // 2)
-        window.geometry(f"{width}x{height}+{position_x}+{position_y}")
+        safe_width = min(width, max(420, screen_width - 40))
+        safe_height = min(height, max(260, screen_height - 60))
+        center_geometry(window, safe_width, safe_height)
+
+    def _on_root_resize(self, event: tk.Event[tk.Misc]) -> None:
+        # Pri smqna na razmera preizchislyava kolonite samo sled kratko izchakvane, za da ne primigva.
+        if event.widget is not self.root:
+            return
+        width_bucket = max(1, event.width // 120)
+        height_bucket = max(1, event.height // 90)
+        new_bucket = (width_bucket, height_bucket)
+        if new_bucket == self.last_layout_bucket:
+            return
+        self.last_layout_bucket = new_bucket
+        if self.resize_render_job:
+            self.root.after_cancel(self.resize_render_job)
+        self.resize_render_job = self.root.after(120, self._rerender_after_resize)
+
+    def _rerender_after_resize(self) -> None:
+        # Osvejava kartite sled resize, za da se vidi po-dobre tekstut na razlichni monitori.
+        self.resize_render_job = None
+        if self.current_menu != "auto_installer":
+            self._render_cards()
 
     def _choose_office_version(self, title: str) -> str | None:
         dialog = tk.Toplevel(self.root)
@@ -7040,6 +7164,7 @@ class MainMenuUI:
 
 
 def main() -> None:
+    configure_windows_dpi_awareness()
     # Главна входна точка: иска admin права и после стартира UI.
     if not is_running_as_admin():
         started = relaunch_as_admin()

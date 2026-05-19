@@ -1,10 +1,11 @@
 {
-  "version": "0.2.26",
+  "version": "0.2.27",
   "version_info_url": "https://raw.githubusercontent.com/gyx4ee/WGA/refs/heads/main/version.json",
   "download_url": "https://github.com/gyx4ee/WGA/releases/latest",
   "package_url": "https://raw.githubusercontent.com/gyx4ee/WGA/refs/heads/main/WGA-portable.zip",
-  "notes": "Fixed online Office installation by switching the workflow from broken winget package IDs to Microsoft Office Deployment Tool with proper product IDs and installed-version detection.",
+  "notes": "Added automatic DPI-aware resizing for the splash screen, main window, and card layout so the interface stays clear on different monitor sizes and scaling modes.",
   "changelog": [
+    "v0.2.27 - Added automatic DPI-aware resizing for the splash screen, main window, and card layout so the interface stays clear on different monitor sizes and scaling modes.",
     "v0.2.26 - Fixed online Office installation by switching from invalid winget package IDs to Microsoft Office Deployment Tool with proper product IDs and installed-version detection.",
     "v0.2.25 - Fixed missing buttons in Office Install Center and Secret Install by increasing card height and using more compact text wrapping for those menus.",
     "v0.2.24 - Fixed the Nexus Admin create/delete user cards so their buttons stay visible and tightened the local user create/delete input handling.",
