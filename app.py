@@ -4815,6 +4815,17 @@ class MainMenuUI:
         show_close_button: bool,
     ) -> None:
         # Зарежда проверките във фонов режим и после рисува менюто наведнъж.
+        if self.program_selector_tasks_cache and self.program_selector_status_cache and not self.program_selector_scan_running:
+            self._build_program_selector_content(
+                parent,
+                wraplength=wraplength,
+                start_button_text=start_button_text,
+                show_close_button=show_close_button,
+                tasks=self.program_selector_tasks_cache,
+                status_map=self.program_selector_status_cache,
+            )
+            return
+
         percent_var = tk.IntVar(value=0)
         status_var = tk.StringVar(value="Подготовка на списъка с програми...")
         detail_var = tk.StringVar(value="0%")
@@ -4831,7 +4842,7 @@ class MainMenuUI:
             total = max(1, len(tasks))
             status_map: dict[str, tuple[bool, str]] = {}
             for index, task in enumerate(tasks, start=1):
-                status_map[task["id"]] = self._task_install_state(task)
+                status_map[task["id"]] = self._safe_task_install_state(task)
                 percent = int(index * 100 / total)
                 self.root.after(
                     0,
@@ -5042,6 +5053,13 @@ class MainMenuUI:
         if self.program_selector_window and self.program_selector_window.winfo_exists():
             self.program_selector_window.destroy()
         self.program_selector_window = None
+
+    def _safe_task_install_state(self, task: dict[str, str]) -> tuple[bool, str]:
+        # Ako nqkoq proverka grymne na nov komputar, spisykyt pak ostava viden.
+        try:
+            return self._task_install_state(task)
+        except Exception as exc:
+            return False, f"Статусът не може да се прочете: {exc}"
 
     def _open_program_selector_window(self) -> None:
         # Отваря нов прозорец с пълния избор от програми за инсталиране.
