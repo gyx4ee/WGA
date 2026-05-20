@@ -92,6 +92,21 @@ RESOURCE_ROOT = Path(getattr(sys, "_MEIPASS", PROJECT_ROOT)).resolve()
 SETTINGS_FILE = PROJECT_ROOT / "settings.json"
 SECURE_STORE_FILE = PROJECT_ROOT / ".wga_secure_store.json"
 
+APP_BG = "#071311"
+APP_PANEL = "#0d1c1a"
+APP_PANEL_ALT = "#102725"
+APP_PANEL_SOFT = "#122f2a"
+APP_BORDER = "#1f4e46"
+APP_BORDER_STRONG = "#2a6f60"
+APP_TEXT = "#ecfff7"
+APP_TEXT_SOFT = "#a6d5c5"
+APP_TEXT_MUTED = "#7ca394"
+APP_ACCENT = "#37e39a"
+APP_ACCENT_SOFT = "#1d8f67"
+APP_ACCENT_BLUE = "#2f8fff"
+APP_WARNING = "#d0a94a"
+APP_DANGER = "#c94d58"
+
 
 def runtime_file(relative_path: str) -> Path:
     # Търси файла на правилното място според това дали работим от build или от проект.
@@ -1596,10 +1611,10 @@ class MainMenuUI:
         self.scaled_card_min_height = CARD_MIN_HEIGHT
         self.scaled_menu_card_min_height = dict(MENU_CARD_MIN_HEIGHT)
 
-        self.container = tk.Frame(self.root, bg="#08130a")
+        self.container = tk.Frame(self.root, bg=APP_BG)
         self.container.pack(fill="both", expand=True)
 
-        self.header = tk.Frame(self.container, bg="#0b1d0f", height=90)
+        self.header = tk.Frame(self.container, bg=APP_PANEL, height=96, bd=0, highlightthickness=1, highlightbackground=APP_BORDER)
         self.header.pack(fill="x")
         self.header.pack_propagate(False)
 
@@ -1607,19 +1622,19 @@ class MainMenuUI:
             self.header,
             text=APP_TITLE,
             font=("Segoe UI Semibold", 22),
-            fg="#8cff95",
-            bg="#0b1d0f",
+            fg=APP_TEXT,
+            bg=APP_PANEL,
         )
-        self.title_label.pack(anchor="w", padx=24, pady=(14, 0))
+        self.title_label.pack(anchor="w", padx=26, pady=(12, 0))
 
         self.header_exit_button = tk.Button(
             self.header,
             text="Изход",
             command=self.root.destroy,
             font=("Segoe UI Semibold", 10),
-            bg="#7a1f1f",
-            fg="#fff4f4",
-            activebackground="#a32d2d",
+            bg="#5a1d24",
+            fg="#fff5f6",
+            activebackground="#7f2831",
             activeforeground="#ffffff",
             bd=0,
             padx=18,
@@ -1634,9 +1649,9 @@ class MainMenuUI:
             text="Главно меню",
             command=self.go_home,
             font=("Segoe UI Semibold", 10),
-            bg="#174327",
-            fg="#eefef1",
-            activebackground="#236039",
+            bg=APP_ACCENT_SOFT,
+            fg="#f2fff8",
+            activebackground="#27a67a",
             activeforeground="#ffffff",
             bd=0,
             padx=18,
@@ -1650,35 +1665,57 @@ class MainMenuUI:
             self.header,
             text="",
             font=("Segoe UI", 10),
-            fg="#b9e8be",
-            bg="#0b1d0f",
+            fg=APP_TEXT_SOFT,
+            bg=APP_PANEL,
         )
-        self.subtitle_label.pack(anchor="w", padx=24)
+        self.subtitle_label.pack(anchor="w", padx=26)
+
+        self.header_device_chip = tk.Label(
+            self.header,
+            text=self._build_header_device_text(),
+            font=("Segoe UI Semibold", 9),
+            fg="#ddfff4",
+            bg=APP_PANEL_ALT,
+            padx=12,
+            pady=5,
+        )
+        self.header_device_chip.place(x=26, y=56)
 
         self.version_chip = tk.Label(
             self.header,
             text=f"v{self.version_info['version']}",
             font=("Segoe UI Semibold", 9),
-            fg="#d9ffe0",
-            bg="#174327",
+            fg="#effff8",
+            bg=APP_ACCENT_SOFT,
             padx=10,
             pady=4,
         )
-        self.version_chip.place(x=540, y=26)
+        self.version_chip.place(x=520, y=22)
 
-        self.content = tk.Frame(self.container, bg="#08130a")
+        self.header_admin_chip = tk.Label(
+            self.header,
+            text="ADMIN MODE",
+            font=("Segoe UI Semibold", 9),
+            fg="#06110f",
+            bg=APP_ACCENT,
+            padx=10,
+            pady=4,
+        )
+        self.header_admin_chip.place(x=608, y=22)
+
+        self.content = tk.Frame(self.container, bg=APP_BG)
         self.content.pack(fill="both", expand=True, padx=20, pady=18)
 
-        self.left_panel = tk.Frame(self.content, bg="#0e1f11", width=320, bd=0, highlightthickness=1, highlightbackground="#174c1e")
+        self.left_panel = tk.Frame(self.content, bg=APP_PANEL, width=320, bd=0, highlightthickness=1, highlightbackground=APP_BORDER)
         self.left_panel.pack(side="left", fill="y")
         self.left_panel.pack_propagate(False)
 
         self.menu_title = tk.Label(
             self.left_panel,
-            text="Навигация",
+            text="Контролен панел",
             font=("Segoe UI Semibold", 15),
-            fg="#b8ffbc",
-            bg="#0e1f11",
+            fg=APP_TEXT,
+            bg=APP_PANEL,
         )
         self.menu_title.pack(anchor="w", padx=16, pady=(16, 8))
 
@@ -1688,8 +1725,8 @@ class MainMenuUI:
             justify="left",
             wraplength=280,
             font=("Segoe UI", 10),
-            fg="#95c49b",
-            bg="#0e1f11",
+            fg=APP_TEXT_SOFT,
+            bg=APP_PANEL,
         )
         self.menu_path.pack(anchor="w", padx=16)
 
@@ -1699,8 +1736,10 @@ class MainMenuUI:
             justify="left",
             wraplength=280,
             font=("Consolas", 9),
-            fg="#d5f8d7",
-            bg="#0e1f11",
+            fg="#d8fff2",
+            bg=APP_PANEL_ALT,
+            padx=12,
+            pady=12,
         )
         self.system_info.pack(anchor="w", padx=16, pady=(20, 14))
 
@@ -1710,8 +1749,8 @@ class MainMenuUI:
             wraplength=280,
             justify="left",
             font=("Segoe UI", 9),
-            fg="#8ca391",
-            bg="#0e1f11",
+            fg=APP_TEXT_MUTED,
+            bg=APP_PANEL,
         )
         self.hint_label.pack(anchor="w", padx=16)
 
@@ -1719,17 +1758,17 @@ class MainMenuUI:
             self.left_panel,
             text="Състояние на системата",
             font=("Segoe UI Semibold", 14),
-            fg="#b8ffbc",
-            bg="#0e1f11",
+            fg=APP_TEXT,
+            bg=APP_PANEL,
         )
         self.health_title.pack(anchor="w", padx=16, pady=(18, 8))
 
         self.health_frame = tk.Frame(
             self.left_panel,
-            bg="#112716",
+            bg=APP_PANEL_ALT,
             bd=0,
             highlightthickness=1,
-            highlightbackground="#1b5c25",
+            highlightbackground=APP_BORDER,
         )
         self.health_frame.pack(fill="both", expand=True, padx=16, pady=(0, 16))
 
@@ -1737,8 +1776,8 @@ class MainMenuUI:
             self.health_frame,
             text="Loading hardware diagnostics...",
             font=("Segoe UI", 10),
-            fg="#cdeed0",
-            bg="#112716",
+            fg=APP_TEXT_SOFT,
+            bg=APP_PANEL_ALT,
             justify="left",
             wraplength=260,
         )
@@ -1755,21 +1794,21 @@ class MainMenuUI:
             textvariable=self.status_var,
             anchor="w",
             font=("Segoe UI", 10),
-            fg="#d5f8d7",
-            bg="#0b1d0f",
+            fg="#d9fff3",
+            bg=APP_PANEL,
             padx=18,
         )
         self.status_bar.pack(fill="x", side="bottom")
 
-        self.right_panel = tk.Frame(self.content, bg="#08130a")
+        self.right_panel = tk.Frame(self.content, bg=APP_BG)
         self.right_panel.pack(side="left", fill="both", expand=True, padx=(18, 0))
 
         self.card_title = tk.Label(
             self.right_panel,
             text="",
             font=("Segoe UI Semibold", 19),
-            fg="#e6ffee",
-            bg="#08130a",
+            fg=APP_TEXT,
+            bg=APP_BG,
         )
         self.card_title.pack(anchor="w")
 
@@ -1777,8 +1816,8 @@ class MainMenuUI:
             self.right_panel,
             text="",
             font=("Segoe UI", 10),
-            fg="#9bc39e",
-            bg="#08130a",
+            fg=APP_TEXT_SOFT,
+            bg=APP_BG,
             wraplength=630,
             justify="left",
         )
@@ -1786,10 +1825,10 @@ class MainMenuUI:
 
         self.update_banner = tk.Frame(
             self.right_panel,
-            bg="#153042",
+            bg="#122229",
             bd=0,
             highlightthickness=1,
-            highlightbackground="#2a5975",
+            highlightbackground="#1f4554",
         )
         self.update_banner.pack(fill="x", pady=(0, 12))
 
@@ -1797,8 +1836,8 @@ class MainMenuUI:
             self.update_banner,
             text="i",
             font=self._font(16, "bold", "Segoe UI Semibold"),
-            fg="#c7ecff",
-            bg="#153042",
+            fg="#9de8ff",
+            bg="#122229",
             width=2,
         )
         self.update_icon_label.pack(side="left", padx=(14, 8), pady=10)
@@ -1810,8 +1849,8 @@ class MainMenuUI:
             self.update_banner,
             textvariable=self.update_message_var,
             font=self._font(10),
-            fg="#d7f1ff",
-            bg="#153042",
+            fg="#dcf8ff",
+            bg="#122229",
             justify="left",
             anchor="w",
         )
@@ -1822,9 +1861,9 @@ class MainMenuUI:
             text="Отвори",
             command=self._open_update_download,
             font=("Segoe UI Semibold", 9),
-            bg="#2b607a",
+            bg="#1b5d73",
             fg="#f3fbff",
-            activebackground="#3a7f9f",
+            activebackground="#267997",
             activeforeground="#ffffff",
             bd=0,
             padx=14,
@@ -1839,9 +1878,9 @@ class MainMenuUI:
             text="История",
             command=self._show_update_history,
             font=("Segoe UI Semibold", 9),
-            bg="#1d4254",
+            bg="#173c4d",
             fg="#f3fbff",
-            activebackground="#2b607a",
+            activebackground="#1b5d73",
             activeforeground="#ffffff",
             bd=0,
             padx=12,
@@ -1852,10 +1891,10 @@ class MainMenuUI:
 
         self.resource_frame = tk.Frame(
             self.right_panel,
-            bg="#112716",
+            bg=APP_PANEL_ALT,
             bd=0,
             highlightthickness=1,
-            highlightbackground="#1b5c25",
+            highlightbackground=APP_BORDER,
         )
         self.resource_frame.pack(fill="x", pady=(0, 12))
 
@@ -1863,8 +1902,8 @@ class MainMenuUI:
             self.resource_frame,
             text="\u0418\u043d\u0441\u0442\u0430\u043b\u0430\u0446\u0438\u043e\u043d\u043d\u0438 \u0440\u0435\u0441\u0443\u0440\u0441\u0438",
             font=("Segoe UI Semibold", 11),
-            fg="#b8ffbc",
-            bg="#112716",
+            fg=APP_TEXT,
+            bg=APP_PANEL_ALT,
         )
         self.resource_title.pack(side="left", padx=(14, 10), pady=10)
 
@@ -1876,7 +1915,7 @@ class MainMenuUI:
             wraplength=520,
             font=("Segoe UI", 9),
             fg=self._resource_status_color(),
-            bg="#112716",
+            bg=APP_PANEL_ALT,
         )
         self.resource_status_label.pack(side="left", fill="x", expand=True, pady=10)
 
@@ -1885,9 +1924,9 @@ class MainMenuUI:
             text="\u0418\u0437\u0442\u0435\u0433\u043b\u0438",
             command=self._download_missing_resources,
             font=("Segoe UI Semibold", 9),
-            bg="#7d6a2d",
+            bg="#78561c",
             fg="#fff7d6",
-            activebackground="#9a8337",
+            activebackground="#9a722a",
             activeforeground="#ffffff",
             bd=0,
             padx=12,
@@ -1901,9 +1940,9 @@ class MainMenuUI:
             text="\u0414\u0435\u0442\u0430\u0439\u043b\u0438",
             command=self._show_resource_details,
             font=("Segoe UI Semibold", 9),
-            bg="#174327",
+            bg=APP_ACCENT_SOFT,
             fg="#eefef1",
-            activebackground="#236039",
+            activebackground="#27a67a",
             activeforeground="#ffffff",
             bd=0,
             padx=12,
@@ -1915,10 +1954,10 @@ class MainMenuUI:
 
         self.nav_frame = tk.Frame(
             self.right_panel,
-            bg="#08130a",
+            bg=APP_BG,
             bd=0,
             highlightthickness=1,
-            highlightbackground="#1f5928",
+            highlightbackground=APP_BORDER,
         )
         self.nav_frame.pack(fill="x", side="bottom", pady=(10, 0))
 
@@ -1926,12 +1965,12 @@ class MainMenuUI:
             self.nav_frame,
             text="Page 1 / 1",
             font=("Segoe UI", 10),
-            fg="#b9e8be",
-            bg="#08130a",
+            fg=APP_TEXT_SOFT,
+            bg=APP_BG,
         )
         self.page_label.pack(side="left")
 
-        self.controls_frame = tk.Frame(self.nav_frame, bg="#08130a")
+        self.controls_frame = tk.Frame(self.nav_frame, bg=APP_BG)
         self.controls_frame.pack(side="right")
 
         self.prev_button = self._make_nav_button(self.controls_frame, "\u041d\u0430\u0437\u0430\u0434", self.previous_page)
@@ -1945,16 +1984,16 @@ class MainMenuUI:
         self.exit_button = self._make_nav_button(self.controls_frame, "\u0418\u0437\u0445\u043e\u0434", self.root.destroy, accent="#7a1f1f")
         self.exit_button.pack(side="left")
 
-        self.cards_frame = tk.Frame(self.right_panel, bg="#08130a")
+        self.cards_frame = tk.Frame(self.right_panel, bg=APP_BG)
         self.cards_frame.pack(fill="both", expand=True)
 
         self.language_status_panel = tk.Frame(
             self.cards_frame,
-            bg="#0e1f11",
+            bg=APP_PANEL,
             width=280,
             bd=0,
             highlightthickness=1,
-            highlightbackground="#1b5c25",
+            highlightbackground=APP_BORDER,
         )
         self.language_status_panel.grid_propagate(False)
 
@@ -1962,17 +2001,17 @@ class MainMenuUI:
             self.language_status_panel,
             text="Език и клавиатури",
             font=("Segoe UI Semibold", 13),
-            fg="#b8ffbc",
-            bg="#0e1f11",
+            fg=APP_TEXT,
+            bg=APP_PANEL,
         )
         self.language_status_title.pack(anchor="w", padx=14, pady=(14, 6))
 
         self.language_status_frame = tk.Frame(
             self.language_status_panel,
-            bg="#112716",
+            bg=APP_PANEL_ALT,
             bd=0,
             highlightthickness=1,
-            highlightbackground="#1b5c25",
+            highlightbackground=APP_BORDER,
         )
         self.language_status_frame.pack(fill="both", expand=True, padx=14, pady=(0, 14))
 
@@ -1982,8 +2021,8 @@ class MainMenuUI:
             justify="left",
             wraplength=230,
             font=("Segoe UI", 9),
-            fg="#d5f8d7",
-            bg="#112716",
+            fg="#ddfff3",
+            bg=APP_PANEL_ALT,
         )
         self.language_status_label.pack(anchor="w", fill="x", padx=12, pady=10)
 
@@ -2007,6 +2046,14 @@ class MainMenuUI:
             f"Installers Available: {self.launch_info['installers_available']}\n"
             f"App Version: {self.version_info['version']}\n"
             "Mode: Portable Admin UI"
+        )
+
+    def _build_header_device_text(self) -> str:
+        # Кратък статус в header-а откъде е стартирано приложението.
+        return (
+            f"{self.launch_info['drive_type_label']}  |  "
+            f"{self.launch_info['drive']}  |  "
+            f"{self.launch_info['device_name']}"
         )
 
     def _resource_status_color(self) -> str:
@@ -2038,6 +2085,8 @@ class MainMenuUI:
         self.resource_status = check_resource_status(PROJECT_ROOT)
         if hasattr(self, "system_info"):
             self.system_info.config(text=self._build_system_summary())
+        if hasattr(self, "header_device_chip"):
+            self.header_device_chip.config(text=self._build_header_device_text())
         self.resource_status_label.config(
             text=self._build_resource_summary(),
             fg=self._resource_status_color(),
@@ -2857,7 +2906,7 @@ class MainMenuUI:
         parent: tk.Widget,
         text: str,
         command: object,
-        accent: str = "#113b18",
+        accent: str = APP_PANEL_ALT,
     ) -> tk.Button:
         return tk.Button(
             parent,
@@ -2865,10 +2914,12 @@ class MainMenuUI:
             command=command,
             font=self._font(10, "bold", "Segoe UI Semibold"),
             bg=accent,
-            fg="#e6ffee",
-            activebackground="#1d5a28",
+            fg="#effff8",
+            activebackground=APP_BORDER_STRONG,
             activeforeground="#ffffff",
             bd=0,
+            highlightthickness=1,
+            highlightbackground=APP_BORDER,
             padx=18,
             pady=10,
             width=self.nav_button_char_width,
@@ -2900,7 +2951,8 @@ class MainMenuUI:
             borderwidth=0,
             relief="flat",
             overrelief="flat",
-            highlightthickness=0,
+            highlightthickness=1,
+            highlightbackground=APP_BORDER,
             takefocus=0,
             padx=16,
             pady=8,
@@ -3045,8 +3097,8 @@ class MainMenuUI:
 
     def _build_card(self, parent: tk.Widget, item: dict[str, str]) -> tk.Frame:
         accent = self._card_accent(item)
-        card_bg = "#122d19" if item["kind"] == "menu" else "#102515"
-        border_color = "#2d7f4a" if item["kind"] == "menu" else "#1f5928"
+        card_bg = APP_PANEL_SOFT if item["kind"] == "menu" else APP_PANEL_ALT
+        border_color = APP_BORDER_STRONG if item["kind"] == "menu" else APP_BORDER
         card_height = self.scaled_menu_card_min_height.get(self.current_menu, self.scaled_card_min_height)
         card = tk.Frame(
             parent,
@@ -3073,7 +3125,7 @@ class MainMenuUI:
             top,
             text=item["label"],
             font=title_font,
-            fg="#edffef",
+            fg=APP_TEXT,
             bg=card_bg,
             anchor="w",
             wraplength=title_wraplength,
@@ -3087,7 +3139,7 @@ class MainMenuUI:
             card,
             text=description,
             font=self._font(9),
-            fg="#96b79a",
+            fg=APP_TEXT_SOFT,
             bg=card_bg,
             wraplength=desc_wraplength,
             justify="left",
@@ -3136,9 +3188,9 @@ class MainMenuUI:
                     action_area,
                     text="\u041f\u0440\u0435\u043c\u0430\u0445\u043d\u0438",
                     command=lambda selected=item: self._remove_office_installation(selected["action_id"]),
-                    bg="#9a2f2f",
+                    bg="#6b2730",
                     fg="#fff6f6",
-                    active_bg="#c24040",
+                    active_bg="#8e3540",
                     cursor="hand2",
                 )
                 remove_button.place(
@@ -3573,12 +3625,12 @@ class MainMenuUI:
 
     def _button_colors(self, kind: str, accent: str) -> tuple[str, str, str]:
         if kind == "menu":
-            return ("#1f6fb2", "#f4fbff", "#2b8ddd")
+            return (APP_ACCENT_BLUE, "#f4fbff", "#46a4ff")
         if kind == "exit":
-            return ("#9a2f2f", "#fff6f6", "#c24040")
+            return ("#6b2730", "#fff6f6", "#8e3540")
         if kind == "info":
-            return ("#36403a", "#d8e2db", "#36403a")
-        return ("#1f8f43", "#f5fff7", "#28b155")
+            return ("#263632", "#d8e2db", "#263632")
+        return (APP_ACCENT_SOFT, "#f5fff7", "#27a67a")
 
     def _kind_description(self, kind: str) -> str:
         descriptions = {
@@ -4951,9 +5003,16 @@ class MainMenuUI:
         self.header.configure(height=self.header_height_px)
         self.title_label.configure(font=self._font(22, "bold", "Segoe UI Semibold"))
         self.subtitle_label.configure(font=self._font(10), wraplength=max(420, self._scale_px(720)))
+        self.header_device_chip.configure(font=self._font(9, "bold", "Segoe UI Semibold"))
         self.version_chip.configure(font=self._font(9, "bold", "Segoe UI Semibold"))
+        self.header_admin_chip.configure(font=self._font(9, "bold", "Segoe UI Semibold"))
         self.header_exit_button.configure(font=self._font(10, "bold", "Segoe UI Semibold"), width=max(8, int(10 * self.ui_scale)))
         self.header_home_button.configure(font=self._font(10, "bold", "Segoe UI Semibold"), width=max(10, int(12 * self.ui_scale)))
+        self.header_home_button.place_configure(x=-max(168, self._scale_px(186)), y=self._scale_px(22))
+        self.header_exit_button.place_configure(x=-24, y=self._scale_px(22))
+        self.version_chip.place_configure(x=max(420, self._scale_px(520)), y=self._scale_px(22))
+        self.header_admin_chip.place_configure(x=max(500, self._scale_px(608)), y=self._scale_px(22))
+        self.header_device_chip.place_configure(x=26, y=self._scale_px(56))
         self.left_panel.configure(width=self.sidebar_width)
         self.menu_title.configure(font=self._font(15, "bold", "Segoe UI Semibold"))
         self.menu_path.configure(font=self._font(10), wraplength=self.system_info_wrap)

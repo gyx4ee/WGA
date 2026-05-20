@@ -1,10 +1,11 @@
 {
-  "version": "0.2.33",
+  "version": "0.2.34",
   "version_info_url": "https://raw.githubusercontent.com/gyx4ee/WGA/refs/heads/main/version.json",
   "download_url": "https://github.com/gyx4ee/WGA/releases/latest",
   "package_url": "https://raw.githubusercontent.com/gyx4ee/WGA/refs/heads/main/WGA-portable.zip",
-  "notes": "Added clear Automatic Installer error reporting so the menu no longer stays blank when the software scan fails and now shows whether the task list is empty or a runtime check crashed.",
+  "notes": "Refreshed the main WGA interface with a new premium cyber-admin visual style: updated header, sidebar, cards, badges, panels, and button palette to match the new dashboard concept.",
   "changelog": [
+    "v0.2.34 - Refreshed the main WGA interface with a new premium cyber-admin visual style: updated header, sidebar, cards, badges, panels, and button palette to match the new dashboard concept.",
     "v0.2.33 - Added clear Automatic Installer error reporting so the menu no longer stays blank when the software scan fails and now shows whether the task list is empty or a runtime check crashed.",
     "v0.2.32 - Fixed the Automatic Installer properly by removing duplicated broken code paths and restoring one working flow for software scanning, checklist rendering, and installation selection.",
     "v0.2.31 - Fixed the Automatic Installer loading screen after the responsive changes by restoring valid wrap-size handling so the software scan and checklist render again.",
