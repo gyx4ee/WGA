@@ -1,10 +1,11 @@
 {
-  "version": "0.2.37",
+  "version": "0.2.38",
   "version_info_url": "https://raw.githubusercontent.com/gyx4ee/WGA/refs/heads/main/version.json",
   "download_url": "https://github.com/gyx4ee/WGA/releases/latest",
   "package_url": "https://raw.githubusercontent.com/gyx4ee/WGA/refs/heads/main/WGA-portable.zip",
-  "notes": "Added the missing dashboard icon system and wired the generated icon sheet into the redesigned Home screen so the sidebar, status panels, metric cards, and quick actions now carry real visual icons closer to the reference design.",
+  "notes": "Reworked the Home dashboard closer to the reference mockup with a stronger left navigation, live clock footer, richer status banner, fuller metric cards, icon-led system panels, and a denser automatic installer preview so the main screen finally matches the generated concept much more directly.",
   "changelog": [
+    "v0.2.38 - Reworked the Home dashboard closer to the reference mockup with a stronger left navigation, live clock footer, richer status banner, fuller metric cards, icon-led system panels, and a denser automatic installer preview so the main screen finally matches the generated concept much more directly.",
     "v0.2.37 - Added the missing dashboard icon system and wired the generated icon sheet into the redesigned Home screen so the sidebar, status panels, metric cards, and quick actions now carry real visual icons closer to the reference design.",
     "v0.2.36 - Rebuilt the Home screen into a real dashboard layout closer to the concept image: dedicated status banner, metric cards, structured system panels, automatic installer preview, component status list, quick actions, and persistent sidebar navigation while keeping the old tools behind the new design.",
     "v0.2.35 - Added a stronger dashboard redesign closer to the new concept image: persistent sidebar navigation, active section highlighting, top overview cards, richer status panels, and a more structured control-center layout while keeping the old functionality.",
