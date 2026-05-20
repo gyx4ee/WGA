@@ -1568,6 +1568,33 @@ class MainMenuUI:
         self.startup_menu = startup_menu if startup_menu in MENU_TREE else "main"
         self.resize_render_job: str | None = None
         self.last_layout_bucket: tuple[int, int] = (-1, -1)
+        self.ui_scale = 1.0
+        self.sidebar_width = 320
+        self.header_height_px = 90
+        self.header_title_size = 22
+        self.header_subtitle_size = 10
+        self.body_text_size = 9
+        self.button_text_size = 10
+        self.section_title_size = 15
+        self.card_title_size = 12
+        self.card_desc_size = 9
+        self.card_title_wrap = 320
+        self.card_desc_wrap = 320
+        self.compact_card_title_wrap = 350
+        self.compact_card_desc_wrap = 350
+        self.language_panel_width = 280
+        self.language_status_wrap = 230
+        self.system_info_wrap = 280
+        self.resource_wrap = 520
+        self.right_subtitle_wrap = 630
+        self.content_pad_x = 20
+        self.content_pad_y = 18
+        self.nav_button_char_width = NAV_BUTTON_WIDTH
+        self.card_button_width_px = CARD_BUTTON_PIXEL_WIDTH
+        self.card_button_height_px = CARD_BUTTON_PIXEL_HEIGHT
+        self.card_action_gap_px = 8
+        self.scaled_card_min_height = CARD_MIN_HEIGHT
+        self.scaled_menu_card_min_height = dict(MENU_CARD_MIN_HEIGHT)
 
         self.container = tk.Frame(self.root, bg="#08130a")
         self.container.pack(fill="both", expand=True)
@@ -1769,7 +1796,7 @@ class MainMenuUI:
         self.update_icon_label = tk.Label(
             self.update_banner,
             text="i",
-            font=("Segoe UI Semibold", 16),
+            font=self._font(16, "bold", "Segoe UI Semibold"),
             fg="#c7ecff",
             bg="#153042",
             width=2,
@@ -1782,7 +1809,7 @@ class MainMenuUI:
         self.update_message_label = tk.Label(
             self.update_banner,
             textvariable=self.update_message_var,
-            font=("Segoe UI", 10),
+            font=self._font(10),
             fg="#d7f1ff",
             bg="#153042",
             justify="left",
@@ -1960,6 +1987,8 @@ class MainMenuUI:
         )
         self.language_status_label.pack(anchor="w", fill="x", padx=12, pady=10)
 
+        self._update_layout_metrics()
+        self._apply_responsive_theme()
         self.render_menu(self.startup_menu, reset_history=True)
         self.root.bind("<Configure>", self._on_root_resize, add="+")
         self._load_language_status_async()
@@ -2834,7 +2863,7 @@ class MainMenuUI:
             parent,
             text=text,
             command=command,
-            font=("Segoe UI Semibold", 10),
+            font=self._font(10, "bold", "Segoe UI Semibold"),
             bg=accent,
             fg="#e6ffee",
             activebackground="#1d5a28",
@@ -2842,7 +2871,7 @@ class MainMenuUI:
             bd=0,
             padx=18,
             pady=10,
-            width=NAV_BUTTON_WIDTH,
+            width=self.nav_button_char_width,
             cursor="hand2",
         )
 
@@ -2862,7 +2891,7 @@ class MainMenuUI:
             parent,
             text=text,
             command=command,
-            font=("Segoe UI Semibold", 10),
+            font=self._font(10, "bold", "Segoe UI Semibold"),
             bg=bg,
             fg=fg,
             activebackground=active_bg,
@@ -2877,7 +2906,7 @@ class MainMenuUI:
             pady=8,
             width=CARD_BUTTON_WIDTH,
             height=CARD_BUTTON_HEIGHT,
-            wraplength=260,
+            wraplength=max(200, self.card_button_width_px - 28),
             justify="center",
             cursor=cursor,
             state=state,
@@ -2932,7 +2961,7 @@ class MainMenuUI:
         for column in range(card_columns):
             self.cards_frame.columnconfigure(column, weight=1, uniform="cards")
         row_count = max(1, math.ceil(len(page_items) / card_columns))
-        row_minsize = MENU_CARD_MIN_HEIGHT.get(self.current_menu, CARD_MIN_HEIGHT)
+        row_minsize = self.scaled_menu_card_min_height.get(self.current_menu, self.scaled_card_min_height)
         for row in range(row_count):
             self.cards_frame.rowconfigure(row, weight=1, minsize=row_minsize)
 
@@ -2944,7 +2973,7 @@ class MainMenuUI:
 
         if self.current_menu == "language":
             panel_column = card_columns
-            self.cards_frame.columnconfigure(panel_column, weight=0, minsize=280)
+            self.cards_frame.columnconfigure(panel_column, weight=0, minsize=self.language_panel_width)
             self.language_status_panel.grid(
                 row=0,
                 column=panel_column,
@@ -3069,6 +3098,8 @@ class MainMenuUI:
     def _render_auto_installer(self) -> None:
         self.cards_frame.columnconfigure(0, weight=1)
         self.cards_frame.rowconfigure(0, weight=1)
+        header_wrap = max(520, self.right_subtitle_wrap + self._scale_px(120))
+        selector_wrap = max(520, self.right_subtitle_wrap + self._scale_px(100))
 
         outer = tk.Frame(
             self.cards_frame,
@@ -3094,7 +3125,7 @@ class MainMenuUI:
             font=("Segoe UI", 10),
             bg="#102515",
             fg="#9bc39e",
-            wraplength=780,
+            wraplength=header_wrap,
             justify="left",
         ).pack(anchor="w", pady=(4, 0))
 
@@ -3208,10 +3239,12 @@ class MainMenuUI:
     def _card_columns(self) -> int:
         current_width = self.root.winfo_width() or self.root.winfo_screenwidth()
         if self.current_menu == "main":
-            if current_width < 1180:
+            if current_width < 1080:
+                return 1
+            if current_width < 1400:
                 return 2
             return MAIN_CARD_COLUMNS
-        if current_width < 1040:
+        if current_width < 1120:
             return 1
         return 2
 
@@ -3219,7 +3252,7 @@ class MainMenuUI:
         accent = self._card_accent(item)
         card_bg = "#122d19" if item["kind"] == "menu" else "#102515"
         border_color = "#2d7f4a" if item["kind"] == "menu" else "#1f5928"
-        card_height = MENU_CARD_MIN_HEIGHT.get(self.current_menu, CARD_MIN_HEIGHT)
+        card_height = self.scaled_menu_card_min_height.get(self.current_menu, self.scaled_card_min_height)
         card = tk.Frame(
             parent,
             bg=card_bg,
@@ -3231,15 +3264,16 @@ class MainMenuUI:
         card.grid_propagate(False)
 
         top = tk.Frame(card, bg=card_bg)
-        top.pack(fill="x", padx=14, pady=(12, 8))
+        top.pack(fill="x", padx=self._scale_px(14), pady=(self._scale_px(12), self._scale_px(8)))
 
-        dot = tk.Canvas(top, width=16, height=16, bg=card_bg, highlightthickness=0)
-        dot.create_oval(2, 2, 14, 14, fill=accent, outline="")
+        dot_size = self._scale_px(16)
+        dot = tk.Canvas(top, width=dot_size, height=dot_size, bg=card_bg, highlightthickness=0)
+        dot.create_oval(self._scale_px(2), self._scale_px(2), dot_size - self._scale_px(2), dot_size - self._scale_px(2), fill=accent, outline="")
         dot.pack(side="left")
 
         compact_text_menus = {"office_center", "nexus_admin", "office_install_center", "secret_install"}
-        title_font = ("Segoe UI Semibold", 11) if self.current_menu in compact_text_menus else ("Segoe UI Semibold", 12)
-        title_wraplength = 350 if self.current_menu in compact_text_menus else 320
+        title_font = self._font(11 if self.current_menu in compact_text_menus else 12, "bold", "Segoe UI Semibold")
+        title_wraplength = self.compact_card_title_wrap if self.current_menu in compact_text_menus else self.card_title_wrap
         title = tk.Label(
             top,
             text=item["label"],
@@ -3253,18 +3287,18 @@ class MainMenuUI:
         title.pack(side="left", padx=(8, 0), fill="x", expand=True)
 
         description = self._item_description(item)
-        desc_wraplength = 350 if self.current_menu in compact_text_menus else 320
+        desc_wraplength = self.compact_card_desc_wrap if self.current_menu in compact_text_menus else self.card_desc_wrap
         desc_label = tk.Label(
             card,
             text=description,
-            font=("Segoe UI", 9),
+            font=self._font(9),
             fg="#96b79a",
             bg=card_bg,
             wraplength=desc_wraplength,
             justify="left",
             anchor="nw",
         )
-        desc_label.pack(fill="x", padx=14, pady=(0, 8))
+        desc_label.pack(fill="x", padx=self._scale_px(14), pady=(0, self._scale_px(8)))
 
         spacer = tk.Frame(card, bg=card_bg)
         spacer.pack(fill="both", expand=True)
@@ -3277,8 +3311,8 @@ class MainMenuUI:
         # В Office Install Center всички карти пазят еднакво място за бутоните, за да са с еднакъв размер.
         force_double_action_area = self.current_menu == "office_install_center"
         action_area_height = CARD_ACTION_DOUBLE_HEIGHT if has_remove_button or force_double_action_area else CARD_ACTION_HEIGHT
-        action_area = tk.Frame(card, bg=card_bg, height=action_area_height)
-        action_area.pack(fill="x", padx=14, pady=(16, 16), side="bottom")
+        action_area = tk.Frame(card, bg=card_bg, height=max(self.card_button_height_px + self._scale_px(12), self._scale_px(action_area_height)))
+        action_area.pack(fill="x", padx=self._scale_px(14), pady=(self._scale_px(16), self._scale_px(16)), side="bottom")
         action_area.pack_propagate(False)
 
         action_text = self._button_text(item["kind"])
@@ -3297,8 +3331,8 @@ class MainMenuUI:
             relx=0.5,
             y=0,
             anchor="n",
-            width=CARD_BUTTON_PIXEL_WIDTH,
-            height=CARD_BUTTON_PIXEL_HEIGHT,
+            width=self.card_button_width_px,
+            height=self.card_button_height_px,
         )
 
         if self._is_office_install_item(item):
@@ -3314,10 +3348,10 @@ class MainMenuUI:
                 )
                 remove_button.place(
                     relx=0.5,
-                    y=CARD_BUTTON_PIXEL_HEIGHT + 8,
+                    y=self.card_button_height_px + self.card_action_gap_px,
                     anchor="n",
-                    width=CARD_BUTTON_PIXEL_WIDTH,
-                    height=CARD_BUTTON_PIXEL_HEIGHT,
+                    width=self.card_button_width_px,
+                    height=self.card_button_height_px,
                 )
 
         return card
@@ -5151,7 +5185,7 @@ class MainMenuUI:
         content_holder.pack(fill="both", expand=True)
         self._load_program_selector_async(
             content_holder,
-            wraplength=760,
+            wraplength=selector_wrap,
             start_button_text="Инсталирай избраните",
             show_close_button=False,
         )
@@ -5168,10 +5202,106 @@ class MainMenuUI:
         safe_height = min(height, max(260, screen_height - 60))
         center_geometry(window, safe_width, safe_height)
 
+    def _scale_px(self, value: int | float) -> int:
+        # Preobrazuva pixel stoinosti според tekushtiq UI scale.
+        return max(1, int(round(float(value) * self.ui_scale)))
+
+    def _font(self, size: int, weight: str = "", family: str = "Segoe UI") -> tuple[str, int] | tuple[str, int, str]:
+        # Vrushta ednakvo skaliiран font za celiq glaven ekran.
+        scaled_size = max(8, int(round(size * self.ui_scale)))
+        if weight:
+            return (family, scaled_size, weight)
+        return (family, scaled_size)
+
+    def _update_layout_metrics(self) -> None:
+        # Smята osnovnite layout meri според DPI, rezolyuciqta i tekushtata shirina na prozoreca.
+        screen_width = self.root.winfo_screenwidth()
+        screen_height = self.root.winfo_screenheight()
+        current_width = self.root.winfo_width() or screen_width
+        current_height = self.root.winfo_height() or screen_height
+        try:
+            dpi = float(self.root.winfo_fpixels("1i"))
+        except Exception:
+            dpi = BASE_DPI
+
+        dpi_scale = dpi / BASE_DPI
+        resolution_scale = min(screen_width / 1600.0, screen_height / 900.0)
+        width_scale = min(current_width / 1280.0, current_height / 840.0)
+        self.ui_scale = clamp(min(dpi_scale, 1.18) * clamp(min(resolution_scale, width_scale), 0.88, 1.16), 0.88, 1.18)
+
+        if current_width < 1250:
+            self.ui_scale = min(self.ui_scale, 0.96)
+        if current_width < 1100:
+            self.ui_scale = min(self.ui_scale, 0.90)
+
+        self.sidebar_width = max(250, min(360, self._scale_px(320)))
+        self.header_height_px = max(78, self._scale_px(90))
+        self.header_title_size = max(18, self._scale_px(22))
+        self.header_subtitle_size = max(9, self._scale_px(10))
+        self.body_text_size = max(8, self._scale_px(9))
+        self.button_text_size = max(9, self._scale_px(10))
+        self.section_title_size = max(12, self._scale_px(15))
+        self.card_title_size = max(10, self._scale_px(12))
+        self.card_desc_size = max(8, self._scale_px(9))
+        self.language_panel_width = max(240, self._scale_px(280))
+        self.language_status_wrap = max(200, self._scale_px(230))
+        self.system_info_wrap = max(220, self._scale_px(280))
+        self.resource_wrap = max(360, self._scale_px(520))
+        self.right_subtitle_wrap = max(420, self._scale_px(630))
+        self.content_pad_x = max(12, self._scale_px(20))
+        self.content_pad_y = max(12, self._scale_px(18))
+        self.nav_button_char_width = 10 if current_width < 1200 else 11
+        self.card_button_width_px = max(210, self._scale_px(CARD_BUTTON_PIXEL_WIDTH))
+        self.card_button_height_px = max(42, self._scale_px(CARD_BUTTON_PIXEL_HEIGHT))
+        self.card_action_gap_px = max(6, self._scale_px(8))
+        self.card_title_wrap = max(240, min(420, current_width // 3 - 70))
+        self.card_desc_wrap = max(240, min(420, current_width // 3 - 70))
+        self.compact_card_title_wrap = max(260, min(440, current_width // 3 - 50))
+        self.compact_card_desc_wrap = max(260, min(440, current_width // 3 - 50))
+        self.scaled_card_min_height = max(170, self._scale_px(CARD_MIN_HEIGHT))
+        self.scaled_menu_card_min_height = {
+            key: max(self.scaled_card_min_height, self._scale_px(value))
+            for key, value in MENU_CARD_MIN_HEIGHT.items()
+        }
+
+    def _apply_responsive_theme(self) -> None:
+        # Obnovqva osnovnite widget-и sled premervane, za da stoqt dobre na razlichni monitori.
+        self.header.configure(height=self.header_height_px)
+        self.title_label.configure(font=self._font(22, "bold", "Segoe UI Semibold"))
+        self.subtitle_label.configure(font=self._font(10), wraplength=max(420, self._scale_px(720)))
+        self.version_chip.configure(font=self._font(9, "bold", "Segoe UI Semibold"))
+        self.header_exit_button.configure(font=self._font(10, "bold", "Segoe UI Semibold"), width=max(8, int(10 * self.ui_scale)))
+        self.header_home_button.configure(font=self._font(10, "bold", "Segoe UI Semibold"), width=max(10, int(12 * self.ui_scale)))
+        self.left_panel.configure(width=self.sidebar_width)
+        self.menu_title.configure(font=self._font(15, "bold", "Segoe UI Semibold"))
+        self.menu_path.configure(font=self._font(10), wraplength=self.system_info_wrap)
+        self.system_info.configure(font=("Consolas", max(8, self.body_text_size)), wraplength=self.system_info_wrap)
+        self.hint_label.configure(font=self._font(9), wraplength=self.system_info_wrap)
+        self.health_title.configure(font=self._font(14, "bold", "Segoe UI Semibold"))
+        self.health_loading_label.configure(font=self._font(10), wraplength=max(220, self.sidebar_width - 60))
+        self.status_bar.configure(font=self._font(10))
+        self.card_title.configure(font=self._font(19, "bold", "Segoe UI Semibold"))
+        self.card_subtitle.configure(font=self._font(10), wraplength=self.right_subtitle_wrap)
+        self.resource_title.configure(font=self._font(11, "bold", "Segoe UI Semibold"))
+        self.resource_status_label.configure(font=self._font(9), wraplength=self.resource_wrap)
+        self.resource_download_button.configure(font=self._font(9, "bold", "Segoe UI Semibold"))
+        self.resource_details_button.configure(font=self._font(9, "bold", "Segoe UI Semibold"))
+        self.update_icon_label.configure(font=self._font(16, "bold", "Segoe UI Semibold"))
+        self.update_message_label.configure(font=self._font(10), wraplength=self.resource_wrap)
+        self.update_action_button.configure(font=self._font(9, "bold", "Segoe UI Semibold"))
+        self.update_history_button.configure(font=self._font(9, "bold", "Segoe UI Semibold"))
+        self.page_label.configure(font=self._font(10))
+        self.language_status_panel.configure(width=self.language_panel_width)
+        self.language_status_title.configure(font=self._font(13, "bold", "Segoe UI Semibold"))
+        self.language_status_label.configure(font=self._font(9), wraplength=self.language_status_wrap)
+        self.content.pack_configure(padx=self.content_pad_x, pady=self.content_pad_y)
+
     def _on_root_resize(self, event: tk.Event[tk.Misc]) -> None:
         # Pri smqna na razmera preizchislyava kolonite samo sled kratko izchakvane, za da ne primigva.
         if event.widget is not self.root:
             return
+        self._update_layout_metrics()
+        self._apply_responsive_theme()
         width_bucket = max(1, event.width // 120)
         height_bucket = max(1, event.height // 90)
         new_bucket = (width_bucket, height_bucket)
@@ -5185,8 +5315,7 @@ class MainMenuUI:
     def _rerender_after_resize(self) -> None:
         # Osvejava kartite sled resize, za da se vidi po-dobre tekstut na razlichni monitori.
         self.resize_render_job = None
-        if self.current_menu != "auto_installer":
-            self._render_cards()
+        self._render_cards()
 
     def _choose_office_version(self, title: str) -> str | None:
         dialog = tk.Toplevel(self.root)
