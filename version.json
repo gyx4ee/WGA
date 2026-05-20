@@ -1,10 +1,11 @@
 {
-  "version": "0.2.30",
+  "version": "0.2.31",
   "version_info_url": "https://raw.githubusercontent.com/gyx4ee/WGA/refs/heads/main/version.json",
   "download_url": "https://github.com/gyx4ee/WGA/releases/latest",
   "package_url": "https://raw.githubusercontent.com/gyx4ee/WGA/refs/heads/main/WGA-portable.zip",
-  "notes": "Fixed the Automatic Installer page after the responsive layout update by restoring the missing local wrap-size variables that blocked the menu from rendering.",
+  "notes": "Fixed the Automatic Installer loading screen after the responsive changes by restoring valid wrap-size handling so the software scan and checklist render again.",
   "changelog": [
+    "v0.2.31 - Fixed the Automatic Installer loading screen after the responsive changes by restoring valid wrap-size handling so the software scan and checklist render again.",
     "v0.2.30 - Fixed the Automatic Installer page after the responsive layout update by restoring the missing local wrap-size variables that blocked the menu from rendering.",
     "v0.2.29 - Improved responsive scaling by adapting panel widths, card sizes, button sizes, wrap lengths, and column counts to different monitor resolutions and DPI settings.",
     "v0.2.28 - Fixed the Automatic Installer page so it no longer stays empty when software-status checks fail or when the list is reopened after the first scan.",

@@ -4809,6 +4809,7 @@ class MainMenuUI:
         detail_var: tk.StringVar,
     ) -> None:
         # Показва loading екран, докато се проверява наличният софтуер.
+        loading_wrap = max(520, self.right_subtitle_wrap + self._scale_px(120))
         for child in parent.winfo_children():
             child.destroy()
 
@@ -4825,11 +4826,11 @@ class MainMenuUI:
         tk.Label(
             wrapper,
             textvariable=status_var,
-            font=("Segoe UI", 11),
+            font=self._font(11),
             bg="#0b1d0f",
             fg="#bff3c8",
             justify="center",
-            wraplength=header_wrap,
+            wraplength=loading_wrap,
         ).pack(anchor="center", pady=(4, 6))
         ttk.Progressbar(wrapper, maximum=100, variable=percent_var, length=520).pack(pady=(8, 10))
         tk.Label(
@@ -4839,7 +4840,7 @@ class MainMenuUI:
             bg="#0b1d0f",
             fg="#ffe08a",
             justify="center",
-            wraplength=780,
+            wraplength=loading_wrap,
         ).pack(anchor="center", pady=(4, 0))
 
     def _load_program_selector_async(
