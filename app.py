@@ -4496,39 +4496,70 @@ class MainMenuUI:
             detail_var=detail_var,
         )
 
+        def show_error(message: str) -> None:
+            # Ако проверката се счупи, показваме явна грешка вместо празно меню.
+            self.program_selector_scan_running = False
+            if not parent.winfo_exists():
+                return
+            for child in parent.winfo_children():
+                child.destroy()
+            wrapper = tk.Frame(parent, bg="#102515")
+            wrapper.pack(fill="both", expand=True, padx=18, pady=18)
+            tk.Label(
+                wrapper,
+                text="Автоматичният инсталатор не успя да зареди списъка",
+                font=self._font(15, "bold", "Segoe UI Semibold"),
+                bg="#102515",
+                fg="#ffd3d3",
+                justify="center",
+                wraplength=wraplength,
+            ).pack(anchor="center", pady=(30, 10))
+            tk.Label(
+                wrapper,
+                text=message,
+                font=self._font(10),
+                bg="#102515",
+                fg="#fff0f0",
+                justify="left",
+                wraplength=wraplength,
+            ).pack(anchor="center", pady=(4, 0))
+
         def worker() -> None:
             self.program_selector_scan_running = True
-            tasks = self._auto_install_tasks()
-            total = max(1, len(tasks))
-            status_map: dict[str, tuple[bool, str]] = {}
-            for index, task in enumerate(tasks, start=1):
-                status_map[task["id"]] = self._safe_task_install_state(task)
-                percent = int(index * 100 / total)
-                self.root.after(
-                    0,
-                    lambda percent=percent, task=task, index=index, total=total: (
-                        percent_var.set(percent),
-                        status_var.set(f"Проверка {index}/{total}: {task['label']}"),
-                        detail_var.set(f"{percent}%"),
-                    ),
-                )
+            try:
+                tasks = self._auto_install_tasks()
+                total = max(1, len(tasks))
+                status_map: dict[str, tuple[bool, str]] = {}
+                for index, task in enumerate(tasks, start=1):
+                    status_map[task["id"]] = self._safe_task_install_state(task)
+                    percent = int(index * 100 / total)
+                    self.root.after(
+                        0,
+                        lambda percent=percent, task=task, index=index, total=total: (
+                            percent_var.set(percent),
+                            status_var.set(f"Проверка {index}/{total}: {task['label']}"),
+                            detail_var.set(f"{percent}%"),
+                        ),
+                    )
 
-            def finish() -> None:
-                self.program_selector_scan_running = False
-                self.program_selector_tasks_cache = tasks
-                self.program_selector_status_cache = status_map
-                if not parent.winfo_exists():
-                    return
-                self._build_program_selector_content(
-                    parent,
-                    wraplength=wraplength,
-                    start_button_text=start_button_text,
-                    show_close_button=show_close_button,
-                    tasks=tasks,
-                    status_map=status_map,
-                )
+                def finish() -> None:
+                    self.program_selector_scan_running = False
+                    self.program_selector_tasks_cache = tasks
+                    self.program_selector_status_cache = status_map
+                    if not parent.winfo_exists():
+                        return
+                    self._build_program_selector_content(
+                        parent,
+                        wraplength=wraplength,
+                        start_button_text=start_button_text,
+                        show_close_button=show_close_button,
+                        tasks=tasks,
+                        status_map=status_map,
+                    )
 
-            self.root.after(0, finish)
+                self.root.after(0, finish)
+            except Exception as exc:
+                self.root.after(0, lambda: show_error(str(exc)))
 
         threading.Thread(target=worker, daemon=True).start()
 
@@ -4548,6 +4579,29 @@ class MainMenuUI:
         tasks = tasks or self._auto_install_tasks()
         status_map = status_map or {}
         self._ensure_auto_install_vars(tasks)
+
+        if not tasks:
+            empty_frame = tk.Frame(parent, bg="#102515")
+            empty_frame.pack(fill="both", expand=True, padx=18, pady=18)
+            tk.Label(
+                empty_frame,
+                text="Няма намерени задачи за автоматичния инсталатор.",
+                font=self._font(15, "bold", "Segoe UI Semibold"),
+                bg="#102515",
+                fg="#ffd3d3",
+                justify="center",
+                wraplength=wraplength,
+            ).pack(anchor="center", pady=(30, 10))
+            tk.Label(
+                empty_frame,
+                text="Списъкът е празен. Това значи, че нещо липсва в конфигурацията на задачите.",
+                font=self._font(10),
+                bg="#102515",
+                fg="#fff0f0",
+                justify="center",
+                wraplength=wraplength,
+            ).pack(anchor="center", pady=(4, 0))
+            return
 
         canvas = tk.Canvas(parent, bg="#0b1d0f", highlightthickness=0, height=360)
         scrollbar = ttk.Scrollbar(parent, orient="vertical", command=canvas.yview)
