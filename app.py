@@ -91,6 +91,7 @@ PROJECT_ROOT = Path(sys.executable).resolve().parent if getattr(sys, "frozen", F
 RESOURCE_ROOT = Path(getattr(sys, "_MEIPASS", PROJECT_ROOT)).resolve()
 SETTINGS_FILE = PROJECT_ROOT / "settings.json"
 SECURE_STORE_FILE = PROJECT_ROOT / ".wga_secure_store.json"
+DASHBOARD_ICON_SHEET_RELATIVE = "assets/dashboard-icon-sheet.png"
 
 APP_BG = "#071311"
 APP_PANEL = "#0d1c1a"
@@ -1556,6 +1557,7 @@ class MainMenuUI:
         self.launch_info = get_launch_location_info()
         self.resource_status: ResourceStatus = check_resource_status(PROJECT_ROOT)
         self.version_info = load_version_info()
+        self.dashboard_icons = self._load_dashboard_icon_sheet()
         self.activation_window: tk.Toplevel | None = None
         self.activation_status_var: tk.StringVar | None = None
         self.activation_progress_var: tk.IntVar | None = None
@@ -1744,6 +1746,15 @@ class MainMenuUI:
         self.sidebar_nav_frame = tk.Frame(self.left_panel, bg=APP_PANEL)
         self.sidebar_nav_frame.pack(fill="x", padx=16, pady=(16, 12))
         self.sidebar_nav_buttons: dict[str, tk.Button] = {}
+        sidebar_icon_map = {
+            "main": "home_small",
+            "activation": "key_small",
+            "install_software": "download_small",
+            "auto_installer": "robot_small",
+            "language": "globe_small",
+            "driver_backup": "drive_small",
+            "nexus_admin": "admin_small",
+        }
         for menu_key, label in SIDEBAR_SECTIONS:
             button = tk.Button(
                 self.sidebar_nav_frame,
@@ -1762,6 +1773,8 @@ class MainMenuUI:
                 cursor="hand2",
                 highlightthickness=1,
                 highlightbackground=APP_BORDER,
+                image=self.dashboard_icons.get(sidebar_icon_map.get(menu_key, "")),
+                compound="left",
             )
             button.pack(fill="x", pady=4)
             self.sidebar_nav_buttons[menu_key] = button
@@ -1877,6 +1890,7 @@ class MainMenuUI:
             value_var=self.overview_version_value,
             subtitle="Текущ пакет на приложението",
             accent=APP_ACCENT,
+            icon_name="shield_small",
         )
         self._build_overview_card(
             self.overview_frame,
@@ -1885,6 +1899,7 @@ class MainMenuUI:
             value_var=self.overview_resources_value,
             subtitle="Наличност на локални и online пакети",
             accent=APP_ACCENT_BLUE,
+            icon_name="download_small",
         )
         self._build_overview_card(
             self.overview_frame,
@@ -1893,6 +1908,7 @@ class MainMenuUI:
             value_var=self.overview_launch_value,
             subtitle="Откъде е стартирано приложението",
             accent=APP_WARNING,
+            icon_name="drive_small",
         )
 
         self.update_banner = tk.Frame(
@@ -2129,6 +2145,53 @@ class MainMenuUI:
             f"{self.launch_info['device_name']}"
         )
 
+    def _load_dashboard_icon_sheet(self) -> dict[str, tk.PhotoImage]:
+        # Реже иконите от общия sprite sheet, за да ги ползваме по целия dashboard.
+        sheet_path = runtime_file(DASHBOARD_ICON_SHEET_RELATIVE)
+        if not sheet_path.exists():
+            return {}
+
+        try:
+            sprite = tk.PhotoImage(file=str(sheet_path))
+        except tk.TclError:
+            return {}
+
+        columns = 4
+        rows = 4
+        cell_width = max(1, sprite.width() // columns)
+        cell_height = max(1, sprite.height() // rows)
+        names = [
+            "shield",
+            "home",
+            "key",
+            "download",
+            "robot",
+            "globe",
+            "drive",
+            "admin",
+            "refresh",
+            "cpu",
+            "bolt",
+            "ram",
+            "disk",
+            "warning",
+            "monitor",
+            "actions",
+        ]
+        icons: dict[str, tk.PhotoImage] = {"sheet": sprite}
+        for index, name in enumerate(names):
+            col = index % columns
+            row = index // columns
+            left = col * cell_width
+            top = row * cell_height
+            right = left + cell_width
+            bottom = top + cell_height
+            cropped = tk.PhotoImage()
+            cropped.tk.call(cropped, "copy", sprite, "-from", left, top, right, bottom)
+            icons[name] = cropped.subsample(6, 6)
+            icons[f"{name}_small"] = cropped.subsample(9, 9)
+        return icons
+
     def _build_overview_card(
         self,
         parent: tk.Widget,
@@ -2138,6 +2201,7 @@ class MainMenuUI:
         value_var: tk.StringVar,
         subtitle: str,
         accent: str,
+        icon_name: str = "",
     ) -> None:
         # Малка dashboard карта в горната част на екрана.
         card = tk.Frame(
@@ -2151,6 +2215,9 @@ class MainMenuUI:
         tk.Frame(card, bg=accent, height=4).pack(fill="x")
         body = tk.Frame(card, bg=APP_PANEL)
         body.pack(fill="both", expand=True, padx=14, pady=12)
+        icon_image = self.dashboard_icons.get(icon_name)
+        if icon_image is not None:
+            tk.Label(body, image=icon_image, bg=APP_PANEL).pack(anchor="w", pady=(0, 6))
         tk.Label(
             body,
             text=title,
@@ -3324,19 +3391,19 @@ class MainMenuUI:
         ram_value, ram_ok = self._health_item_value("RAM:")
         disk_value, disk_ok = self._health_item_value("Disk C:")
         return [
-            {"icon": "▣", "title": "CPU температура", "value": temp_value, "status": "Нормална" if temp_ok else "Провери", "ok": temp_ok},
-            {"icon": "⚡", "title": "CPU напрежение", "value": voltage_value, "status": "Стабилно" if voltage_ok else "Няма данни", "ok": voltage_ok},
-            {"icon": "▤", "title": "RAM използване", "value": ram_value, "status": "Нормално" if ram_ok else "Високо", "ok": ram_ok},
-            {"icon": "◫", "title": "Системен диск (C:)", "value": disk_value, "status": "Добро" if disk_ok else "Запълнен", "ok": disk_ok},
+            {"icon": "cpu", "title": "CPU температура", "value": temp_value, "status": "Нормална" if temp_ok else "Провери", "ok": temp_ok},
+            {"icon": "bolt", "title": "CPU напрежение", "value": voltage_value, "status": "Стабилно" if voltage_ok else "Няма данни", "ok": voltage_ok},
+            {"icon": "ram", "title": "RAM използване", "value": ram_value, "status": "Нормално" if ram_ok else "Високо", "ok": ram_ok},
+            {"icon": "disk", "title": "Системен диск (C:)", "value": disk_value, "status": "Добро" if disk_ok else "Запълнен", "ok": disk_ok},
         ]
 
     def _dashboard_quick_actions(self) -> list[dict[str, str]]:
         # Бързи действия в долния десен панел.
         return [
-            {"icon": "🧹", "label": "Почистване\nна системата", "action_id": "reset_onedrive_2"},
-            {"icon": "⟳", "label": "Рестартиране\nна услуги", "action_id": "reset_onedrive_1"},
-            {"icon": "∿", "label": "Проверка\nна здравето", "action_id": "driver_pc_report"},
-            {"icon": "⌨", "label": "Конзола\n(Admin)", "action_id": "open_console"},
+            {"icon": "actions_small", "label": "Почистване\nна системата", "action_id": "reset_onedrive_2"},
+            {"icon": "refresh_small", "label": "Рестартиране\nна услуги", "action_id": "reset_onedrive_1"},
+            {"icon": "monitor_small", "label": "Проверка\nна здравето", "action_id": "driver_pc_report"},
+            {"icon": "admin_small", "label": "Конзола\n(Admin)", "action_id": "open_console"},
         ]
 
     def _render_main_dashboard(self) -> None:
@@ -3354,7 +3421,11 @@ class MainMenuUI:
         status_ok = all(item.ok for item in self.latest_health_items) if self.latest_health_items else False
         banner = tk.Frame(outer, bg=APP_PANEL_SOFT, bd=0, highlightthickness=1, highlightbackground=APP_BORDER_STRONG)
         banner.pack(fill="x", pady=(0, 12))
-        tk.Label(banner, text="✓", font=self._font(22, "bold", "Segoe UI Semibold"), fg=APP_ACCENT, bg=APP_PANEL_SOFT).pack(side="left", padx=(18, 14), pady=16)
+        banner_icon = self.dashboard_icons.get("shield")
+        if banner_icon is not None:
+            tk.Label(banner, image=banner_icon, bg=APP_PANEL_SOFT).pack(side="left", padx=(18, 14), pady=16)
+        else:
+            tk.Label(banner, text="✓", font=self._font(22, "bold", "Segoe UI Semibold"), fg=APP_ACCENT, bg=APP_PANEL_SOFT).pack(side="left", padx=(18, 14), pady=16)
         banner_text = tk.Frame(banner, bg=APP_PANEL_SOFT)
         banner_text.pack(side="left", fill="x", expand=True, pady=14)
         tk.Label(
@@ -3398,7 +3469,11 @@ class MainMenuUI:
         for idx, spec in enumerate(self._dashboard_metric_cards()):
             card = tk.Frame(metrics, bg=APP_PANEL, bd=0, highlightthickness=1, highlightbackground=APP_BORDER)
             card.grid(row=0, column=idx, sticky="nsew", padx=(0 if idx == 0 else 8, 0))
-            tk.Label(card, text=str(spec["icon"]), font=self._font(20, "bold", "Segoe UI Symbol"), fg=APP_ACCENT, bg=APP_PANEL).pack(anchor="w", padx=16, pady=(12, 0))
+            icon_image = self.dashboard_icons.get(str(spec["icon"]))
+            if icon_image is not None:
+                tk.Label(card, image=icon_image, bg=APP_PANEL).pack(anchor="w", padx=16, pady=(12, 0))
+            else:
+                tk.Label(card, text=str(spec["icon"]), font=self._font(20, "bold", "Segoe UI Symbol"), fg=APP_ACCENT, bg=APP_PANEL).pack(anchor="w", padx=16, pady=(12, 0))
             tk.Label(card, text=str(spec["title"]), font=self._font(10), fg=APP_TEXT_SOFT, bg=APP_PANEL).pack(anchor="w", padx=16, pady=(6, 0))
             tk.Label(card, text=str(spec["value"]), font=self._font(18, "bold", "Segoe UI Semibold"), fg=APP_TEXT if spec["ok"] else "#ff8b8b", bg=APP_PANEL).pack(anchor="w", padx=16, pady=(6, 0))
             tk.Label(card, text=str(spec["status"]), font=self._font(9), fg=APP_ACCENT if spec["ok"] else "#ff8b8b", bg=APP_PANEL).pack(anchor="w", padx=16, pady=(6, 12))
@@ -3406,7 +3481,11 @@ class MainMenuUI:
         alert_card = tk.Frame(metrics, bg="#2a1719", bd=0, highlightthickness=1, highlightbackground="#5a2a30")
         alert_card.grid(row=0, column=4, sticky="nsew", padx=(8, 0))
         problem_count = sum(1 for item in self.latest_health_items if not item.ok)
-        tk.Label(alert_card, text="!", font=self._font(20, "bold", "Segoe UI Semibold"), fg="#ff6b6b", bg="#2a1719").pack(anchor="w", padx=16, pady=(12, 0))
+        warning_icon = self.dashboard_icons.get("warning")
+        if warning_icon is not None:
+            tk.Label(alert_card, image=warning_icon, bg="#2a1719").pack(anchor="w", padx=16, pady=(12, 0))
+        else:
+            tk.Label(alert_card, text="!", font=self._font(20, "bold", "Segoe UI Semibold"), fg="#ff6b6b", bg="#2a1719").pack(anchor="w", padx=16, pady=(12, 0))
         tk.Label(alert_card, text="Проверка на сигурност", font=self._font(10), fg="#f3b1b1", bg="#2a1719").pack(anchor="w", padx=16, pady=(6, 0))
         tk.Label(alert_card, text="Внимание" if problem_count else "Няма проблем", font=self._font(17, "bold", "Segoe UI Semibold"), fg="#ff6b6b" if problem_count else APP_ACCENT, bg="#2a1719").pack(anchor="w", padx=16, pady=(6, 0))
         tk.Label(alert_card, text=f"{problem_count} проблем(а) открити" if problem_count else "Системата изглежда стабилна", font=self._font(9), fg="#ffd1d1" if problem_count else APP_TEXT_SOFT, bg="#2a1719").pack(anchor="w", padx=16, pady=(6, 12))
@@ -3419,7 +3498,11 @@ class MainMenuUI:
 
         info_panel = tk.Frame(lower, bg=APP_PANEL, bd=0, highlightthickness=1, highlightbackground=APP_BORDER)
         info_panel.grid(row=0, column=0, sticky="nsew", padx=(0, 8))
-        tk.Label(info_panel, text="Информация за системата", font=self._font(14, "bold", "Segoe UI Semibold"), fg=APP_TEXT, bg=APP_PANEL).pack(anchor="w", padx=16, pady=(14, 10))
+        info_header = tk.Frame(info_panel, bg=APP_PANEL)
+        info_header.pack(fill="x", padx=16, pady=(14, 10))
+        if self.dashboard_icons.get("monitor_small") is not None:
+            tk.Label(info_header, image=self.dashboard_icons["monitor_small"], bg=APP_PANEL).pack(side="left", padx=(0, 8))
+        tk.Label(info_header, text="Информация за системата", font=self._font(14, "bold", "Segoe UI Semibold"), fg=APP_TEXT, bg=APP_PANEL).pack(side="left")
         for label, value in self._dashboard_system_rows():
             row = tk.Frame(info_panel, bg=APP_PANEL_ALT)
             row.pack(fill="x", padx=14, pady=4)
@@ -3444,6 +3527,8 @@ class MainMenuUI:
         installer_panel.grid(row=0, column=1, sticky="nsew", padx=8)
         header_row = tk.Frame(installer_panel, bg=APP_PANEL)
         header_row.pack(fill="x", padx=16, pady=(14, 10))
+        if self.dashboard_icons.get("robot_small") is not None:
+            tk.Label(header_row, image=self.dashboard_icons["robot_small"], bg=APP_PANEL).pack(side="left", padx=(0, 8))
         tk.Label(header_row, text="Автоматичен инсталатор", font=self._font(14, "bold", "Segoe UI Semibold"), fg=APP_TEXT, bg=APP_PANEL).pack(side="left")
         tk.Button(
             header_row,
@@ -3512,7 +3597,11 @@ class MainMenuUI:
         right_column.rowconfigure(1, weight=2)
         component_panel = tk.Frame(right_column, bg=APP_PANEL, bd=0, highlightthickness=1, highlightbackground=APP_BORDER)
         component_panel.grid(row=0, column=0, sticky="nsew", pady=(0, 8))
-        tk.Label(component_panel, text="Състояние на компонентите", font=self._font(14, "bold", "Segoe UI Semibold"), fg=APP_TEXT, bg=APP_PANEL).pack(anchor="w", padx=16, pady=(14, 10))
+        component_header = tk.Frame(component_panel, bg=APP_PANEL)
+        component_header.pack(fill="x", padx=16, pady=(14, 10))
+        if self.dashboard_icons.get("shield_small") is not None:
+            tk.Label(component_header, image=self.dashboard_icons["shield_small"], bg=APP_PANEL).pack(side="left", padx=(0, 8))
+        tk.Label(component_header, text="Състояние на компонентите", font=self._font(14, "bold", "Segoe UI Semibold"), fg=APP_TEXT, bg=APP_PANEL).pack(side="left")
         for label, value, ok in self._dashboard_component_rows():
             row = tk.Frame(component_panel, bg=APP_PANEL_ALT)
             row.pack(fill="x", padx=14, pady=4)
@@ -3521,7 +3610,11 @@ class MainMenuUI:
 
         quick_panel = tk.Frame(right_column, bg=APP_PANEL, bd=0, highlightthickness=1, highlightbackground=APP_BORDER)
         quick_panel.grid(row=1, column=0, sticky="nsew", pady=(8, 0))
-        tk.Label(quick_panel, text="Бързи действия", font=self._font(14, "bold", "Segoe UI Semibold"), fg=APP_TEXT, bg=APP_PANEL).pack(anchor="w", padx=16, pady=(14, 10))
+        quick_header = tk.Frame(quick_panel, bg=APP_PANEL)
+        quick_header.pack(fill="x", padx=16, pady=(14, 10))
+        if self.dashboard_icons.get("actions_small") is not None:
+            tk.Label(quick_header, image=self.dashboard_icons["actions_small"], bg=APP_PANEL).pack(side="left", padx=(0, 8))
+        tk.Label(quick_header, text="Бързи действия", font=self._font(14, "bold", "Segoe UI Semibold"), fg=APP_TEXT, bg=APP_PANEL).pack(side="left")
         actions_frame = tk.Frame(quick_panel, bg=APP_PANEL)
         actions_frame.pack(fill="both", expand=True, padx=12, pady=(0, 12))
         for idx in range(4):
@@ -3533,9 +3626,11 @@ class MainMenuUI:
                 command = lambda: messagebox.showinfo("Конзола", "Тази бърза конзола ще бъде вързана в следващата стъпка.", parent=self.root)
             else:
                 command = lambda item={"kind": "action", "action_id": action["action_id"], "label": action["label"]}: self._handle_action(item)
+            quick_icon = self.dashboard_icons.get(action["icon"])
+            text_content = action["label"] if quick_icon is not None else f"{action['icon']}\n\n{action['label']}"
             button = tk.Button(
                 card,
-                text=f"{action['icon']}\n\n{action['label']}",
+                text=text_content,
                 command=command,
                 font=self._font(9, "bold", "Segoe UI Semibold"),
                 bg=APP_PANEL_ALT,
@@ -3548,6 +3643,8 @@ class MainMenuUI:
                 cursor="hand2",
                 justify="center",
                 wraplength=110,
+                image=quick_icon,
+                compound="top",
             )
             button.pack(fill="both", expand=True)
 
