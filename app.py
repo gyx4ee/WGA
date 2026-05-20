@@ -3100,6 +3100,8 @@ class MainMenuUI:
         self.cards_frame.rowconfigure(0, weight=1)
         header_wrap = max(520, self.right_subtitle_wrap + self._scale_px(120))
         selector_wrap = max(520, self.right_subtitle_wrap + self._scale_px(100))
+        header_wrap = max(520, self.right_subtitle_wrap + self._scale_px(120))
+        selector_wrap = max(520, self.right_subtitle_wrap + self._scale_px(100))
 
         outer = tk.Frame(
             self.cards_frame,
@@ -3115,14 +3117,14 @@ class MainMenuUI:
         tk.Label(
             header,
             text="Автоматичен инсталатор",
-            font=("Segoe UI Semibold", 16),
+            font=self._font(16, "bold", "Segoe UI Semibold"),
             bg="#102515",
             fg="#edffef",
         ).pack(anchor="w")
         tk.Label(
             header,
             text="Избери какво да се инсталира. Задачите ще се изпълнят една след друга и ще получиш общ отчет.",
-            font=("Segoe UI", 10),
+            font=self._font(10),
             bg="#102515",
             fg="#9bc39e",
             wraplength=header_wrap,
@@ -4816,7 +4818,7 @@ class MainMenuUI:
         tk.Label(
             wrapper,
             text="Проверка на наличния софтуер",
-            font=("Segoe UI Semibold", 16),
+            font=self._font(16, "bold", "Segoe UI Semibold"),
             bg="#0b1d0f",
             fg="#edffef",
         ).pack(anchor="center", pady=(34, 10))
@@ -4827,7 +4829,7 @@ class MainMenuUI:
             bg="#0b1d0f",
             fg="#bff3c8",
             justify="center",
-            wraplength=780,
+            wraplength=header_wrap,
         ).pack(anchor="center", pady=(4, 6))
         ttk.Progressbar(wrapper, maximum=100, variable=percent_var, length=520).pack(pady=(8, 10))
         tk.Label(
@@ -5132,7 +5134,7 @@ class MainMenuUI:
         tk.Label(
             header,
             text="Тук можеш с тикче да отбележиш всичко, което искаш да се инсталира. След това задачите ще се изпълнят една след друга.",
-            font=("Segoe UI", 10),
+            font=self._font(10),
             bg="#102515",
             fg="#9bc39e",
             wraplength=880,
@@ -5152,6 +5154,8 @@ class MainMenuUI:
         # Това е обновената версия на страницата за автоматичен инсталатор.
         self.cards_frame.columnconfigure(0, weight=1)
         self.cards_frame.rowconfigure(0, weight=1)
+        header_wrap = max(520, self.right_subtitle_wrap + self._scale_px(120))
+        selector_wrap = max(520, self.right_subtitle_wrap + self._scale_px(100))
 
         outer = tk.Frame(
             self.cards_frame,
@@ -5177,7 +5181,7 @@ class MainMenuUI:
             font=("Segoe UI", 10),
             bg="#102515",
             fg="#9bc39e",
-            wraplength=780,
+            wraplength=header_wrap,
             justify="left",
         ).pack(anchor="w", pady=(4, 0))
 
