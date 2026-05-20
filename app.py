@@ -107,6 +107,16 @@ APP_ACCENT_BLUE = "#2f8fff"
 APP_WARNING = "#d0a94a"
 APP_DANGER = "#c94d58"
 
+SIDEBAR_SECTIONS: tuple[tuple[str, str], ...] = (
+    ("main", "Обзор"),
+    ("activation", "Активация"),
+    ("install_software", "Софтуер"),
+    ("auto_installer", "Авто инсталатор"),
+    ("language", "Езици"),
+    ("driver_backup", "Driver Backup"),
+    ("nexus_admin", "Nexus Admin"),
+)
+
 
 def runtime_file(relative_path: str) -> Path:
     # Търси файла на правилното място според това дали работим от build или от проект.
@@ -1730,6 +1740,31 @@ class MainMenuUI:
         )
         self.menu_path.pack(anchor="w", padx=16)
 
+        self.sidebar_nav_frame = tk.Frame(self.left_panel, bg=APP_PANEL)
+        self.sidebar_nav_frame.pack(fill="x", padx=16, pady=(16, 12))
+        self.sidebar_nav_buttons: dict[str, tk.Button] = {}
+        for menu_key, label in SIDEBAR_SECTIONS:
+            button = tk.Button(
+                self.sidebar_nav_frame,
+                text=label,
+                command=lambda key=menu_key: self._open_sidebar_menu(key),
+                font=("Segoe UI Semibold", 10),
+                bg=APP_PANEL_ALT,
+                fg=APP_TEXT_SOFT,
+                activebackground=APP_BORDER_STRONG,
+                activeforeground="#ffffff",
+                bd=0,
+                relief="flat",
+                anchor="w",
+                padx=14,
+                pady=10,
+                cursor="hand2",
+                highlightthickness=1,
+                highlightbackground=APP_BORDER,
+            )
+            button.pack(fill="x", pady=4)
+            self.sidebar_nav_buttons[menu_key] = button
+
         self.system_info = tk.Label(
             self.left_panel,
             text=self._build_system_summary(),
@@ -1822,6 +1857,42 @@ class MainMenuUI:
             justify="left",
         )
         self.card_subtitle.pack(anchor="w", pady=(4, 12))
+
+        self.overview_frame = tk.Frame(self.right_panel, bg=APP_BG)
+        self.overview_frame.pack(fill="x", pady=(0, 12))
+        self.overview_frame.columnconfigure(0, weight=1, uniform="overview")
+        self.overview_frame.columnconfigure(1, weight=1, uniform="overview")
+        self.overview_frame.columnconfigure(2, weight=1, uniform="overview")
+
+        self.overview_version_value = tk.StringVar(value=f"v{self.version_info['version']}")
+        self.overview_resources_value = tk.StringVar(value="Ресурси: проверка...")
+        self.overview_launch_value = tk.StringVar(value=self.launch_info["drive_type_label"])
+        self.overview_menu_value = tk.StringVar(value="Главно меню")
+
+        self._build_overview_card(
+            self.overview_frame,
+            column=0,
+            title="Версия",
+            value_var=self.overview_version_value,
+            subtitle="Текущ пакет на приложението",
+            accent=APP_ACCENT,
+        )
+        self._build_overview_card(
+            self.overview_frame,
+            column=1,
+            title="Инсталационни ресурси",
+            value_var=self.overview_resources_value,
+            subtitle="Наличност на локални и online пакети",
+            accent=APP_ACCENT_BLUE,
+        )
+        self._build_overview_card(
+            self.overview_frame,
+            column=2,
+            title="Работен режим",
+            value_var=self.overview_launch_value,
+            subtitle="Откъде е стартирано приложението",
+            accent=APP_WARNING,
+        )
 
         self.update_banner = tk.Frame(
             self.right_panel,
@@ -2028,6 +2099,7 @@ class MainMenuUI:
 
         self._update_layout_metrics()
         self._apply_responsive_theme()
+        self._refresh_overview_cards()
         self.render_menu(self.startup_menu, reset_history=True)
         self.root.bind("<Configure>", self._on_root_resize, add="+")
         self._load_language_status_async()
@@ -2055,6 +2127,112 @@ class MainMenuUI:
             f"{self.launch_info['drive']}  |  "
             f"{self.launch_info['device_name']}"
         )
+
+    def _build_overview_card(
+        self,
+        parent: tk.Widget,
+        *,
+        column: int,
+        title: str,
+        value_var: tk.StringVar,
+        subtitle: str,
+        accent: str,
+    ) -> None:
+        # Малка dashboard карта в горната част на екрана.
+        card = tk.Frame(
+            parent,
+            bg=APP_PANEL,
+            bd=0,
+            highlightthickness=1,
+            highlightbackground=APP_BORDER,
+        )
+        card.grid(row=0, column=column, sticky="nsew", padx=(0 if column == 0 else 6, 0), pady=0)
+        tk.Frame(card, bg=accent, height=4).pack(fill="x")
+        body = tk.Frame(card, bg=APP_PANEL)
+        body.pack(fill="both", expand=True, padx=14, pady=12)
+        tk.Label(
+            body,
+            text=title,
+            font=("Segoe UI", 9),
+            fg=APP_TEXT_MUTED,
+            bg=APP_PANEL,
+            anchor="w",
+        ).pack(anchor="w")
+        tk.Label(
+            body,
+            textvariable=value_var,
+            font=("Segoe UI Semibold", 14),
+            fg=APP_TEXT,
+            bg=APP_PANEL,
+            anchor="w",
+            justify="left",
+            wraplength=240,
+        ).pack(anchor="w", pady=(4, 2))
+        tk.Label(
+            body,
+            text=subtitle,
+            font=("Segoe UI", 9),
+            fg=APP_TEXT_SOFT,
+            bg=APP_PANEL,
+            anchor="w",
+            justify="left",
+            wraplength=240,
+        ).pack(anchor="w")
+
+    def _sidebar_section_for_menu(self, menu_key: str) -> str:
+        # Свързва подменютата с основната секция в левия sidebar.
+        activation_group = {"activation", "windows10_activation", "windows11_activation", "office_activation"}
+        install_group = {"install_software", "office_install_center", "secret_install", "office_center"}
+        if menu_key in activation_group:
+            return "activation"
+        if menu_key in install_group:
+            return "install_software"
+        if menu_key.startswith("online_") or menu_key.startswith("install_office_"):
+            return "install_software"
+        if menu_key in {"language"}:
+            return "language"
+        if menu_key in {"driver_backup"}:
+            return "driver_backup"
+        if menu_key in {"nexus_admin"}:
+            return "nexus_admin"
+        if menu_key in {"auto_installer"}:
+            return "auto_installer"
+        return "main"
+
+    def _refresh_sidebar_navigation(self) -> None:
+        # Оцветява активната секция в sidebar-а.
+        active_key = self._sidebar_section_for_menu(self.current_menu)
+        for menu_key, button in self.sidebar_nav_buttons.items():
+            is_active = menu_key == active_key
+            button.config(
+                bg=APP_ACCENT_SOFT if is_active else APP_PANEL_ALT,
+                fg=APP_TEXT if is_active else APP_TEXT_SOFT,
+                activebackground=APP_BORDER_STRONG if is_active else APP_BORDER,
+                highlightbackground=APP_BORDER_STRONG if is_active else APP_BORDER,
+            )
+
+    def _open_sidebar_menu(self, menu_key: str) -> None:
+        # Бърза навигация от лявото меню.
+        if menu_key == "main":
+            self.go_home()
+            return
+        self.history = ["main"]
+        self.render_menu(menu_key)
+
+    def _refresh_overview_cards(self) -> None:
+        # Обновява кратките статуси в горния dashboard ред.
+        self.overview_version_value.set(f"v{self.version_info['version']}")
+        if not self.resource_status.configured:
+            resources_text = "Няма manifest"
+        elif self.resource_status.complete:
+            resources_text = f"Пълна готовност {self.resource_status.available}/{self.resource_status.total}"
+        else:
+            resources_text = f"Липсват {self.resource_status.missing} пакета"
+        self.overview_resources_value.set(resources_text)
+        self.overview_launch_value.set(
+            f"{self.launch_info['drive_type_label']}\n{self.launch_info['drive']} • {self.launch_info['device_name']}"
+        )
+        self.overview_menu_value.set(MENU_TREE[self.current_menu]["title"])
 
     def _resource_status_color(self) -> str:
         if not self.resource_status.configured:
@@ -2087,6 +2265,8 @@ class MainMenuUI:
             self.system_info.config(text=self._build_system_summary())
         if hasattr(self, "header_device_chip"):
             self.header_device_chip.config(text=self._build_header_device_text())
+        if hasattr(self, "overview_resources_value"):
+            self._refresh_overview_cards()
         self.resource_status_label.config(
             text=self._build_resource_summary(),
             fg=self._resource_status_color(),
@@ -2977,6 +3157,8 @@ class MainMenuUI:
         self.subtitle_label.config(text=menu["subtitle"])
         self.status_var.set(f"Отворено е меню: {menu['title']}.")
         self.header_home_button.config(state="disabled" if menu_key == "main" else "normal")
+        self._refresh_sidebar_navigation()
+        self._refresh_overview_cards()
         self._toggle_language_status_panel(menu_key == "language")
         self._render_cards()
 
@@ -5016,6 +5198,8 @@ class MainMenuUI:
         self.left_panel.configure(width=self.sidebar_width)
         self.menu_title.configure(font=self._font(15, "bold", "Segoe UI Semibold"))
         self.menu_path.configure(font=self._font(10), wraplength=self.system_info_wrap)
+        for button in self.sidebar_nav_buttons.values():
+            button.configure(font=self._font(10, "bold", "Segoe UI Semibold"))
         self.system_info.configure(font=("Consolas", max(8, self.body_text_size)), wraplength=self.system_info_wrap)
         self.hint_label.configure(font=self._font(9), wraplength=self.system_info_wrap)
         self.health_title.configure(font=self._font(14, "bold", "Segoe UI Semibold"))
@@ -5035,6 +5219,15 @@ class MainMenuUI:
         self.language_status_panel.configure(width=self.language_panel_width)
         self.language_status_title.configure(font=self._font(13, "bold", "Segoe UI Semibold"))
         self.language_status_label.configure(font=self._font(9), wraplength=self.language_status_wrap)
+        for child in self.overview_frame.winfo_children():
+            for nested in child.winfo_children():
+                for widget in nested.winfo_children():
+                    if isinstance(widget, tk.Label):
+                        current_font = str(widget.cget("font"))
+                        if "Semibold" in current_font or "bold" in current_font.lower():
+                            widget.configure(font=self._font(13, "bold", "Segoe UI Semibold"))
+                        else:
+                            widget.configure(font=self._font(9))
         self.content.pack_configure(padx=self.content_pad_x, pady=self.content_pad_y)
 
     def _on_root_resize(self, event: tk.Event[tk.Misc]) -> None:
