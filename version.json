@@ -1,10 +1,11 @@
 {
-  "version": "0.2.38",
+  "version": "0.2.39",
   "version_info_url": "https://raw.githubusercontent.com/gyx4ee/WGA/refs/heads/main/version.json",
   "download_url": "https://github.com/gyx4ee/WGA/releases/latest",
   "package_url": "https://raw.githubusercontent.com/gyx4ee/WGA/refs/heads/main/WGA-portable.zip",
-  "notes": "Reworked the Home dashboard closer to the reference mockup with a stronger left navigation, live clock footer, richer status banner, fuller metric cards, icon-led system panels, and a denser automatic installer preview so the main screen finally matches the generated concept much more directly.",
+  "notes": "Refined the Home dashboard again with a cleaner centered sidebar brand block, restored the original Home navigation button, improved the framed dashboard panels, fixed mouse-wheel scrolling inside the System Status and Automatic Installer cards, enabled working installer checkboxes with installed-item protection, and switched the component status panel to more honest real checks for activation, runtime, security, and storage components.",
   "changelog": [
+    "v0.2.39 - Refined the Home dashboard again with a cleaner centered sidebar brand block, restored the original Home navigation button, improved the framed dashboard panels, fixed mouse-wheel scrolling inside the System Status and Automatic Installer cards, enabled working installer checkboxes with installed-item protection, and switched the component status panel to more honest real checks for activation, runtime, security, and storage components.",
     "v0.2.38 - Reworked the Home dashboard closer to the reference mockup with a stronger left navigation, live clock footer, richer status banner, fuller metric cards, icon-led system panels, and a denser automatic installer preview so the main screen finally matches the generated concept much more directly.",
     "v0.2.37 - Added the missing dashboard icon system and wired the generated icon sheet into the redesigned Home screen so the sidebar, status panels, metric cards, and quick actions now carry real visual icons closer to the reference design.",
     "v0.2.36 - Rebuilt the Home screen into a real dashboard layout closer to the concept image: dedicated status banner, metric cards, structured system panels, automatic installer preview, component status list, quick actions, and persistent sidebar navigation while keeping the old tools behind the new design.",

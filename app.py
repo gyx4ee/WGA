@@ -1568,11 +1568,16 @@ class MainMenuUI:
         self.activation_close_button: tk.Button | None = None
         self.health_rows: list[tuple[tk.Label, tk.Label, tk.Label]] = []
         self.latest_health_items: list[HealthItem] = []
+        self.health_refresh_job: str | None = None
+        self.health_refresh_in_progress = False
         self.health_canvas: tk.Canvas | None = None
         self.health_scrollbar: ttk.Scrollbar | None = None
         self.health_inner_frame: tk.Frame | None = None
         self.health_scroll_position = 0.0
         self.health_scroll_job: str | None = None
+        self.dashboard_info_scroll_job: str | None = None
+        self.dashboard_info_scroll_position = 0.0
+        self.dashboard_live_widgets: dict[str, object] = {}
         self.update_result: UpdateResult | None = None
         self.update_download_url = ""
         self.update_package_url = ""
@@ -1728,23 +1733,26 @@ class MainMenuUI:
         self.sidebar_brand = tk.Frame(self.left_panel, bg=APP_PANEL)
         self.sidebar_brand.pack(fill="x", padx=14, pady=(16, 8))
         if self.dashboard_logo_large is not None:
-            tk.Label(self.sidebar_brand, image=self.dashboard_logo_large, bg=APP_PANEL).pack(side="left", padx=(0, 10))
+            self.sidebar_brand_logo = tk.Label(self.sidebar_brand, image=self.dashboard_logo_large, bg=APP_PANEL)
+        else:
+            self.sidebar_brand_logo = tk.Label(self.sidebar_brand, text="🛡", font=("Segoe UI Symbol", 28), fg=APP_ACCENT, bg=APP_PANEL)
+        self.sidebar_brand_logo.pack(anchor="center", pady=(0, 6))
         brand_text = tk.Frame(self.sidebar_brand, bg=APP_PANEL)
-        brand_text.pack(side="left", fill="x", expand=True)
+        brand_text.pack(fill="x", expand=True)
         tk.Label(
             brand_text,
             text="WinSys Guardian",
             font=("Segoe UI Semibold", 20),
             fg="#f4fff8",
             bg=APP_PANEL,
-        ).pack(anchor="w", pady=(6, 0))
+        ).pack(anchor="center", pady=(2, 0))
         tk.Label(
             brand_text,
             text="A D V A N C E D",
             font=("Segoe UI Semibold", 11),
             fg=APP_ACCENT,
             bg=APP_PANEL,
-        ).pack(anchor="w", pady=(2, 0))
+        ).pack(anchor="center", pady=(2, 0))
         self.sidebar_toggle_label = tk.Label(
             self.left_panel,
             text="☰",
@@ -1774,7 +1782,15 @@ class MainMenuUI:
 
         self.sidebar_nav_frame = tk.Frame(self.left_panel, bg=APP_PANEL)
         self.sidebar_nav_frame.pack(fill="x", padx=12, pady=(4, 12))
-        self.sidebar_nav_buttons: dict[str, tk.Button] = {}
+        self.sidebar_nav_buttons: dict[str, dict[str, tk.Widget]] = {}
+        self.sidebar_section_label = tk.Label(
+            self.sidebar_nav_frame,
+            text="Навигация",
+            font=("Segoe UI Semibold", 9),
+            fg=APP_TEXT_MUTED,
+            bg=APP_PANEL,
+        )
+        self.sidebar_section_label.pack(anchor="w", padx=8, pady=(0, 6))
         sidebar_text_map = {
             "main": "Начало\nТабло за управление",
             "activation": "Активиране\nWindows и Office активиране",
@@ -1794,31 +1810,71 @@ class MainMenuUI:
             "nexus_admin": "admin_small",
         }
         for menu_key, label in SIDEBAR_SECTIONS:
-            button = tk.Button(
+            title, subtitle = (sidebar_text_map.get(menu_key, label).split("\n", 1) + [""])[:2]
+            card = tk.Frame(
                 self.sidebar_nav_frame,
-                text=sidebar_text_map.get(menu_key, label),
-                command=lambda key=menu_key: self._open_sidebar_menu(key),
-                font=("Segoe UI Semibold", 10),
                 bg=APP_PANEL_ALT,
-                fg=APP_TEXT_SOFT,
-                activebackground=APP_BORDER_STRONG,
-                activeforeground="#ffffff",
                 bd=0,
-                relief="flat",
-                anchor="w",
-                padx=14,
-                pady=14,
-                cursor="hand2",
                 highlightthickness=1,
                 highlightbackground=APP_BORDER,
-                image=self.dashboard_icons.get(sidebar_icon_map.get(menu_key, "")),
-                compound="left",
-                justify="left",
-                wraplength=210,
+                cursor="hand2",
             )
-            button.pack(fill="x", pady=4)
-            self.sidebar_nav_buttons[menu_key] = button
-
+            card.pack(fill="x", pady=5)
+            stripe = tk.Frame(card, bg=APP_PANEL_ALT, width=5, cursor="hand2")
+            stripe.pack(side="left", fill="y")
+            body = tk.Frame(card, bg=APP_PANEL_ALT, cursor="hand2")
+            body.pack(side="left", fill="both", expand=True, padx=12, pady=12)
+            icon_label = tk.Label(
+                body,
+                image=self.dashboard_icons.get(sidebar_icon_map.get(menu_key, "")),
+                bg=APP_PANEL_ALT,
+                cursor="hand2",
+            )
+            icon_label.pack(side="left", padx=(0, 12))
+            text_box = tk.Frame(body, bg=APP_PANEL_ALT, cursor="hand2")
+            text_box.pack(side="left", fill="both", expand=True)
+            title_label = tk.Label(
+                text_box,
+                text=title,
+                font=("Segoe UI Semibold", 11),
+                fg=APP_TEXT,
+                bg=APP_PANEL_ALT,
+                anchor="w",
+                cursor="hand2",
+            )
+            title_label.pack(anchor="w")
+            subtitle_label = tk.Label(
+                text_box,
+                text=subtitle,
+                font=("Segoe UI", 9),
+                fg=APP_TEXT_SOFT,
+                bg=APP_PANEL_ALT,
+                justify="left",
+                anchor="w",
+                wraplength=190,
+                cursor="hand2",
+            )
+            subtitle_label.pack(anchor="w", pady=(3, 0))
+            arrow_label = tk.Label(
+                body,
+                text="›",
+                font=("Segoe UI Semibold", 16),
+                fg=APP_TEXT_MUTED,
+                bg=APP_PANEL_ALT,
+                cursor="hand2",
+            )
+            arrow_label.pack(side="right")
+            for widget in (card, stripe, body, icon_label, text_box, title_label, subtitle_label, arrow_label):
+                widget.bind("<Button-1>", lambda _event, key=menu_key: self._open_sidebar_menu(key))
+            self.sidebar_nav_buttons[menu_key] = {
+                "card": card,
+                "stripe": stripe,
+                "body": body,
+                "icon": icon_label,
+                "title": title_label,
+                "subtitle": subtitle_label,
+                "arrow": arrow_label,
+            }
         self.system_info = tk.Label(
             self.left_panel,
             text=self._build_system_summary(),
@@ -2375,14 +2431,21 @@ class MainMenuUI:
     def _refresh_sidebar_navigation(self) -> None:
         # Оцветява активната секция в sidebar-а.
         active_key = self._sidebar_section_for_menu(self.current_menu)
-        for menu_key, button in self.sidebar_nav_buttons.items():
+        for menu_key, parts in self.sidebar_nav_buttons.items():
             is_active = menu_key == active_key
-            button.config(
-                bg=APP_ACCENT_SOFT if is_active else APP_PANEL_ALT,
-                fg=APP_TEXT if is_active else APP_TEXT_SOFT,
-                activebackground=APP_BORDER_STRONG if is_active else APP_BORDER,
-                highlightbackground=APP_BORDER_STRONG if is_active else APP_BORDER,
-            )
+            card_bg = "#103125" if is_active else APP_PANEL_ALT
+            border = APP_BORDER_STRONG if is_active else APP_BORDER
+            title_fg = "#effff7" if is_active else APP_TEXT
+            subtitle_fg = "#c9f7e2" if is_active else APP_TEXT_SOFT
+            arrow_fg = APP_ACCENT if is_active else APP_TEXT_MUTED
+            stripe_bg = APP_ACCENT if is_active else APP_PANEL_ALT
+            parts["card"].configure(bg=card_bg, highlightbackground=border)
+            parts["stripe"].configure(bg=stripe_bg)
+            parts["body"].configure(bg=card_bg)
+            parts["icon"].configure(bg=card_bg)
+            parts["title"].configure(bg=card_bg, fg=title_fg)
+            parts["subtitle"].configure(bg=card_bg, fg=subtitle_fg)
+            parts["arrow"].configure(bg=card_bg, fg=arrow_fg)
 
     def _open_sidebar_menu(self, menu_key: str) -> None:
         # Бърза навигация от лявото меню.
@@ -2466,6 +2529,68 @@ class MainMenuUI:
             self.resource_frame.pack(fill="x", pady=(0, 12), before=self.cards_frame)
         if not self.nav_frame.winfo_manager():
             self.nav_frame.pack(fill="x", side="bottom", pady=(10, 0))
+
+    def _rounded_rect_points(self, x1: int, y1: int, x2: int, y2: int, radius: int) -> list[int]:
+        # Смята точките за заоблен правоъгълник върху Canvas.
+        r = max(4, min(radius, (x2 - x1) // 2, (y2 - y1) // 2))
+        return [
+            x1 + r, y1,
+            x2 - r, y1,
+            x2, y1,
+            x2, y1 + r,
+            x2, y2 - r,
+            x2, y2,
+            x2 - r, y2,
+            x1 + r, y2,
+            x1, y2,
+            x1, y2 - r,
+            x1, y1 + r,
+            x1, y1,
+        ]
+
+    def _build_soft_panel(
+        self,
+        parent: tk.Widget,
+        *,
+        panel_bg: str,
+        border: str,
+        radius: int = 18,
+        base_bg: str | None = None,
+    ) -> tk.Frame:
+        # Прави panel с по-меки, заоблени ъгли за dashboard секциите.
+        host_bg = base_bg or str(parent.cget("bg"))
+        outer = tk.Frame(parent, bg=host_bg, bd=0, highlightthickness=0)
+        inner = tk.Frame(outer, bg=panel_bg, bd=0, highlightthickness=0)
+        inner.pack(fill="both", expand=True, padx=1, pady=1)
+        canvas = tk.Canvas(
+            outer,
+            bg=host_bg,
+            bd=0,
+            highlightthickness=0,
+            relief="flat",
+        )
+        canvas.place(relx=0, rely=0, relwidth=1, relheight=1)
+        inner.lift()
+
+        def redraw(_event: tk.Event | None = None) -> None:
+            width = max(outer.winfo_width() - 2, 40)
+            height = max(outer.winfo_height() - 2, 40)
+            canvas.delete("shape")
+            points = self._rounded_rect_points(1, 1, width, height, radius)
+            canvas.create_polygon(
+                points,
+                smooth=True,
+                splinesteps=36,
+                fill=panel_bg,
+                outline=border,
+                width=1,
+                tags="shape",
+            )
+
+        outer.bind("<Configure>", redraw)
+        outer.content = inner  # type: ignore[attr-defined]
+        outer.redraw_panel = redraw  # type: ignore[attr-defined]
+        return outer
 
     def _resource_status_color(self) -> str:
         if not self.resource_status.configured:
@@ -2874,6 +2999,9 @@ class MainMenuUI:
         self.root.after(0, finish)
 
     def _load_system_health_async(self) -> None:
+        if self.health_refresh_in_progress:
+            return
+        self.health_refresh_in_progress = True
         threading.Thread(target=self._collect_and_render_system_health, daemon=True).start()
 
     def _load_language_status_async(self) -> None:
@@ -2912,7 +3040,17 @@ class MainMenuUI:
         except Exception as exc:
             items = [HealthItem(label="Health:", value=f"Diagnostics failed: {exc}", ok=False)]
         self.latest_health_items = items
-        self.root.after(0, lambda: self._render_system_health(items))
+        self.root.after(0, lambda: self._apply_system_health_update(items))
+
+    def _apply_system_health_update(self, items: list[HealthItem]) -> None:
+        # Прилага новите health данни, обновява dashboard-а и планира следващ refresh.
+        self.health_refresh_in_progress = False
+        self._render_system_health(items)
+        if self.current_menu == "main":
+            self._update_dashboard_live_widgets()
+        if self.health_refresh_job is not None:
+            self.root.after_cancel(self.health_refresh_job)
+        self.health_refresh_job = self.root.after(5000, self._load_system_health_async)
 
     def _render_system_health(self, items: list[HealthItem]) -> None:
         if self.health_scroll_job is not None:
@@ -3002,6 +3140,43 @@ class MainMenuUI:
             return
         self.health_canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
 
+    def _on_dashboard_info_mousewheel(self, canvas: tk.Canvas, event: tk.Event) -> str:
+        # Позволява ръчно скролване с мишката в картата със системното състояние.
+        self._stop_dashboard_info_scroll()
+        info_map = self.dashboard_live_widgets.get("system_info_scroll")
+        scroll_args = self.dashboard_live_widgets.get("system_info_scroll_scroll_args", ())
+        if not isinstance(info_map, dict):
+            return "break"
+        if not (isinstance(scroll_args, tuple) and len(scroll_args) == 3):
+            return "break"
+        delta = getattr(event, "delta", 0)
+        if getattr(event, "num", None) == 4:
+            delta = 120
+        elif getattr(event, "num", None) == 5:
+            delta = -120
+        if delta:
+            item_a, item_b, content_height = scroll_args
+            step = max(12, self._scale_px(18))
+            offset = step if delta > 0 else -step
+            for item_id in (item_a, item_b):
+                x_pos, y_pos = canvas.coords(item_id)
+                canvas.coords(item_id, x_pos, y_pos + offset)
+            a_y = canvas.coords(item_a)[1]
+            b_y = canvas.coords(item_b)[1]
+            if a_y > content_height:
+                canvas.coords(item_a, 0, b_y - content_height)
+            if b_y > content_height:
+                canvas.coords(item_b, 0, a_y - content_height)
+            if a_y <= -content_height:
+                canvas.coords(item_a, 0, b_y + content_height)
+            if b_y <= -content_height:
+                canvas.coords(item_b, 0, a_y + content_height)
+        self.dashboard_info_scroll_job = self.root.after(
+            1800,
+            lambda: self._start_dashboard_info_scroll(canvas, *self.dashboard_live_widgets.get("system_info_scroll_scroll_args", ())),
+        )
+        return "break"
+
     def _start_health_auto_scroll(self) -> None:
         if self.health_canvas is None:
             return
@@ -3029,6 +3204,263 @@ class MainMenuUI:
             delay = 80
 
         self.health_scroll_job = self.root.after(delay, self._auto_scroll_health)
+
+    def _stop_dashboard_info_scroll(self) -> None:
+        # Спира скрола на картата със системната информация.
+        if self.dashboard_info_scroll_job is not None:
+            self.root.after_cancel(self.dashboard_info_scroll_job)
+            self.dashboard_info_scroll_job = None
+        self.dashboard_info_scroll_position = 0.0
+
+    def _update_dashboard_live_widgets(self) -> None:
+        # Обновява само живите карти в dashboard-а, без да прерисува цялото меню.
+        if self.current_menu != "main" or not self.dashboard_live_widgets:
+            return
+
+        metric_specs = {
+            str(spec["key"]): spec
+            for spec in self._dashboard_metric_cards()
+        }
+        for key, spec in metric_specs.items():
+            widget_map = self.dashboard_live_widgets.get(key)
+            if not isinstance(widget_map, dict):
+                continue
+            value_label = widget_map.get("value_label")
+            status_label = widget_map.get("status_label")
+            percent_label = widget_map.get("percent_label")
+            fill_widget = widget_map.get("fill_widget")
+            track_widget = widget_map.get("track_widget")
+            ok = bool(spec["ok"])
+            accent = APP_ACCENT if ok else APP_WARNING
+            value_fg = APP_ACCENT if ok else "#ff8b8b"
+            if isinstance(value_label, tk.Label) and value_label.winfo_exists():
+                value_label.config(text=str(spec["value"]), fg=value_fg)
+            if isinstance(status_label, tk.Label) and status_label.winfo_exists():
+                status_label.config(text=str(spec["status"]))
+            percent_value = self._dashboard_metric_percent(str(spec["value"]), ok)
+            if isinstance(percent_label, tk.Label) and percent_label.winfo_exists():
+                percent_label.config(text=f"{percent_value}%", fg=accent)
+            if isinstance(fill_widget, tk.Frame) and fill_widget.winfo_exists():
+                fill_widget.configure(bg=accent)
+                track_width = track_widget.winfo_width() if isinstance(track_widget, tk.Frame) and track_widget.winfo_exists() else 220
+                fill_width = max(10, int(track_width * (percent_value / 100)))
+                fill_widget.place_configure(width=fill_width)
+
+        alert_widgets = self.dashboard_live_widgets.get("security_alert")
+        if isinstance(alert_widgets, dict):
+            problem_count = sum(1 for item in self.latest_health_items if not item.ok)
+            alert_ok = problem_count == 0
+            title_label = alert_widgets.get("title_label")
+            detail_label = alert_widgets.get("detail_label")
+            strip_widget = alert_widgets.get("strip_widget")
+            accent = APP_ACCENT if alert_ok else APP_DANGER
+            if isinstance(strip_widget, tk.Frame) and strip_widget.winfo_exists():
+                strip_widget.configure(bg=accent)
+            if isinstance(title_label, tk.Label) and title_label.winfo_exists():
+                title_label.config(text="Няма проблем" if alert_ok else "Внимание", fg=accent)
+            if isinstance(detail_label, tk.Label) and detail_label.winfo_exists():
+                detail_label.config(
+                    text="Системата изглежда стабилна" if alert_ok else f"{problem_count} проблем(а) открити",
+                    fg=APP_TEXT_SOFT if alert_ok else "#ffd4d4",
+                )
+
+        info_widgets = self.dashboard_live_widgets.get("system_info_scroll")
+        if isinstance(info_widgets, dict):
+            self._refresh_dashboard_info_panel(info_widgets)
+
+    def _refresh_dashboard_info_panel(self, widget_map: dict[str, object]) -> None:
+        # Обновява само картата със системното състояние.
+        canvas = widget_map.get("canvas")
+        frame_a = widget_map.get("frame_a")
+        frame_b = widget_map.get("frame_b")
+        refresh_callback = widget_map.get("refresh_callback")
+        if not isinstance(canvas, tk.Canvas) or not canvas.winfo_exists():
+            return
+        if not isinstance(frame_a, tk.Frame) or not frame_a.winfo_exists():
+            return
+        if not isinstance(frame_b, tk.Frame) or not frame_b.winfo_exists():
+            return
+
+        self._stop_dashboard_info_scroll()
+        for child in frame_a.winfo_children():
+            child.destroy()
+        for child in frame_b.winfo_children():
+            child.destroy()
+        self._populate_dashboard_info_rows(frame_a, 235)
+        self._populate_dashboard_info_rows(frame_b, 235)
+        self._bind_dashboard_info_mousewheel(frame_a, canvas)
+        self._bind_dashboard_info_mousewheel(frame_b, canvas)
+        canvas.update_idletasks()
+        if callable(refresh_callback):
+            refresh_callback()
+
+    def _bind_dashboard_info_mousewheel(self, widget: tk.Misc, canvas: tk.Canvas) -> None:
+        # Връзва колелцето към всички вътрешни елементи на картата.
+        for sequence in ("<MouseWheel>", "<Button-4>", "<Button-5>"):
+            widget.bind(sequence, lambda event, target=canvas: self._on_dashboard_info_mousewheel(target, event))
+        for child in widget.winfo_children():
+            self._bind_dashboard_info_mousewheel(child, canvas)
+
+    def _populate_dashboard_info_rows(self, parent: tk.Frame, wraplength: int) -> None:
+        # Пълни плаващата карта с редовете за системата.
+        system_icon_map = {
+            "Общо състояние": "shield_small",
+            "Компютър": "monitor_small",
+            "Потребител": "admin_small",
+            "Компютър / потребител": "admin_small",
+            "Операционна система": "shield_small",
+            "Процесор": "cpu_small",
+            "Натоварване на процесора": "cpu_small",
+            "Температура на процесора": "cpu_small",
+            "Напрежение на процесора": "bolt_small",
+            "Дънна платка": "drive_small",
+            "RAM използване": "ram_small",
+            "RAM тип и скорост": "ram_small",
+            "Графична карта": "bolt_small",
+            "BIOS версия": "shield_small",
+            "Време на работа": "refresh_small",
+            "IP адрес": "network_small",
+            "Secure Boot": "shield_small",
+            "Батерия": "shield_small",
+            "Дискове": "drive_small",
+        }
+        for label, value in self._dashboard_system_rows():
+            row = tk.Frame(parent, bg=APP_PANEL_ALT)
+            row.pack(fill="x", padx=12, pady=4)
+            inner = tk.Frame(row, bg=APP_PANEL_ALT)
+            inner.pack(fill="x", padx=10, pady=7)
+            row_icon = self.dashboard_icons.get(system_icon_map.get(label, "shield_small"))
+            if row_icon is not None:
+                tk.Label(inner, image=row_icon, bg=APP_PANEL_ALT).pack(side="left", padx=(0, 8))
+            else:
+                tk.Label(inner, text="•", font=self._font(8, "bold", "Segoe UI Semibold"), fg=APP_ACCENT, bg=APP_PANEL_ALT).pack(side="left", padx=(0, 8))
+            value_color = APP_ACCENT if label == "Общо състояние" and "OK" in value else (APP_DANGER if label == "Общо състояние" else APP_TEXT)
+            tk.Label(
+                inner,
+                text=f"{label}:",
+                font=self._font(7),
+                fg=APP_TEXT_MUTED,
+                bg=APP_PANEL_ALT,
+                width=16,
+                anchor="w",
+            ).pack(side="left")
+            tk.Label(
+                inner,
+                text=value,
+                font=self._font(7, "bold" if label == "Общо състояние" else "normal", "Segoe UI Semibold" if label == "Общо състояние" else "Segoe UI"),
+                fg=value_color,
+                bg=APP_PANEL_ALT,
+                justify="left",
+                anchor="w",
+                wraplength=wraplength,
+            ).pack(side="left", fill="x", expand=True)
+
+    def _start_dashboard_info_scroll(self, canvas: tk.Canvas, item_a: int, item_b: int, content_height: int) -> None:
+        # Движи текста нагоре плавно в картата със системното състояние.
+        if self.current_menu != "main" or not canvas.winfo_exists() or content_height <= 0:
+            self.dashboard_info_scroll_job = None
+            return
+
+        visible_height = max(canvas.winfo_height(), 1)
+        if content_height <= visible_height:
+            self.dashboard_info_scroll_job = None
+            return
+
+        step = max(1, self._scale_px(1))
+        for item_id in (item_a, item_b):
+            x_pos, y_pos = canvas.coords(item_id)
+            canvas.coords(item_id, x_pos, y_pos - step)
+
+        a_y = canvas.coords(item_a)[1]
+        b_y = canvas.coords(item_b)[1]
+        if a_y <= -content_height:
+            canvas.coords(item_a, 0, b_y + content_height)
+        elif b_y <= -content_height:
+            canvas.coords(item_b, 0, a_y + content_height)
+
+        self.dashboard_info_scroll_job = self.root.after(
+            38,
+            lambda: self._start_dashboard_info_scroll(canvas, item_a, item_b, content_height),
+        )
+
+    def _on_dashboard_info_mousewheel(self, canvas: tk.Canvas, event: tk.Event) -> str:
+        # Позволява скрол с мишката в картата със системното състояние.
+        self._stop_dashboard_info_scroll()
+        if not canvas.winfo_exists():
+            return "break"
+        delta = getattr(event, "delta", 0)
+        if getattr(event, "num", None) == 4:
+            delta = 120
+        elif getattr(event, "num", None) == 5:
+            delta = -120
+        if delta:
+            direction = -1 if delta > 0 else 1
+            canvas.yview_scroll(direction, "units")
+        self.dashboard_info_scroll_job = self.root.after(
+            1800,
+            lambda: self._start_dashboard_info_scroll(canvas),
+        )
+        return "break"
+
+    def _refresh_dashboard_info_panel(self, widget_map: dict[str, object]) -> None:
+        # Обновява само картата със системното състояние.
+        canvas = widget_map.get("canvas")
+        frame = widget_map.get("frame")
+        refresh_callback = widget_map.get("refresh_callback")
+        if not isinstance(canvas, tk.Canvas) or not canvas.winfo_exists():
+            return
+        if not isinstance(frame, tk.Frame) or not frame.winfo_exists():
+            return
+        self._stop_dashboard_info_scroll()
+        for child in frame.winfo_children():
+            child.destroy()
+        self._populate_dashboard_info_rows(frame, 235)
+        self._bind_dashboard_info_mousewheel(frame, canvas)
+        canvas.update_idletasks()
+        if callable(refresh_callback):
+            refresh_callback()
+
+    def _start_dashboard_info_scroll(self, canvas: tk.Canvas) -> None:
+        # Движи текста нагоре плавно в картата със системното състояние.
+        if self.current_menu != "main" or not canvas.winfo_exists():
+            self.dashboard_info_scroll_job = None
+            return
+        canvas.update_idletasks()
+        first, last = canvas.yview()
+        if first <= 0.0 and last >= 1.0:
+            self.dashboard_info_scroll_job = None
+            return
+        if last >= 0.995:
+            canvas.yview_moveto(0.0)
+            delay = 1400
+        else:
+            canvas.yview_scroll(1, "units")
+            delay = 85
+        self.dashboard_info_scroll_job = self.root.after(
+            delay,
+            lambda: self._start_dashboard_info_scroll(canvas),
+        )
+
+    def _on_dashboard_canvas_mousewheel(self, canvas: tk.Canvas, event: tk.Event) -> str:
+        # Позволява обикновен скрол с мишката в dashboard canvas без автоматично движение.
+        if not canvas.winfo_exists():
+            return "break"
+        delta = getattr(event, "delta", 0)
+        if getattr(event, "num", None) == 4:
+            delta = 120
+        elif getattr(event, "num", None) == 5:
+            delta = -120
+        if delta:
+            direction = -1 if delta > 0 else 1
+            canvas.yview_scroll(direction, "units")
+        return "break"
+
+    def _bind_dashboard_canvas_mousewheel(self, widget: tk.Misc, canvas: tk.Canvas) -> None:
+        # Връзва колелцето към всички вътрешни елементи на scrollable canvas в dashboard-а.
+        for sequence in ("<MouseWheel>", "<Button-4>", "<Button-5>"):
+            widget.bind(sequence, lambda event, target=canvas: self._on_dashboard_canvas_mousewheel(target, event))
+        for child in widget.winfo_children():
+            self._bind_dashboard_canvas_mousewheel(child, canvas)
 
     def _check_updates_async(self) -> None:
         threading.Thread(target=self._perform_update_check, daemon=True).start()
@@ -3406,6 +3838,8 @@ class MainMenuUI:
         return " > ".join(trail)
 
     def _render_cards(self) -> None:
+        self._stop_dashboard_info_scroll()
+        self.dashboard_live_widgets = {}
         for widget in self.cards_frame.winfo_children():
             if widget is self.language_status_panel:
                 widget.grid_forget()
@@ -3511,57 +3945,354 @@ class MainMenuUI:
         return "Няма данни", False
 
     def _dashboard_system_rows(self) -> list[tuple[str, str]]:
-        # Подрежда кратката системна информация като в mockup-а.
-        health_map = {item.label: item.value for item in self.latest_health_items}
+        # Подрежда всички налични системни данни за плаващата карта в началото.
+        source_items = self.latest_health_items
+        if not source_items:
+            return [
+                ("Общо състояние", "Зареждане..."),
+                ("Компютър", os.environ.get("COMPUTERNAME", "Няма данни")),
+                ("Потребител", os.environ.get("USERNAME", "Няма данни")),
+                ("Операционна система", f"{platform.system()} {platform.release()}".strip() or "Няма данни"),
+                ("IP адрес", "Зареждане..."),
+                ("Време на работа", "Зареждане..."),
+                ("Процесор", platform.processor() or "Зареждане..."),
+                ("Натоварване на процесора", "Зареждане..."),
+                ("Температура на процесора", "Зареждане..."),
+                ("Напрежение на процесора", "Зареждане..."),
+                ("RAM използване", "Зареждане..."),
+                ("RAM тип и скорост", "Зареждане..."),
+                ("Графична карта", "Зареждане..."),
+                ("Дънна платка", "Зареждане..."),
+                ("BIOS версия", "Зареждане..."),
+                ("Secure Boot", "Зареждане..."),
+                ("Батерия", "Зареждане..."),
+                ("Дискове", "Зареждане..."),
+            ]
+
+        health_map = {item.label: item.value for item in source_items}
         computer_user = health_map.get("PC/User:", "Няма данни")
         if " / " in computer_user:
             computer_name, user_name = computer_user.split(" / ", 1)
         else:
-            computer_name, user_name = computer_user, os.environ.get("USERNAME", "Administrator")
-        return [
-            ("Компютър", computer_name),
-            ("Потребител", user_name),
-            ("Операционна система", health_map.get("OS:", "Няма данни")),
-            ("Процесор", health_map.get("CPU:", "Няма данни")),
-            ("Дънна платка", health_map.get("Motherboard:", "Няма данни")),
-            ("RAM", health_map.get("RAM Type:", "Няма данни")),
-            ("Графична карта", health_map.get("GPU:", "Няма данни")),
-            ("BIOS версия", health_map.get("BIOS:", "Няма данни")),
-            ("Време на работа", health_map.get("Uptime:", "Няма данни")),
+            computer_name = os.environ.get("COMPUTERNAME", "Няма данни")
+            user_name = os.environ.get("USERNAME", "Няма данни")
+        label_map = {
+            "OS:": "Операционна система",
+            "IP:": "IP адрес",
+            "Uptime:": "Време на работа",
+            "CPU:": "Процесор",
+            "CPU Load:": "Натоварване на процесора",
+            "Temperature:": "Температура на процесора",
+            "CPU Voltage:": "Напрежение на процесора",
+            "GPU:": "Графична карта",
+            "RAM:": "RAM използване",
+            "RAM Type:": "RAM тип и скорост",
+            "Motherboard:": "Дънна платка",
+            "BIOS:": "BIOS версия",
+            "Secure Boot:": "Secure Boot",
+            "Battery:": "Батерия",
+        }
+        preferred_order = [
+            "OS:",
+            "PC/User:",
+            "IP:",
+            "Uptime:",
+            "CPU:",
+            "CPU Load:",
+            "Temperature:",
+            "CPU Voltage:",
+            "GPU:",
+            "RAM:",
+            "RAM Type:",
+            "Motherboard:",
+            "BIOS:",
+            "Secure Boot:",
+            "Battery:",
         ]
+
+        rows: list[tuple[str, str]] = []
+        system_status = "OK" if all(item.ok for item in source_items) and source_items else "Има внимание"
+        rows.append(("Общо състояние", system_status))
+        rows.append(("Компютър", computer_name))
+        rows.append(("Потребител", user_name))
+
+        for key in preferred_order:
+            if key == "PC/User:":
+                continue
+            value = health_map.get(key, "").strip() or "Няма данни"
+            rows.append((label_map.get(key, key.rstrip(":")), value))
+
+        disk_found = False
+        for item in source_items:
+            if item.label.startswith("Disk "):
+                disk_found = True
+                disk_label = item.label.replace("Disk ", "Диск ").rstrip(":")
+                rows.append((disk_label, item.value))
+        if not disk_found:
+            rows.append(("Дискове", "Няма данни"))
+
+        return rows
 
     def _dashboard_component_rows(self) -> list[tuple[str, str, bool]]:
         # Събира десния списък със статуси на компоненти.
-        secure_boot_value, secure_boot_ok = self._health_item_value("Secure Boot:")
-        battery_value, battery_ok = self._health_item_value("Battery:")
-        office_ok = any(bool(self.secure_store.get(key, "").strip()) for key in OFFICE_ACTION_IDS)
-        windows_ok = any(
+        windows_value, windows_ok = self._component_windows_activation_status()
+        office_value, office_ok = self._component_office_activation_status()
+        net_value, net_ok = self._component_dotnet_status()
+        directx_value, directx_ok = self._component_directx_status()
+        vc_value, vc_ok = self._component_visual_cpp_status()
+        defender_value, defender_ok = self._component_defender_status()
+        firewall_value, firewall_ok = self._component_firewall_status()
+        bitlocker_value, bitlocker_ok = self._component_bitlocker_status()
+        return [
+            ("Windows статус", windows_value, windows_ok),
+            ("Office статус", office_value, office_ok),
+            (".NET Framework", net_value, net_ok),
+            ("DirectX", directx_value, directx_ok),
+            ("Visual C++ Redistributable", vc_value, vc_ok),
+            ("Windows Defender", defender_value, defender_ok),
+            ("Firewall", firewall_value, firewall_ok),
+            ("BitLocker", bitlocker_value, bitlocker_ok),
+        ]
+
+    def _component_windows_activation_status(self) -> tuple[str, bool]:
+        # Проверява реалния статус на активацията на Windows.
+        script = (
+            "$product = Get-CimInstance SoftwareLicensingProduct | "
+            "Where-Object { $_.PartialProductKey -and $_.ApplicationID -eq "
+            "'55c92734-d682-4d71-983e-d6ec3f16059f' } | Select-Object -First 1; "
+            "if ($null -eq $product) { 'NONE' } else { "
+            "\"$($product.LicenseStatus)|$($product.Description)|$($product.PartialProductKey)\" }"
+        )
+        try:
+            result = subprocess.run(
+                ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script],
+                capture_output=True,
+                text=True,
+                timeout=12,
+                check=False,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+            )
+        except Exception:
+            saved_windows_key = any(
+                bool(self.secure_store.get(key, "").strip())
+                for key in ("windows10_product_key", "windows11_product_key")
+            )
+            return ("Има записан ключ", False) if saved_windows_key else ("Няма данни", False)
+        output = "\n".join(part.strip() for part in (result.stdout, result.stderr) if part and part.strip())
+        if "0x80041003" in output or "access denied" in output.lower():
+            saved_windows_key = any(
+                bool(self.secure_store.get(key, "").strip())
+                for key in ("windows10_product_key", "windows11_product_key")
+            )
+            return ("Провери като админ", False) if not saved_windows_key else ("Има записан ключ", False)
+        if not output or output.strip() == "NONE":
+            return "Няма данни", False
+        first_line = output.splitlines()[0].strip()
+        parts = [part.strip() for part in first_line.split("|")]
+        try:
+            license_status = int(parts[0])
+        except Exception:
+            license_status = 0
+        description = parts[1] if len(parts) > 1 else ""
+        partial_key = parts[2] if len(parts) > 2 else ""
+        if license_status == 1:
+            tail = f" ({partial_key})" if partial_key else ""
+            return f"Активиран{tail}", True
+        if "notification" in description.lower():
+            return "Иска активация", False
+        if partial_key:
+            return f"Има ключ ({partial_key})", False
+        saved_windows_key = any(
             bool(self.secure_store.get(key, "").strip())
             for key in ("windows10_product_key", "windows11_product_key")
         )
-        return [
-            ("Windows статус", "Активиран" if windows_ok else "Няма ключ", windows_ok),
-            ("Office статус", "Активиран" if office_ok else "Няма ключ", office_ok),
-            (".NET Framework", "Проверка през Windows", True),
-            ("DirectX", "DirectX 12 / Windows 11", True),
-            ("Visual C++ Redistributable", "Налични", True),
-            ("Windows Defender", secure_boot_value, secure_boot_ok),
-            ("Firewall", "Активна", True),
-            ("BitLocker", battery_value, battery_ok),
-        ]
+        return ("Има записан ключ", False) if saved_windows_key else ("Неактивиран", False)
+
+    def _component_office_activation_status(self) -> tuple[str, bool]:
+        # Проверява реалния статус на Office през OSPP.VBS.
+        ospp_vbs = find_ospp_vbs()
+        if not ospp_vbs:
+            saved_office_key = any(bool(self.secure_store.get(f"{key}_product_key", "").strip()) for key in OFFICE_ACTION_IDS)
+            return ("Има записан Office ключ", False) if saved_office_key else ("Office не е открит", False)
+        try:
+            result = subprocess.run(
+                ["cscript", "//nologo", str(ospp_vbs), "/dstatus"],
+                capture_output=True,
+                text=True,
+                timeout=20,
+                check=False,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+            )
+        except Exception:
+            saved_office_key = any(bool(self.secure_store.get(f"{key}_product_key", "").strip()) for key in OFFICE_ACTION_IDS)
+            return ("Има записан Office ключ", False) if saved_office_key else ("Няма данни", False)
+        output = "\n".join(part.strip() for part in (result.stdout, result.stderr) if part and part.strip())
+        if not output:
+            return "Няма данни", False
+        upper_output = output.upper()
+        if "---LICENSED---" in upper_output or "LICENSE STATUS:  ---LICENSED---" in upper_output:
+            match = re.search(r"Last 5 characters of installed product key:\s*([A-Z0-9]{5})", output, re.IGNORECASE)
+            tail = f" ({match.group(1)})" if match else ""
+            return f"Активиран{tail}", True
+        if "0X1A8" in upper_output or "ACCESS DENIED" in upper_output:
+            saved_office_key = any(bool(self.secure_store.get(f"{key}_product_key", "").strip()) for key in OFFICE_ACTION_IDS)
+            return ("Провери като админ", False) if not saved_office_key else ("Има записан Office ключ", False)
+        if "LICENSE STATUS" in upper_output:
+            return "Има Office, но не е активиран", False
+        saved_office_key = any(bool(self.secure_store.get(f"{key}_product_key", "").strip()) for key in OFFICE_ACTION_IDS)
+        return ("Има записан Office ключ", False) if saved_office_key else ("Няма данни", False)
+
+    def _component_service_running(self, service_name: str) -> bool | None:
+        # Проверява дали дадена Windows услуга е стартирана.
+        try:
+            result = subprocess.run(
+                ["sc", "query", service_name],
+                capture_output=True,
+                text=True,
+                timeout=8,
+                check=False,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+            )
+        except Exception:
+            return None
+        output = f"{result.stdout}\n{result.stderr}".upper()
+        if "STATE" not in output:
+            return None
+        if "RUNNING" in output:
+            return True
+        if "STOPPED" in output:
+            return False
+        return None
+
+    def _component_dotnet_status(self) -> tuple[str, bool]:
+        # Чете .NET 4.x версията от registry.
+        try:
+            key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full")
+            release = int(winreg.QueryValueEx(key, "Release")[0])
+        except Exception:
+            return "Няма данни", False
+        if release >= 533320:
+            return ".NET 4.8.1", True
+        if release >= 528040:
+            return ".NET 4.8", True
+        if release >= 461808:
+            return ".NET 4.7.2", True
+        return f"Release {release}", True
+
+    def _component_directx_status(self) -> tuple[str, bool]:
+        # Проверява наличието на DirectX 12 runtime по системния DLL.
+        system_root = Path(os.environ.get("WINDIR", r"C:\Windows"))
+        d3d12_path = system_root / "System32" / "d3d12.dll"
+        if d3d12_path.exists():
+            return "DirectX 12 наличен", True
+        try:
+            key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\DirectX")
+            version = str(winreg.QueryValueEx(key, "Version")[0]).strip()
+            if version:
+                return version, True
+        except Exception:
+            pass
+        return "Няма данни", False
+
+    def _component_visual_cpp_status(self) -> tuple[str, bool]:
+        # Търси инсталирани Visual C++ пакети в uninstall списъка.
+        found: list[str] = []
+        uninstall_paths = (
+            r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
+            r"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall",
+        )
+        for uninstall_path in uninstall_paths:
+            try:
+                root_key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, uninstall_path)
+            except OSError:
+                continue
+            index = 0
+            while True:
+                try:
+                    subkey_name = winreg.EnumKey(root_key, index)
+                    index += 1
+                except OSError:
+                    break
+                try:
+                    subkey = winreg.OpenKey(root_key, subkey_name)
+                    display_name = str(winreg.QueryValueEx(subkey, "DisplayName")[0]).strip()
+                except OSError:
+                    continue
+                if "Visual C++" in display_name:
+                    found.append(display_name)
+        if not found:
+            return "Липсват", False
+        return f"Налични ({len(found)})", True
+
+    def _component_defender_status(self) -> tuple[str, bool]:
+        # Проверява дали услугата на Windows Defender работи.
+        running = self._component_service_running("WinDefend")
+        if running is None:
+            return "Няма данни", False
+        return ("Активен", True) if running else ("Спрян", False)
+
+    def _component_firewall_status(self) -> tuple[str, bool]:
+        # Проверява дали услугата на Windows Firewall работи.
+        running = self._component_service_running("MpsSvc")
+        if running is None:
+            return "Няма данни", False
+        return ("Активна", True) if running else ("Изключена", False)
+
+    def _component_bitlocker_status(self) -> tuple[str, bool]:
+        # Проверява BitLocker чрез manage-bde и пада към по-лек service fallback.
+        try:
+            result = subprocess.run(
+                ["manage-bde", "-status", "C:"],
+                capture_output=True,
+                text=True,
+                timeout=12,
+                check=False,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+            )
+            output = f"{result.stdout}\n{result.stderr}".lower()
+            if "protection on" in output:
+                return "Активен", True
+            if "protection off" in output or "fully decrypted" in output:
+                return "Изключен", False
+        except Exception:
+            pass
+        running = self._component_service_running("BDESVC")
+        if running is None:
+            return "Няма данни", False
+        return ("Готов", True) if running else ("Изключен", False)
 
     def _dashboard_metric_cards(self) -> list[dict[str, object]]:
         # Горните бързи метрики по снимката.
         temp_value, temp_ok = self._health_item_value("Temperature:")
         voltage_value, voltage_ok = self._health_item_value("CPU Voltage:")
         ram_value, ram_ok = self._health_item_value("RAM:")
+        ram_type_value, _ = self._health_item_value("RAM Type:")
         disk_value, disk_ok = self._health_item_value("Disk C:")
+        ram_parts = [part.strip() for part in ram_type_value.split("/") if part.strip()]
+        ram_type_short = ram_parts[1] if len(ram_parts) > 1 else (ram_parts[0] if ram_parts else "Unknown")
+        ram_speed_short = ram_parts[2] if len(ram_parts) > 2 else "Speed N/A"
         return [
-            {"icon": "cpu", "title": "CPU температура", "value": temp_value, "status": "Нормална" if temp_ok else "Провери", "ok": temp_ok},
-            {"icon": "bolt", "title": "CPU напрежение", "value": voltage_value, "status": "Стабилно" if voltage_ok else "Няма данни", "ok": voltage_ok},
-            {"icon": "ram", "title": "RAM използване", "value": ram_value, "status": "Нормално" if ram_ok else "Високо", "ok": ram_ok},
-            {"icon": "disk", "title": "Системен диск (C:)", "value": disk_value, "status": "Добро" if disk_ok else "Запълнен", "ok": disk_ok},
+            {"key": "cpu_temp", "icon": "cpu", "title": "CPU температура", "value": temp_value, "status": "Нормална" if temp_ok else "Провери", "ok": temp_ok},
+            {"key": "cpu_voltage", "icon": "bolt", "title": "CPU напрежение", "value": voltage_value, "status": "Стабилно" if voltage_ok else "Няма данни", "ok": voltage_ok},
+            {"key": "ram_usage", "icon": "ram", "title": "RAM използване", "value": ram_value, "status": f"{ram_type_short} • {ram_speed_short}", "ok": ram_ok},
+            {"key": "disk_c", "icon": "disk", "title": "Системен диск (C:)", "value": disk_value, "status": "Добро" if disk_ok else "Запълнен", "ok": disk_ok},
         ]
+
+    def _dashboard_metric_percent(self, value: str, fallback_ok: bool) -> int:
+        # Изчислява процента за живите dashboard карти.
+        percent_match = re.search(r"(\d{1,3})\s*%", value)
+        if percent_match:
+            return max(0, min(100, int(percent_match.group(1))))
+        ratio_match = re.search(r"([0-9]+(?:[.,][0-9]+)?)\s*(?:GB|V|°C)?.*?/\s*([0-9]+(?:[.,][0-9]+)?)", value)
+        if ratio_match:
+            try:
+                used = float(ratio_match.group(1).replace(",", "."))
+                total = float(ratio_match.group(2).replace(",", "."))
+                if total > 0:
+                    return max(0, min(100, int((used / total) * 100)))
+            except ValueError:
+                pass
+        return 72 if fallback_ok else 26
 
     def _dashboard_quick_actions(self) -> list[dict[str, str]]:
         # Бързи действия в долния десен панел.
@@ -3586,7 +4317,7 @@ class MainMenuUI:
 
         status_ok = all(item.ok for item in self.latest_health_items) if self.latest_health_items else False
         banner = tk.Frame(outer, bg=APP_PANEL_SOFT, bd=0, highlightthickness=1, highlightbackground=APP_BORDER_STRONG)
-        banner.pack(fill="x", pady=(0, 12))
+        banner.pack(fill="x", pady=(0, 10))
         banner_icon = self.dashboard_icons.get("shield")
         if banner_icon is not None:
             tk.Label(banner, image=banner_icon, bg=APP_PANEL_SOFT).pack(side="left", padx=(18, 14), pady=16)
@@ -3675,7 +4406,7 @@ class MainMenuUI:
             tk.Label(row, text=f"{label}:", font=self._font(9), fg=APP_TEXT_MUTED, bg=APP_PANEL_ALT, width=18, anchor="w").pack(side="left", padx=10, pady=8)
             tk.Label(row, text=value, font=self._font(9), fg=APP_TEXT, bg=APP_PANEL_ALT, justify="left", anchor="w", wraplength=280).pack(side="left", fill="x", expand=True, padx=(0, 10), pady=8)
         tk.Button(
-            info_panel,
+            info_panel_body,
             text="Подробен системен отчет",
             command=lambda: self._handle_driver_backup_action("driver_pc_report"),
             font=self._font(9, "bold", "Segoe UI Semibold"),
@@ -3713,7 +4444,27 @@ class MainMenuUI:
         tk.Label(installer_panel, text="Изберете какво да инсталирате", font=self._font(9), fg=APP_TEXT_SOFT, bg=APP_PANEL).pack(anchor="w", padx=16)
         list_holder = tk.Frame(installer_panel, bg=APP_PANEL_ALT)
         list_holder.pack(fill="both", expand=True, padx=14, pady=10)
-        preview_tasks = self._auto_install_tasks()[:10]
+        preview_tasks = self._auto_install_tasks()
+        self._ensure_auto_install_vars(preview_tasks)
+        dashboard_count_var = tk.StringVar(value="Избрани задачи: 0")
+
+        def update_dashboard_install_count(*_: object) -> None:
+            selected_count = sum(
+                1
+                for task in preview_tasks
+                if self.auto_install_vars.get(task["id"]) and self.auto_install_vars[task["id"]].get()
+            )
+            dashboard_count_var.set(f"Избрани задачи: {selected_count}")
+
+        def set_dashboard_install_selection(value: bool) -> None:
+            for task in preview_tasks:
+                task_id = task["id"]
+                installed_now, _detail = self._safe_task_install_state(task)
+                if installed_now:
+                    self.auto_install_vars[task_id].set(False)
+                    continue
+                self.auto_install_vars[task_id].set(value)
+            update_dashboard_install_count()
         category = ""
         selected_count = 0
         for index, task in enumerate(preview_tasks, start=1):
@@ -3743,7 +4494,7 @@ class MainMenuUI:
             cursor="hand2",
         ).pack(side="right", padx=(8, 0))
         tk.Button(
-            installer_panel,
+            installer_panel_body,
             text="Стартирай инсталацията",
             command=lambda: self.render_menu("auto_installer"),
             font=self._font(10, "bold", "Segoe UI Semibold"),
@@ -3838,30 +4589,16 @@ class MainMenuUI:
         self.cards_frame.columnconfigure(0, weight=1)
         self.cards_frame.rowconfigure(0, weight=1)
 
-        def parse_percent(value: str, fallback_ok: bool) -> int:
-            percent_match = re.search(r"(\d{1,3})\s*%", value)
-            if percent_match:
-                return max(0, min(100, int(percent_match.group(1))))
-            ratio_match = re.search(r"([0-9]+(?:[.,][0-9]+)?)\s*(?:GB|V|°C)?.*?/\s*([0-9]+(?:[.,][0-9]+)?)", value)
-            if ratio_match:
-                try:
-                    used = float(ratio_match.group(1).replace(",", "."))
-                    total = float(ratio_match.group(2).replace(",", "."))
-                    if total > 0:
-                        return max(0, min(100, int((used / total) * 100)))
-                except ValueError:
-                    pass
-            return 72 if fallback_ok else 26
+        def make_panel(parent: tk.Widget, *, bg: str = APP_PANEL, border: str = APP_BORDER, radius: int = 18) -> tk.Frame:
+            return self._build_soft_panel(parent, panel_bg=bg, border=border, radius=radius, base_bg=APP_BG)
 
-        def make_panel(parent: tk.Widget, *, bg: str = APP_PANEL, border: str = APP_BORDER) -> tk.Frame:
-            return tk.Frame(parent, bg=bg, bd=0, highlightthickness=1, highlightbackground=border)
-
-        def make_progress(parent: tk.Widget, value: int, accent: str = APP_ACCENT) -> None:
+        def make_progress(parent: tk.Widget, value: int, accent: str = APP_ACCENT) -> tuple[tk.Frame, tk.Frame]:
             track = tk.Frame(parent, bg="#13201c", height=10)
             track.pack(fill="x", pady=(8, 0))
             track.pack_propagate(False)
             fill = tk.Frame(track, bg=accent, width=max(10, int(220 * (value / 100))), height=10)
             fill.place(x=0, y=0)
+            return track, fill
 
         def icon_or_text(parent: tk.Widget, icon_name: str, fallback: str, *, bg: str, fg: str, side: str = "left") -> None:
             icon_image = self.dashboard_icons.get(icon_name)
@@ -3872,67 +4609,79 @@ class MainMenuUI:
 
         outer = tk.Frame(self.cards_frame, bg=APP_BG, bd=0)
         outer.grid(row=0, column=0, sticky="nsew")
+        self.dashboard_live_widgets = {}
 
         status_ok = all(item.ok for item in self.latest_health_items) if self.latest_health_items else False
         update_text = self.update_message_var.get() if hasattr(self, "update_message_var") else "Няма данни за ъпдейти"
         problem_count = sum(1 for item in self.latest_health_items if not item.ok)
 
-        banner = make_panel(outer, bg=APP_PANEL_SOFT, border=APP_BORDER_STRONG)
-        banner.pack(fill="x", pady=(0, 12))
-        left_banner = tk.Frame(banner, bg=APP_PANEL_SOFT)
-        left_banner.pack(side="left", padx=(18, 14), pady=16)
-        icon_or_text(left_banner, "shield", "✓", bg=APP_PANEL_SOFT, fg=APP_ACCENT)
+        banner = make_panel(outer, bg=APP_PANEL_SOFT, border=APP_BORDER_STRONG, radius=22)
+        banner.pack(fill="x", pady=(0, 8))
+        banner_body = banner.content  # type: ignore[attr-defined]
+        banner_strip = tk.Frame(banner_body, bg=APP_ACCENT, height=4)
+        banner_strip.pack(fill="x", padx=10, pady=(8, 0))
+        banner_inner = tk.Frame(
+            banner_body,
+            bg=APP_PANEL,
+            bd=0,
+            highlightthickness=1,
+            highlightbackground="#20352d",
+        )
+        banner_inner.pack(fill="x", padx=10, pady=(6, 8))
+        left_banner = tk.Frame(banner_inner, bg=APP_PANEL)
+        left_banner.pack(side="left", padx=(12, 10), pady=7)
+        icon_or_text(left_banner, "shield", "✓", bg=APP_PANEL, fg=APP_ACCENT)
 
-        mid_banner = tk.Frame(banner, bg=APP_PANEL_SOFT)
-        mid_banner.pack(side="left", fill="x", expand=True, pady=16)
+        mid_banner = tk.Frame(banner_inner, bg=APP_PANEL)
+        mid_banner.pack(side="left", fill="x", expand=True, pady=7)
         tk.Label(
             mid_banner,
             text="Системата е защитена и работи оптимално!" if status_ok else "Има компоненти, които искат внимание",
-            font=self._font(17, "bold", "Segoe UI Semibold"),
+            font=self._font(11, "bold", "Segoe UI Semibold"),
             fg=APP_ACCENT if status_ok else "#ff8b8b",
-            bg=APP_PANEL_SOFT,
+            bg=APP_PANEL,
         ).pack(anchor="w")
         tk.Label(
             mid_banner,
             text="Всички критични компоненти са в добро състояние." if status_ok else "Провери червените статуси и препоръчаните действия вдясно.",
-            font=self._font(10),
+            font=self._font(7),
             fg=APP_TEXT_SOFT,
-            bg=APP_PANEL_SOFT,
-        ).pack(anchor="w", pady=(6, 0))
+            bg=APP_PANEL,
+        ).pack(anchor="w", pady=(2, 0))
 
-        right_banner = tk.Frame(banner, bg=APP_PANEL_SOFT)
-        right_banner.pack(side="right", padx=(10, 18), pady=16)
-        tk.Label(right_banner, text="Статус на ъпдейти", font=self._font(9), fg=APP_TEXT_MUTED, bg=APP_PANEL_SOFT).pack(anchor="w")
+        right_banner = tk.Frame(banner_inner, bg=APP_PANEL)
+        right_banner.pack(side="right", padx=(8, 12), pady=7)
+        tk.Label(right_banner, text="Статус на ъпдейти", font=self._font(7), fg=APP_TEXT_MUTED, bg=APP_PANEL).pack(anchor="w")
         tk.Label(
             right_banner,
             text=update_text,
-            font=self._font(12, "bold", "Segoe UI Semibold"),
+            font=self._font(9, "bold", "Segoe UI Semibold"),
             fg=APP_TEXT,
-            bg=APP_PANEL_SOFT,
+            bg=APP_PANEL,
             justify="left",
-            wraplength=360,
-        ).pack(anchor="w", pady=(4, 6))
+            wraplength=280,
+        ).pack(anchor="w", pady=(2, 3))
         tk.Label(
             right_banner,
             text="Приложението е актуално" if "нова версия" not in update_text.lower() else "Има наличен нов пакет",
-            font=self._font(9),
+            font=self._font(6),
             fg=APP_TEXT_SOFT,
-            bg=APP_PANEL_SOFT,
+            bg=APP_PANEL,
         ).pack(anchor="w")
         tk.Button(
             right_banner,
             text="Провери отново  ↻",
             command=self._check_updates_async,
-            font=self._font(9, "bold", "Segoe UI Semibold"),
+            font=self._font(8, "bold", "Segoe UI Semibold"),
             bg=APP_ACCENT_SOFT,
             fg="#f2fff8",
             activebackground="#27a67a",
             activeforeground="#ffffff",
             bd=0,
-            padx=18,
-            pady=8,
+            padx=12,
+            pady=5,
             cursor="hand2",
-        ).pack(anchor="w", pady=(10, 0))
+        ).pack(anchor="w", pady=(6, 0))
 
         metrics = tk.Frame(outer, bg=APP_BG)
         metrics.pack(fill="x", pady=(0, 12))
@@ -3940,43 +4689,83 @@ class MainMenuUI:
             metrics.columnconfigure(index, weight=1, uniform="metrics")
 
         for idx, spec in enumerate(self._dashboard_metric_cards()):
-            card = make_panel(metrics)
+            card = make_panel(metrics, radius=20)
             card.grid(row=0, column=idx, sticky="nsew", padx=(0 if idx == 0 else 8, 0))
-            top_row = tk.Frame(card, bg=APP_PANEL)
-            top_row.pack(fill="x", padx=16, pady=(14, 6))
+            card_body = card.content  # type: ignore[attr-defined]
+            accent_color = APP_ACCENT if spec["ok"] else APP_WARNING
+            accent_strip = tk.Frame(card_body, bg=accent_color, height=4)
+            accent_strip.pack(fill="x", padx=12, pady=(10, 0))
+            inner_frame = tk.Frame(
+                card_body,
+                bg=APP_PANEL,
+                bd=0,
+                highlightthickness=1,
+                highlightbackground="#20352d",
+            )
+            inner_frame.pack(fill="both", expand=True, padx=12, pady=(8, 10))
+            top_row = tk.Frame(inner_frame, bg=APP_PANEL)
+            top_row.pack(fill="x", padx=12, pady=(10, 4))
             icon_or_text(top_row, str(spec["icon"]), "•", bg=APP_PANEL, fg=APP_ACCENT)
-            tk.Label(top_row, text=str(spec["title"]), font=self._font(10), fg=APP_TEXT, bg=APP_PANEL).pack(side="left")
-            tk.Label(
-                card,
+            tk.Label(top_row, text=str(spec["title"]), font=self._font(7, "bold", "Segoe UI Semibold"), fg=APP_TEXT, bg=APP_PANEL).pack(side="left")
+            value_label = tk.Label(
+                inner_frame,
                 text=str(spec["value"]),
-                font=self._font(22, "bold", "Segoe UI Semibold"),
+                font=self._font(12, "bold", "Segoe UI Semibold"),
                 fg=APP_ACCENT if spec["ok"] else "#ff8b8b",
                 bg=APP_PANEL,
-            ).pack(anchor="w", padx=16, pady=(0, 6))
-            bottom_row = tk.Frame(card, bg=APP_PANEL)
-            bottom_row.pack(fill="x", padx=16, pady=(0, 10))
+            )
+            value_label.pack(anchor="w", padx=12, pady=(0, 5))
+            bottom_row = tk.Frame(inner_frame, bg=APP_PANEL)
+            bottom_row.pack(fill="x", padx=12, pady=(0, 8))
             tk.Label(bottom_row, text="●", font=self._font(10), fg=APP_ACCENT if spec["ok"] else "#ff8b8b", bg=APP_PANEL).pack(side="left")
-            tk.Label(bottom_row, text=str(spec["status"]), font=self._font(9), fg=APP_TEXT_SOFT, bg=APP_PANEL).pack(side="left", padx=(6, 0))
-            percent_value = parse_percent(str(spec["value"]), bool(spec["ok"]))
-            percent_row = tk.Frame(card, bg=APP_PANEL)
-            percent_row.pack(fill="x", padx=16, pady=(0, 14))
-            make_progress(percent_row, percent_value, APP_ACCENT if spec["ok"] else APP_WARNING)
-            tk.Label(percent_row, text=f"{percent_value}%", font=self._font(9, "bold", "Segoe UI Semibold"), fg=APP_ACCENT if spec["ok"] else APP_WARNING, bg=APP_PANEL).pack(anchor="e", pady=(4, 0))
+            status_label = tk.Label(bottom_row, text=str(spec["status"]), font=self._font(6), fg=APP_TEXT_SOFT, bg=APP_PANEL, wraplength=145, justify="left")
+            status_label.pack(side="left", padx=(6, 0))
+            percent_value = self._dashboard_metric_percent(str(spec["value"]), bool(spec["ok"]))
+            percent_row = tk.Frame(inner_frame, bg=APP_PANEL)
+            percent_row.pack(fill="x", padx=12, pady=(0, 10))
+            track_widget, fill_widget = make_progress(percent_row, percent_value, APP_ACCENT if spec["ok"] else APP_WARNING)
+            percent_label = tk.Label(percent_row, text=f"{percent_value}%", font=self._font(9, "bold", "Segoe UI Semibold"), fg=APP_ACCENT if spec["ok"] else APP_WARNING, bg=APP_PANEL)
+            percent_label.pack(anchor="e", pady=(4, 0))
+            self.dashboard_live_widgets[str(spec["key"])] = {
+                "value_label": value_label,
+                "status_label": status_label,
+                "percent_label": percent_label,
+                "track_widget": track_widget,
+                "fill_widget": fill_widget,
+            }
 
-        alert_card = make_panel(metrics, bg="#241315", border="#533038")
+        alert_card = make_panel(metrics, bg="#241315", border="#533038", radius=20)
         alert_card.grid(row=0, column=4, sticky="nsew", padx=(8, 0))
-        alert_header = tk.Frame(alert_card, bg="#241315")
-        alert_header.pack(fill="x", padx=16, pady=(14, 8))
+        alert_body = alert_card.content  # type: ignore[attr-defined]
+        alert_strip = tk.Frame(alert_body, bg=APP_DANGER if problem_count else APP_ACCENT, height=4)
+        alert_strip.pack(fill="x", padx=12, pady=(10, 0))
+        alert_inner = tk.Frame(
+            alert_body,
+            bg="#241315",
+            bd=0,
+            highlightthickness=1,
+            highlightbackground="#4f2b30",
+        )
+        alert_inner.pack(fill="both", expand=True, padx=12, pady=(8, 10))
+        alert_header = tk.Frame(alert_inner, bg="#241315")
+        alert_header.pack(fill="x", padx=12, pady=(10, 6))
         icon_or_text(alert_header, "warning", "!", bg="#241315", fg=APP_DANGER)
-        tk.Label(alert_header, text="Проверка на сигурност", font=self._font(10), fg="#f3b1b1", bg="#241315").pack(side="left")
-        tk.Label(alert_card, text="Внимание" if problem_count else "Няма проблем", font=self._font(20, "bold", "Segoe UI Semibold"), fg=APP_DANGER if problem_count else APP_ACCENT, bg="#241315").pack(anchor="w", padx=16)
-        tk.Label(
-            alert_card,
+        tk.Label(alert_header, text="Проверка на сигурност", font=self._font(7, "bold", "Segoe UI Semibold"), fg="#f3b1b1", bg="#241315").pack(side="left")
+        alert_title_label = tk.Label(alert_inner, text="Внимание" if problem_count else "Няма проблем", font=self._font(11, "bold", "Segoe UI Semibold"), fg=APP_DANGER if problem_count else APP_ACCENT, bg="#241315")
+        alert_title_label.pack(anchor="w", padx=12)
+        alert_detail_label = tk.Label(
+            alert_inner,
             text=f"{problem_count} проблем(а) открити" if problem_count else "Системата изглежда стабилна",
-            font=self._font(10),
+            font=self._font(6),
             fg="#ffd4d4" if problem_count else APP_TEXT_SOFT,
             bg="#241315",
-        ).pack(anchor="w", padx=16, pady=(8, 0))
+        )
+        alert_detail_label.pack(anchor="w", padx=12, pady=(8, 0))
+        self.dashboard_live_widgets["security_alert"] = {
+            "strip_widget": alert_strip,
+            "title_label": alert_title_label,
+            "detail_label": alert_detail_label,
+        }
 
         lower = tk.Frame(outer, bg=APP_BG)
         lower.pack(fill="both", expand=True)
@@ -3984,33 +4773,65 @@ class MainMenuUI:
         lower.columnconfigure(1, weight=14, uniform="lower")
         lower.columnconfigure(2, weight=12, uniform="lower")
 
-        info_panel = make_panel(lower)
+        info_panel = make_panel(lower, radius=20)
         info_panel.grid(row=0, column=0, sticky="nsew", padx=(0, 8))
-        info_header = tk.Frame(info_panel, bg=APP_PANEL)
-        info_header.pack(fill="x", padx=16, pady=(14, 10))
+        info_panel_body = info_panel.content  # type: ignore[attr-defined]
+        info_strip = tk.Frame(info_panel_body, bg=APP_ACCENT, height=4)
+        info_strip.pack(fill="x", padx=12, pady=(10, 0))
+        info_inner = tk.Frame(
+            info_panel_body,
+            bg=APP_PANEL,
+            bd=0,
+            highlightthickness=1,
+            highlightbackground="#20352d",
+        )
+        info_inner.pack(fill="both", expand=True, padx=12, pady=(8, 8))
+        info_header = tk.Frame(info_inner, bg=APP_PANEL)
+        info_header.pack(fill="x", padx=12, pady=(10, 6))
         icon_or_text(info_header, "monitor_small", "▣", bg=APP_PANEL, fg=APP_ACCENT)
-        tk.Label(info_header, text="Информация за системата", font=self._font(14, "bold", "Segoe UI Semibold"), fg=APP_TEXT, bg=APP_PANEL).pack(side="left")
-        system_icon_map = {
-            "Компютър": "monitor_small",
-            "Потребител": "admin_small",
-            "Операционна система": "shield_small",
-            "Процесор": "cpu_small",
-            "Дънна платка": "drive_small",
-            "RAM": "ram_small",
-            "Графична карта": "bolt_small",
-            "BIOS версия": "shield_small",
-            "Време на работа": "refresh_small",
+        tk.Label(info_header, text="Състояние на системата", font=self._font(12, "bold", "Segoe UI Semibold"), fg=APP_TEXT, bg=APP_PANEL).pack(side="left")
+        info_scroll_host = tk.Frame(info_inner, bg=APP_PANEL)
+        info_scroll_host.pack(fill="both", expand=True, padx=0, pady=(0, 0))
+        info_scroll_host.columnconfigure(0, weight=1)
+        info_scroll_host.rowconfigure(0, weight=1)
+        info_canvas = tk.Canvas(
+            info_scroll_host,
+            bg=APP_PANEL,
+            highlightthickness=0,
+            bd=0,
+            relief="flat",
+            height=self._scale_px(360),
+        )
+        info_canvas.grid(row=0, column=0, sticky="nsew")
+        info_viewport = tk.Frame(info_canvas, bg=APP_PANEL)
+        self._populate_dashboard_info_rows(info_viewport, 235)
+        self._bind_dashboard_info_mousewheel(info_viewport, info_canvas)
+        info_window = info_canvas.create_window((0, 0), window=info_viewport, anchor="nw")
+
+        def refresh_info_scroll(_: object | None = None) -> None:
+            if not info_canvas.winfo_exists():
+                return
+            info_canvas.update_idletasks()
+            content_height = max(info_viewport.winfo_reqheight(), 1)
+            canvas_width = max(info_canvas.winfo_width(), 1)
+            info_canvas.itemconfigure(info_window, width=canvas_width)
+            info_canvas.configure(scrollregion=(0, 0, canvas_width, content_height))
+            self._stop_dashboard_info_scroll()
+            self.dashboard_info_scroll_job = self.root.after(
+                1200,
+                lambda: self._start_dashboard_info_scroll(info_canvas),
+            )
+
+        info_viewport.bind("<Configure>", refresh_info_scroll)
+        info_canvas.bind("<Configure>", refresh_info_scroll)
+        self._bind_dashboard_info_mousewheel(info_canvas, info_canvas)
+        self.dashboard_live_widgets["system_info_scroll"] = {
+            "canvas": info_canvas,
+            "frame": info_viewport,
+            "refresh_callback": refresh_info_scroll,
         }
-        for label, value in self._dashboard_system_rows():
-            row = tk.Frame(info_panel, bg=APP_PANEL_ALT)
-            row.pack(fill="x", padx=12, pady=4)
-            inner = tk.Frame(row, bg=APP_PANEL_ALT)
-            inner.pack(fill="x", padx=10, pady=8)
-            icon_or_text(inner, system_icon_map.get(label, "shield_small"), "•", bg=APP_PANEL_ALT, fg=APP_ACCENT)
-            tk.Label(inner, text=f"{label}:", font=self._font(9), fg=APP_TEXT_MUTED, bg=APP_PANEL_ALT, width=18, anchor="w").pack(side="left")
-            tk.Label(inner, text=value, font=self._font(9), fg=APP_TEXT, bg=APP_PANEL_ALT, justify="left", anchor="w", wraplength=260).pack(side="left", fill="x", expand=True)
         tk.Button(
-            info_panel,
+            info_panel_body,
             text="Подробен системен отчет",
             command=lambda: self._handle_driver_backup_action("driver_pc_report"),
             font=self._font(9, "bold", "Segoe UI Semibold"),
@@ -4024,15 +4845,26 @@ class MainMenuUI:
             cursor="hand2",
         ).pack(fill="x", padx=12, pady=(12, 12))
 
-        installer_panel = make_panel(lower)
+        installer_panel = make_panel(lower, radius=20)
         installer_panel.grid(row=0, column=1, sticky="nsew", padx=8)
-        installer_header = tk.Frame(installer_panel, bg=APP_PANEL)
-        installer_header.pack(fill="x", padx=16, pady=(14, 8))
+        installer_panel_body = installer_panel.content  # type: ignore[attr-defined]
+        installer_accent_strip = tk.Frame(installer_panel_body, bg=APP_ACCENT, height=4)
+        installer_accent_strip.pack(fill="x", padx=12, pady=(10, 0))
+        installer_inner = tk.Frame(
+            installer_panel_body,
+            bg=APP_PANEL,
+            bd=0,
+            highlightthickness=1,
+            highlightbackground="#20352d",
+        )
+        installer_inner.pack(fill="both", expand=True, padx=12, pady=(8, 10))
+        installer_header = tk.Frame(installer_inner, bg=APP_PANEL)
+        installer_header.pack(fill="x", padx=12, pady=(10, 6))
         icon_or_text(installer_header, "robot_small", "▣", bg=APP_PANEL, fg=APP_ACCENT)
         title_box = tk.Frame(installer_header, bg=APP_PANEL)
         title_box.pack(side="left", fill="x", expand=True)
-        tk.Label(title_box, text="Автоматичен инсталатор", font=self._font(14, "bold", "Segoe UI Semibold"), fg=APP_TEXT, bg=APP_PANEL).pack(anchor="w")
-        tk.Label(title_box, text="Изберете какво да инсталирате", font=self._font(9), fg=APP_TEXT_SOFT, bg=APP_PANEL).pack(anchor="w", pady=(3, 0))
+        tk.Label(title_box, text="Автоматичен инсталатор", font=self._font(12, "bold", "Segoe UI Semibold"), fg=APP_TEXT, bg=APP_PANEL).pack(anchor="w")
+        tk.Label(title_box, text="Изберете какво да инсталирате", font=self._font(8), fg=APP_TEXT_SOFT, bg=APP_PANEL).pack(anchor="w", pady=(3, 0))
         tk.Button(
             installer_header,
             text="Управление на задачи",
@@ -4047,32 +4879,101 @@ class MainMenuUI:
             pady=8,
             cursor="hand2",
         ).pack(side="right")
-        list_holder = tk.Frame(installer_panel, bg=APP_PANEL_ALT)
+        list_holder = tk.Frame(installer_inner, bg=APP_PANEL_ALT)
         list_holder.pack(fill="both", expand=True, padx=12, pady=8)
-        preview_tasks = self._auto_install_tasks()[:10]
+        list_holder.columnconfigure(0, weight=1)
+        list_holder.rowconfigure(0, weight=1)
+        installer_canvas = tk.Canvas(
+            list_holder,
+            bg=APP_PANEL_ALT,
+            highlightthickness=0,
+            bd=0,
+            relief="flat",
+        )
+        installer_canvas.grid(row=0, column=0, sticky="nsew")
+        installer_viewport = tk.Frame(installer_canvas, bg=APP_PANEL_ALT)
+        installer_window = installer_canvas.create_window((0, 0), window=installer_viewport, anchor="nw")
+
+        def refresh_installer_scroll(_: object | None = None) -> None:
+            if not installer_canvas.winfo_exists():
+                return
+            installer_canvas.update_idletasks()
+            content_height = max(installer_viewport.winfo_reqheight(), 1)
+            canvas_width = max(installer_canvas.winfo_width(), 1)
+            installer_canvas.itemconfigure(installer_window, width=canvas_width)
+            installer_canvas.configure(scrollregion=(0, 0, canvas_width, content_height))
+
+        installer_viewport.bind("<Configure>", refresh_installer_scroll)
+        installer_canvas.bind("<Configure>", refresh_installer_scroll)
+        self._bind_dashboard_canvas_mousewheel(installer_canvas, installer_canvas)
+        preview_tasks = self._auto_install_tasks()
+        self._ensure_auto_install_vars(preview_tasks)
+        dashboard_count_var = tk.StringVar(value="Избрани задачи: 0")
+
+        def update_dashboard_install_count(*_: object) -> None:
+            selected_count = sum(
+                1
+                for task in preview_tasks
+                if self.auto_install_vars.get(task["id"]) and self.auto_install_vars[task["id"]].get()
+            )
+            dashboard_count_var.set(f"Избрани задачи: {selected_count}")
+
+        def set_dashboard_install_selection(value: bool) -> None:
+            for task in preview_tasks:
+                task_id = task["id"]
+                installed_now, _detail = self._safe_task_install_state(task)
+                if installed_now:
+                    self.auto_install_vars[task_id].set(False)
+                    continue
+                self.auto_install_vars[task_id].set(value)
+            update_dashboard_install_count()
+
         category = ""
         visible_counter = 0
         for task in preview_tasks:
             if task["category"] != category:
                 category = task["category"]
-                tk.Label(list_holder, text=category, font=self._font(10, "bold", "Segoe UI Semibold"), fg=APP_ACCENT, bg=APP_PANEL_ALT).pack(anchor="w", padx=12, pady=(10, 4))
+                tk.Label(installer_viewport, text=category, font=self._font(9, "bold", "Segoe UI Semibold"), fg=APP_ACCENT, bg=APP_PANEL_ALT).pack(anchor="w", padx=12, pady=(10, 4))
             installed_now, _ = self._safe_task_install_state(task)
+            task_id = task["id"]
+            if installed_now:
+                self.auto_install_vars[task_id].set(False)
             visible_counter += 1
-            row = tk.Frame(list_holder, bg=APP_PANEL_ALT)
+            row = tk.Frame(installer_viewport, bg=APP_PANEL_ALT)
             row.pack(fill="x", padx=12, pady=3)
-            tk.Label(row, text="☐", font=self._font(11), fg=APP_TEXT_SOFT, bg=APP_PANEL_ALT).pack(side="left")
-            tk.Label(row, text=f"{visible_counter}.  {task['label']}", font=self._font(9), fg=APP_TEXT, bg=APP_PANEL_ALT, anchor="w").pack(side="left", fill="x", expand=True, padx=(8, 10))
+            check_button = tk.Checkbutton(
+                row,
+                variable=self.auto_install_vars[task_id],
+                text=f"{visible_counter}.  {task['label']}",
+                font=self._font(8, "bold", "Segoe UI Semibold"),
+                bg=APP_PANEL_ALT,
+                activebackground=APP_PANEL_ALT,
+                selectcolor="#174327",
+                fg=APP_TEXT,
+                activeforeground="#ffffff",
+                anchor="w",
+                bd=0,
+                highlightthickness=0,
+                padx=0,
+                pady=0,
+                command=update_dashboard_install_count,
+            )
+            if installed_now:
+                check_button.config(state="disabled", fg=APP_TEXT_MUTED, disabledforeground=APP_TEXT_MUTED)
+            check_button.pack(side="left", fill="x", expand=True, padx=(0, 10))
             pill_bg = "#133524" if installed_now else "#413412"
             pill_fg = APP_ACCENT if installed_now else "#f3bb4c"
             tk.Label(row, text="Наличен" if installed_now else "Частично", font=self._font(8, "bold", "Segoe UI Semibold"), fg=pill_fg, bg=pill_bg, padx=10, pady=3).pack(side="right")
             tk.Label(row, text="ⓘ", font=self._font(8), fg=APP_TEXT_MUTED, bg=APP_PANEL_ALT).pack(side="right", padx=(0, 8))
-        footer_row = tk.Frame(installer_panel, bg=APP_PANEL)
+        self._bind_dashboard_canvas_mousewheel(installer_viewport, installer_canvas)
+        update_dashboard_install_count()
+        footer_row = tk.Frame(installer_inner, bg=APP_PANEL)
         footer_row.pack(fill="x", padx=12, pady=(0, 10))
-        tk.Label(footer_row, text="Избрани задачи: 0", font=self._font(9), fg=APP_TEXT_SOFT, bg=APP_PANEL).pack(side="left")
+        tk.Label(footer_row, textvariable=dashboard_count_var, font=self._font(9), fg=APP_TEXT_SOFT, bg=APP_PANEL).pack(side="left")
         tk.Button(
             footer_row,
             text="Избери всичко",
-            command=lambda: self.render_menu("auto_installer"),
+            command=lambda: set_dashboard_install_selection(True),
             font=self._font(8, "bold", "Segoe UI Semibold"),
             bg=APP_PANEL_ALT,
             fg=APP_TEXT,
@@ -4086,7 +4987,7 @@ class MainMenuUI:
         tk.Button(
             footer_row,
             text="Изчисти",
-            command=lambda: self.render_menu("auto_installer"),
+            command=lambda: set_dashboard_install_selection(False),
             font=self._font(8, "bold", "Segoe UI Semibold"),
             bg=APP_PANEL_ALT,
             fg=APP_TEXT,
@@ -4098,9 +4999,9 @@ class MainMenuUI:
             cursor="hand2",
         ).pack(side="right")
         tk.Button(
-            installer_panel,
+            installer_inner,
             text="▶  Стартирай инсталацията",
-            command=lambda: self.render_menu("auto_installer"),
+            command=self._start_auto_installer,
             font=self._font(11, "bold", "Segoe UI Semibold"),
             bg=APP_ACCENT_SOFT,
             fg="#f2fff8",
@@ -4116,29 +5017,70 @@ class MainMenuUI:
         right_column.grid(row=0, column=2, sticky="nsew", padx=(8, 0))
         right_column.rowconfigure(0, weight=3)
         right_column.rowconfigure(1, weight=2)
-        component_panel = make_panel(right_column)
+        component_panel = make_panel(right_column, radius=20)
         component_panel.grid(row=0, column=0, sticky="nsew", pady=(0, 8))
-        component_header = tk.Frame(component_panel, bg=APP_PANEL)
-        component_header.pack(fill="x", padx=16, pady=(14, 10))
+        component_panel_body = component_panel.content  # type: ignore[attr-defined]
+        component_strip = tk.Frame(component_panel_body, bg=APP_ACCENT, height=4)
+        component_strip.pack(fill="x", padx=12, pady=(10, 0))
+        component_inner = tk.Frame(
+            component_panel_body,
+            bg=APP_PANEL,
+            bd=0,
+            highlightthickness=1,
+            highlightbackground="#20352d",
+        )
+        component_inner.pack(fill="both", expand=True, padx=12, pady=(8, 10))
+        component_header = tk.Frame(component_inner, bg=APP_PANEL)
+        component_header.pack(fill="x", padx=12, pady=(10, 6))
         icon_or_text(component_header, "shield_small", "▣", bg=APP_PANEL, fg=APP_ACCENT)
-        tk.Label(component_header, text="Състояние на компонентите", font=self._font(14, "bold", "Segoe UI Semibold"), fg=APP_TEXT, bg=APP_PANEL).pack(side="left")
+        tk.Label(component_header, text="Състояние на компонентите", font=self._font(12, "bold", "Segoe UI Semibold"), fg=APP_TEXT, bg=APP_PANEL).pack(side="left")
+        component_holder = tk.Frame(component_inner, bg=APP_PANEL_ALT)
+        component_holder.pack(fill="both", expand=True, padx=10, pady=(0, 8))
+        component_holder.columnconfigure(0, weight=1)
+        component_holder.rowconfigure(0, weight=1)
+        component_canvas = tk.Canvas(
+            component_holder,
+            bg=APP_PANEL_ALT,
+            highlightthickness=0,
+            bd=0,
+            relief="flat",
+            height=self._scale_px(250),
+        )
+        component_canvas.grid(row=0, column=0, sticky="nsew")
+        component_viewport = tk.Frame(component_canvas, bg=APP_PANEL_ALT)
+        component_window = component_canvas.create_window((0, 0), window=component_viewport, anchor="nw")
+
+        def refresh_component_scroll(_: object | None = None) -> None:
+            if not component_canvas.winfo_exists():
+                return
+            component_canvas.update_idletasks()
+            content_height = max(component_viewport.winfo_reqheight(), 1)
+            canvas_width = max(component_canvas.winfo_width(), 1)
+            component_canvas.itemconfigure(component_window, width=canvas_width)
+            component_canvas.configure(scrollregion=(0, 0, canvas_width, content_height))
+
+        component_viewport.bind("<Configure>", refresh_component_scroll)
+        component_canvas.bind("<Configure>", refresh_component_scroll)
+        self._bind_dashboard_canvas_mousewheel(component_canvas, component_canvas)
         for label, value, ok in self._dashboard_component_rows():
-            row = tk.Frame(component_panel, bg=APP_PANEL_ALT)
-            row.pack(fill="x", padx=12, pady=4)
+            row = tk.Frame(component_viewport, bg=APP_PANEL_ALT)
+            row.pack(fill="x", padx=10, pady=3)
             inner = tk.Frame(row, bg=APP_PANEL_ALT)
-            inner.pack(fill="x", padx=10, pady=8)
-            tk.Label(inner, text=label, font=self._font(9), fg=APP_TEXT, bg=APP_PANEL_ALT, anchor="w").pack(side="left")
+            inner.pack(fill="x", padx=8, pady=6)
+            tk.Label(inner, text=label, font=self._font(8), fg=APP_TEXT, bg=APP_PANEL_ALT, anchor="w", width=20, justify="left").pack(side="left")
             status_group = tk.Frame(inner, bg=APP_PANEL_ALT)
-            status_group.pack(side="right")
-            tk.Label(status_group, text=value, font=self._font(9, "bold", "Segoe UI Semibold"), fg=APP_ACCENT if ok else APP_DANGER, bg=APP_PANEL_ALT).pack(side="left")
-            tk.Label(status_group, text="◉" if ok else "!", font=self._font(10, "bold", "Segoe UI Semibold"), fg=APP_ACCENT if ok else APP_DANGER, bg=APP_PANEL_ALT).pack(side="left", padx=(10, 0))
-        quick_panel = make_panel(right_column)
+            status_group.pack(side="left", padx=(14, 0))
+            tk.Label(status_group, text=value, font=self._font(8, "bold", "Segoe UI Semibold"), fg=APP_ACCENT if ok else APP_DANGER, bg=APP_PANEL_ALT, justify="left", anchor="w").pack(side="left")
+            tk.Label(status_group, text="◉" if ok else "!", font=self._font(10, "bold", "Segoe UI Semibold"), fg=APP_ACCENT if ok else APP_DANGER, bg=APP_PANEL_ALT).pack(side="left", padx=(8, 0))
+        self._bind_dashboard_canvas_mousewheel(component_viewport, component_canvas)
+        quick_panel = make_panel(right_column, radius=20)
         quick_panel.grid(row=1, column=0, sticky="nsew", pady=(8, 0))
-        quick_header = tk.Frame(quick_panel, bg=APP_PANEL)
+        quick_panel_body = quick_panel.content  # type: ignore[attr-defined]
+        quick_header = tk.Frame(quick_panel_body, bg=APP_PANEL)
         quick_header.pack(fill="x", padx=16, pady=(14, 10))
         icon_or_text(quick_header, "actions_small", "▣", bg=APP_PANEL, fg=APP_ACCENT)
-        tk.Label(quick_header, text="Бързи действия", font=self._font(14, "bold", "Segoe UI Semibold"), fg=APP_TEXT, bg=APP_PANEL).pack(side="left")
-        actions_frame = tk.Frame(quick_panel, bg=APP_PANEL)
+        tk.Label(quick_header, text="Бързи действия", font=self._font(12, "bold", "Segoe UI Semibold"), fg=APP_TEXT, bg=APP_PANEL).pack(side="left")
+        actions_frame = tk.Frame(quick_panel_body, bg=APP_PANEL)
         actions_frame.pack(fill="both", expand=True, padx=10, pady=(0, 10))
         for idx in range(4):
             actions_frame.columnconfigure(idx, weight=1, uniform="quick")
@@ -4169,8 +5111,9 @@ class MainMenuUI:
                 compound="top",
             ).pack(fill="both", expand=True)
 
-        footer = make_panel(outer, bg="#09110f")
+        footer = make_panel(outer, bg="#09110f", radius=18)
         footer.pack(fill="x", pady=(12, 0))
+        footer_body = footer.content  # type: ignore[attr-defined]
         _, disk_ok = self._health_item_value("Disk C:")
         footer_items = [
             ("shield_small", "Сигурност", "Добра" if status_ok else "Риск", status_ok),
@@ -4178,7 +5121,7 @@ class MainMenuUI:
             ("drive_small", "Дисково състояние", "Добро" if disk_ok else "Внимание", disk_ok),
         ]
         for icon_name, title, value, ok in footer_items:
-            segment = tk.Frame(footer, bg="#09110f")
+            segment = tk.Frame(footer_body, bg="#09110f")
             segment.pack(side="left", fill="x", expand=True, padx=16, pady=10)
             icon_or_text(segment, icon_name, "•", bg="#09110f", fg=APP_ACCENT)
             tk.Label(segment, text=f"{title}: ", font=self._font(10), fg=APP_TEXT_SOFT, bg="#09110f").pack(side="left")
@@ -6126,8 +7069,14 @@ class MainMenuUI:
         self.left_panel.configure(width=self.sidebar_width)
         self.menu_title.configure(font=self._font(15, "bold", "Segoe UI Semibold"))
         self.menu_path.configure(font=self._font(10), wraplength=self.system_info_wrap)
-        for button in self.sidebar_nav_buttons.values():
-            button.configure(font=self._font(10, "bold", "Segoe UI Semibold"))
+        self.sidebar_section_label.configure(font=self._font(9, "bold", "Segoe UI Semibold"))
+        self.sidebar_toggle_label.configure(font=self._font(18, "normal", "Segoe UI Symbol"))
+        self.sidebar_clock_card.winfo_children()[0].configure(font=self._font(16, "bold", "Segoe UI Semibold"))
+        self.sidebar_clock_card.winfo_children()[1].configure(font=self._font(9))
+        for parts in self.sidebar_nav_buttons.values():
+            parts["title"].configure(font=self._font(11, "bold", "Segoe UI Semibold"))
+            parts["subtitle"].configure(font=self._font(9), wraplength=max(150, self.sidebar_width - 128))
+            parts["arrow"].configure(font=self._font(16, "bold", "Segoe UI Semibold"))
         self.system_info.configure(font=("Consolas", max(8, self.body_text_size)), wraplength=self.system_info_wrap)
         self.hint_label.configure(font=self._font(9), wraplength=self.system_info_wrap)
         self.health_title.configure(font=self._font(14, "bold", "Segoe UI Semibold"))
