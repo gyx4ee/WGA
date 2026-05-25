@@ -1,5 +1,5 @@
 #define MyAppName "WinSys Guardian Advanced"
-#define MyAppVersion "0.2.14"
+#define MyAppVersion "0.2.42"
 #define MyAppPublisher "WGA"
 #define MyAppExeName "WGA.exe"
 #define MySourceRoot "C:\Users\PC\Documents\New project"
@@ -17,7 +17,7 @@ DisableProgramGroupPage=yes
 DisableDirPage=no
 UsePreviousAppDir=no
 OutputDir={#MySourceRoot}\installer-output
-OutputBaseFilename=WGA-Setup-USB-0.2.14
+OutputBaseFilename=WGA-Setup-USB-0.2.42
 SetupIconFile={#MySourceRoot}\assets\wga-icon.ico
 Compression=lzma2/normal
 SolidCompression=no
@@ -39,7 +39,7 @@ Name: "main"; Description: "WinSys Guardian Advanced application"; Types: usbonl
 Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional shortcuts:"; Flags: unchecked
 
 [Files]
-Source: "{#MyDistRoot}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: main
+Source: "{#MyDistRoot}\*"; DestDir: "{app}"; Excludes: "Installers\*"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: main
 Source: "{#MySourceRoot}\installers_manifest.json"; DestDir: "{app}"; Flags: ignoreversion; Components: main
 Source: "{#MySourceRoot}\version.json"; DestDir: "{app}"; Flags: ignoreversion; Components: main
 
@@ -258,6 +258,7 @@ var
   IconTarget: string;
   VbsTarget: string;
   CmdTarget: string;
+  BatTarget: string;
   ReadmeTarget: string;
   AutorunTarget: string;
   AutorunText: string;
@@ -272,6 +273,7 @@ begin
   IconTarget := DriveRoot + 'WGA-Drive.ico';
   VbsTarget := DriveRoot + 'WGA-Launch.vbs';
   CmdTarget := DriveRoot + 'Start WGA.cmd';
+  BatTarget := DriveRoot + 'start.bat';
   ReadmeTarget := DriveRoot + 'WGA-USB-README.txt';
   AutorunTarget := DriveRoot + 'autorun.inf';
 
@@ -280,19 +282,43 @@ begin
 
   VbsText :=
     'Set oShell = CreateObject("WScript.Shell")' + #13#10 +
-    'oShell.Run Chr(34) & "' + GetInstalledAppExe() + '" & Chr(34), 1, False' + #13#10;
+    'Set fso = CreateObject("Scripting.FileSystemObject")' + #13#10 +
+    'root = fso.GetParentFolderName(WScript.ScriptFullName)' + #13#10 +
+    'If Right(root, 1) <> "\" Then root = root & "\"' + #13#10 +
+    'oShell.Run Chr(34) & root & "Start WGA.cmd" & Chr(34), 1, False' + #13#10;
   SaveStringToFile(VbsTarget, VbsText, False);
 
   CmdText :=
     '@echo off' + #13#10 +
-    'start "" "' + GetInstalledAppExe() + '"' + #13#10;
+    'setlocal' + #13#10 +
+    'set "ROOT=%~dp0"' + #13#10 +
+    'set "APP_EXE="' + #13#10 +
+    'if exist "%ROOT%WinSys Guardian Advanced\WGA.exe" set "APP_EXE=%ROOT%WinSys Guardian Advanced\WGA.exe"' + #13#10 +
+    'if not defined APP_EXE if exist "%ROOT%WGA\WGA.exe" set "APP_EXE=%ROOT%WGA\WGA.exe"' + #13#10 +
+    'if not defined APP_EXE if exist "%ROOT%WGA.exe" set "APP_EXE=%ROOT%WGA.exe"' + #13#10 +
+    'if not defined APP_EXE (' + #13#10 +
+    '  for /f "delims=" %%F in (''dir /b /s "%ROOT%WGA.exe" 2^>nul'') do (' + #13#10 +
+    '    set "APP_EXE=%%F"' + #13#10 +
+    '    goto :FOUND_WGA' + #13#10 +
+    '  )' + #13#10 +
+    ')' + #13#10 +
+    ':FOUND_WGA' + #13#10 +
+    'if not defined APP_EXE (' + #13#10 +
+    '  echo WGA.exe was not found on this drive.' + #13#10 +
+    '  echo Start this file from the USB flash/HDD/SSD where WGA was installed.' + #13#10 +
+    '  pause' + #13#10 +
+    '  exit /b 1' + #13#10 +
+    ')' + #13#10 +
+    'start "" "%APP_EXE%"' + #13#10;
   SaveStringToFile(CmdTarget, CmdText, False);
+  SaveStringToFile(BatTarget, CmdText, False);
 
   ReadmeText :=
     'WinSys Guardian Advanced USB package' + #13#10#13#10 +
     '1. Modern Windows systems may block autorun from USB devices.' + #13#10 +
     '2. If autorun does not start, open "Start WGA.cmd" from the root of the device.' + #13#10 +
-    '3. Installed application path: ' + ExpandConstant('{app}') + #13#10;
+    '3. You can also open "start.bat"; it searches this drive for the installed WGA.exe.' + #13#10 +
+    '4. Installed application path: ' + ExpandConstant('{app}') + #13#10;
   SaveStringToFile(ReadmeTarget, ReadmeText, False);
 
   AutorunText :=

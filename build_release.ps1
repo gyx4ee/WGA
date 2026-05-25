@@ -3,7 +3,14 @@ $ErrorActionPreference = "Stop"
 $projectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $projectRoot
 
-$pyInstallerCmd = "python -m PyInstaller"
+$pyInstallerCandidates = @(
+    "$env:APPDATA\Python\Python313\Scripts\pyinstaller.exe",
+    "$env:APPDATA\Python\Python312\Scripts\pyinstaller.exe",
+    "$env:LOCALAPPDATA\Programs\Python\Python313\Scripts\pyinstaller.exe",
+    "$env:LOCALAPPDATA\Programs\Python\Python312\Scripts\pyinstaller.exe"
+)
+$pyInstallerExe = $pyInstallerCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+$pyInstallerCmd = if ($pyInstallerExe) { "`"$pyInstallerExe`"" } else { "python -m PyInstaller" }
 $isccCandidates = @(
     "C:\Program Files (x86)\Inno Setup 6\ISCC.exe",
     "C:\Program Files\Inno Setup 6\ISCC.exe",

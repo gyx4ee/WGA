@@ -1780,8 +1780,8 @@ class MainMenuUI:
 
         self.header_dashboard_button = tk.Button(
             self.header,
-            text="Dashboard",
-            command=self.go_dashboard,
+            text="История на актуализациите",
+            command=self._show_update_history,
             font=("Segoe UI Semibold", 10),
             bg=APP_ACCENT_SOFT,
             fg="#f2fff8",
@@ -1790,10 +1790,10 @@ class MainMenuUI:
             bd=0,
             padx=18,
             pady=8,
-            width=12,
+            width=22,
             cursor="hand2",
         )
-        self.header_dashboard_button.place(x=704, y=22)
+        self.header_dashboard_button.place(x=724, y=22)
 
         self.subtitle_label = tk.Label(
             self.header,
@@ -2314,7 +2314,7 @@ class MainMenuUI:
         self._refresh_resource_panel()
 
         summary_left = tk.Frame(self.software_summary_frame, bg=APP_PANEL_ALT)
-        summary_left.pack(side="left", fill="x", expand=True, padx=12, pady=8)
+        summary_left.pack(side="left", fill="x", expand=True, padx=(12, 8), pady=8)
         tk.Label(
             summary_left,
             text="Инсталационни ресурси",
@@ -2333,6 +2333,26 @@ class MainMenuUI:
             wraplength=520,
         )
         self.software_summary_resources_label.pack(anchor="w", fill="x", pady=(2, 0))
+
+        summary_action = tk.Frame(self.software_summary_frame, bg=APP_PANEL_ALT, width=220, height=54)
+        summary_action.pack(side="left", fill="y", padx=(0, 8), pady=8)
+        summary_action.pack_propagate(False)
+        self.software_summary_download_button = tk.Button(
+            summary_action,
+            text="Изтегли липсващите",
+            command=self._download_missing_resources,
+            font=("Segoe UI Semibold", 9),
+            bg="#384039",
+            fg="#9aa69c",
+            activebackground="#8b7432",
+            activeforeground="#ffffff",
+            bd=0,
+            padx=12,
+            pady=7,
+            cursor="hand2",
+            state="disabled",
+        )
+        self.software_summary_download_button.place(relx=0.5, rely=0.5, anchor="center", width=190, height=36)
 
         summary_right = tk.Frame(self.software_summary_frame, bg=APP_PANEL_ALT)
         summary_right.pack(side="left", fill="x", expand=True, padx=(8, 12), pady=8)
@@ -2353,6 +2373,7 @@ class MainMenuUI:
             justify="left",
             wraplength=360,
         ).pack(anchor="w", fill="x", pady=(2, 0))
+        self._refresh_resource_panel()
 
         self.nav_frame = tk.Frame(
             self.right_panel,
@@ -2872,11 +2893,14 @@ class MainMenuUI:
         if hasattr(self, "software_summary_resources_label"):
             self.software_summary_resources_label.config(fg=self._resource_status_color())
         can_download = self.resource_status.missing > 0
-        self.resource_download_button.config(
-            state="normal" if can_download else "disabled",
-            bg="#7d6a2d" if can_download else "#384039",
-            fg="#fff7d6" if can_download else "#9aa69c",
-        )
+        download_button_state = {
+            "state": "normal" if can_download else "disabled",
+            "bg": "#7d6a2d" if can_download else "#384039",
+            "fg": "#fff7d6" if can_download else "#9aa69c",
+        }
+        self.resource_download_button.config(**download_button_state)
+        if hasattr(self, "software_summary_download_button"):
+            self.software_summary_download_button.config(**download_button_state)
 
     def _show_resource_details(self) -> None:
         self._refresh_resource_panel()
@@ -2911,6 +2935,8 @@ class MainMenuUI:
             return
 
         self.resource_download_button.config(state="disabled")
+        if hasattr(self, "software_summary_download_button"):
+            self.software_summary_download_button.config(state="disabled")
         self.status_var.set("Изтегляне на липсващи инсталационни ресурси...")
         progress_ui = self._open_resource_download_window(len(missing_downloads))
         threading.Thread(target=self._run_resource_downloads, args=(missing_downloads, progress_ui), daemon=True).start()
@@ -3214,7 +3240,6 @@ class MainMenuUI:
 
         def finish() -> None:
             self._refresh_resource_panel()
-            self.resource_download_button.config(state="normal")
             if self._resource_download_window_exists(ui):
                 try:
                     ui["total_progress"].set(100)
@@ -4067,7 +4092,7 @@ class MainMenuUI:
         self.card_subtitle.config(text=menu["subtitle"])
         self.subtitle_label.config(text=menu["subtitle"])
         self.status_var.set(f"Отворено е меню: {menu['title']}.")
-        self.header_dashboard_button.config(state="disabled" if menu_key == "main" else "normal")
+        self.header_dashboard_button.config(state="normal")
         self.dashboard_button.config(state="disabled" if menu_key == "main" else "normal")
         self._refresh_sidebar_navigation()
         self._refresh_overview_cards()
@@ -4184,7 +4209,7 @@ class MainMenuUI:
         self.card_title.config(text=menu["title"])
         self.card_subtitle.config(text=menu["subtitle"])
         self.subtitle_label.config(text=menu["subtitle"])
-        self.header_dashboard_button.config(state="disabled")
+        self.header_dashboard_button.config(state="normal")
         self.dashboard_button.config(state="disabled")
         self._refresh_sidebar_navigation()
         self._refresh_overview_cards()
@@ -7552,10 +7577,16 @@ class MainMenuUI:
 
     def _render_auto_installer(self) -> None:
         # Това е обновената версия на страницата за автоматичен инсталатор.
+        for index in range(12):
+            self.cards_frame.rowconfigure(index, weight=0, minsize=0, uniform="")
+            self.cards_frame.columnconfigure(index, weight=0, minsize=0, uniform="")
         self.cards_frame.columnconfigure(0, weight=1)
         self.cards_frame.rowconfigure(0, weight=1)
-        available_width = max(720, self.root.winfo_width() - self.sidebar_width - self._scale_px(130))
-        available_height = max(520, self.root.winfo_height() - self.header_height_px - self._scale_px(170))
+        self.cards_frame.update_idletasks()
+        frame_width = self.cards_frame.winfo_width()
+        frame_height = self.cards_frame.winfo_height()
+        available_width = max(720, frame_width - self._scale_px(48)) if frame_width > 1 else max(720, self.root.winfo_width() - self.sidebar_width - self._scale_px(130))
+        available_height = max(520, frame_height - self._scale_px(48)) if frame_height > 1 else max(520, self.root.winfo_height() - self.header_height_px - self._scale_px(170))
         panel_width = min(self._scale_px(920), available_width)
         panel_height = min(self._scale_px(650), available_height)
         selector_wrap = max(520, panel_width - self._scale_px(90))
@@ -7569,7 +7600,7 @@ class MainMenuUI:
             width=panel_width,
             height=panel_height,
         )
-        outer.grid(row=0, column=0, padx=8, pady=8)
+        outer.place(relx=0.5, rely=0.5, anchor="center", width=panel_width, height=panel_height)
         outer.pack_propagate(False)
 
         header = tk.Frame(outer, bg="#102515")
@@ -7675,11 +7706,18 @@ class MainMenuUI:
         self.version_chip.configure(font=self._font(9, "bold", "Segoe UI Semibold"))
         self.header_admin_chip.configure(font=self._font(9, "bold", "Segoe UI Semibold"))
         self.header_exit_button.configure(font=self._font(10, "bold", "Segoe UI Semibold"), width=max(8, int(10 * self.ui_scale)))
-        self.header_dashboard_button.configure(font=self._font(10, "bold", "Segoe UI Semibold"), width=max(10, int(12 * self.ui_scale)))
-        self.header_dashboard_button.place_configure(x=max(600, self._scale_px(704)), y=self._scale_px(22))
+        self.header_dashboard_button.configure(font=self._font(9, "bold", "Segoe UI Semibold"), width=max(20, int(22 * self.ui_scale)))
         self.header_exit_button.place_configure(x=-24, y=self._scale_px(22))
-        self.version_chip.place_configure(x=max(420, self._scale_px(520)), y=self._scale_px(22))
-        self.header_admin_chip.place_configure(x=max(500, self._scale_px(608)), y=self._scale_px(22))
+        version_x = max(420, self._scale_px(520))
+        admin_x = max(500, self._scale_px(608))
+        self.version_chip.place_configure(x=version_x, y=self._scale_px(22))
+        self.header_admin_chip.place_configure(x=admin_x, y=self._scale_px(22))
+        self.header.update_idletasks()
+        version_width = max(self.version_chip.winfo_reqwidth(), self._scale_px(54))
+        admin_width = max(self.header_admin_chip.winfo_reqwidth(), self._scale_px(96))
+        header_gap = max(self._scale_px(18), admin_x - (version_x + version_width))
+        history_x = admin_x + admin_width + header_gap
+        self.header_dashboard_button.place_configure(x=history_x, y=self._scale_px(22))
         self.header_device_chip.place_configure(x=26, y=self._scale_px(56))
         self.left_panel.configure(width=self.sidebar_width)
         self.menu_title.configure(font=self._font(15, "bold", "Segoe UI Semibold"))
@@ -7703,6 +7741,8 @@ class MainMenuUI:
         self.resource_title.configure(font=self._font(11, "bold", "Segoe UI Semibold"))
         self.resource_status_label.configure(font=self._font(9), wraplength=self.resource_wrap)
         self.resource_download_button.configure(font=self._font(9, "bold", "Segoe UI Semibold"))
+        if hasattr(self, "software_summary_download_button"):
+            self.software_summary_download_button.configure(font=self._font(9, "bold", "Segoe UI Semibold"))
         self.resource_details_button.configure(font=self._font(9, "bold", "Segoe UI Semibold"))
         self.update_icon_label.configure(font=self._font(16, "bold", "Segoe UI Semibold"))
         self.update_message_label.configure(font=self._font(10), wraplength=self.resource_wrap)
