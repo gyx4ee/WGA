@@ -16,6 +16,7 @@ import threading
 import time
 import tkinter as tk
 import tkinter.font as tkfont
+import traceback
 import json
 import webbrowser
 import winreg
@@ -115,8 +116,8 @@ SIDEBAR_SECTIONS: tuple[tuple[str, str], ...] = (
     ("activation", "Активация"),
     ("install_software", "Софтуер"),
     ("auto_installer", "Авто инсталатор"),
+    ("driver_backup", "Архивиране"),
     ("language", "Езици"),
-    ("driver_backup", "Driver Backup"),
     ("nexus_admin", "Nexus Admin"),
 )
 
@@ -228,10 +229,11 @@ CARD_ACTION_DOUBLE_HEIGHT = 108
 NAV_BUTTON_WIDTH = 11
 CARD_MIN_HEIGHT = 185
 MENU_CARD_MIN_HEIGHT = {
-    "office_center": 230,
+    "office_center": 215,
     "nexus_admin": 265,
-    "office_install_center": 250,
-    "secret_install": 230,
+    "office_install_center": 215,
+    "secret_install": 215,
+    "driver_backup": 215,
 }
 DESKTOP_ICON_PATHS = (
     r"Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel",
@@ -249,12 +251,12 @@ MENU_PAGE_SIZE: dict[str, int] = {
     "windows11_activation": 4,
     "office_activation": 4,
     "install_software": 4,
-    "office_install_center": 4,
+    "office_install_center": 2,
     "auto_installer": 1,
     "secret_install": 4,
-    "office_center": 4,
+    "office_center": 2,
     "language": 4,
-    "driver_backup": 4,
+    "driver_backup": 2,
     "nexus_admin": 4,
 }
 
@@ -326,9 +328,10 @@ MENU_TREE = {
             },
             {"label": "Language Menu", "kind": "menu", "target": "language"},
             {
-                "label": "Driver Backup + PC Report",
+                "label": "Архивиране",
                 "kind": "menu",
                 "target": "driver_backup",
+                "description": "Архив на драйвери, recovery носител и отчет за компютъра.",
             },
             {
                 "label": "System Commander: Nexus Admin",
@@ -349,9 +352,9 @@ MENU_TREE = {
         "title": "Activation Menu",
         "subtitle": "Windows and Office activation shortcuts.",
         "items": [
-            {"label": "Activate Windows 10", "kind": "menu", "target": "windows10_activation"},
-            {"label": "Activate Windows 11", "kind": "menu", "target": "windows11_activation"},
-            {"label": "Office Activation Center", "kind": "menu", "target": "office_activation"},
+            {"label": "Activate Windows 10", "kind": "menu", "target": "windows10_activation", "icon": "key", "accent": "#2f8fff"},
+            {"label": "Activate Windows 11", "kind": "menu", "target": "windows11_activation", "icon": "shield", "accent": "#37e39a"},
+            {"label": "Office Activation Center", "kind": "menu", "target": "office_activation", "icon": "actions", "accent": "#d0a94a"},
         ],
     },
     "windows10_activation": {
@@ -362,24 +365,28 @@ MENU_TREE = {
                 "label": "Run Windows 10 Activation",
                 "kind": "action",
                 "action_id": "activate_windows10",
+                "icon": "key",
                 "description": "Run the Windows activation commands using the saved product key.",
             },
             {
                 "label": "Save or Replace Product Key",
                 "kind": "action",
                 "action_id": "save_windows10_key",
+                "icon": "download",
                 "description": "Store the currently approved Windows 10 key for later use.",
             },
             {
                 "label": "Show Saved Product Key",
                 "kind": "action",
                 "action_id": "show_windows10_key",
+                "icon": "monitor",
                 "description": "Display the key currently stored in this application.",
             },
             {
                 "label": "Clear Saved Product Key",
                 "kind": "action",
                 "action_id": "clear_windows10_key",
+                "icon": "warning",
                 "description": "Remove the saved key if your organization replaces it.",
             },
             {
@@ -397,24 +404,28 @@ MENU_TREE = {
                 "label": "Run Windows 11 Activation",
                 "kind": "action",
                 "action_id": "activate_windows11",
+                "icon": "key",
                 "description": "Run the Windows activation commands using the saved product key.",
             },
             {
                 "label": "Save or Replace Product Key",
                 "kind": "action",
                 "action_id": "save_windows11_key",
+                "icon": "download",
                 "description": "Store the currently approved Windows 11 key for later use.",
             },
             {
                 "label": "Show Saved Product Key",
                 "kind": "action",
                 "action_id": "show_windows11_key",
+                "icon": "monitor",
                 "description": "Display the key currently stored in this application.",
             },
             {
                 "label": "Clear Saved Product Key",
                 "kind": "action",
                 "action_id": "clear_windows11_key",
+                "icon": "warning",
                 "description": "Remove the saved key if your organization replaces it.",
             },
             {
@@ -432,36 +443,42 @@ MENU_TREE = {
                 "label": "Save or Replace Office Key",
                 "kind": "action",
                 "action_id": "save_office_key",
+                "icon": "download",
                 "description": "Store the Office product key used by your admin workflow.",
             },
             {
                 "label": "Show Saved Office Key",
                 "kind": "action",
                 "action_id": "show_office_key",
+                "icon": "monitor",
                 "description": "Display the Office key currently stored in this application.",
             },
             {
                 "label": "Clear Saved Office Key",
                 "kind": "action",
                 "action_id": "clear_office_key",
+                "icon": "warning",
                 "description": "Remove the saved Office key if your organization replaces it.",
             },
             {
                 "label": "Office 2016",
                 "kind": "action",
                 "action_id": "office_2016_activation",
+                "icon": "key",
                 "description": "Run activation workflow for Office 2016 using the saved Office key.",
             },
             {
                 "label": "Office 2019",
                 "kind": "action",
                 "action_id": "office_2019_activation",
+                "icon": "key",
                 "description": "Run activation workflow for Office 2019 using the saved Office key.",
             },
             {
                 "label": "Office 2021",
                 "kind": "action",
                 "action_id": "office_2021_activation",
+                "icon": "key",
                 "description": "Run activation workflow for Office 2021 using the saved Office key.",
             },
             {
@@ -1235,33 +1252,33 @@ def normalize_product_key_input(raw_value: str) -> str:
     bg_to_latin = str.maketrans(
         {
             "А": "A",
-            "В": "B",
+            "Р’": "B",
             "С": "C",
-            "Е": "E",
+            "Р•": "E",
             "Н": "H",
             "К": "K",
             "М": "M",
             "О": "O",
-            "Р": "P",
+            "Р ": "P",
             "Т": "T",
             "Х": "X",
             "У": "Y",
-            "а": "A",
+            "Р°": "A",
             "в": "B",
             "с": "C",
-            "е": "E",
+            "Рµ": "E",
             "н": "H",
             "к": "K",
             "м": "M",
             "о": "O",
             "р": "P",
-            "т": "T",
-            "х": "X",
+            "С‚": "T",
+            "С…": "X",
             "у": "Y",
-            "Ь": "B",
+            "Р¬": "B",
             "ь": "B",
-            "І": "I",
-            "і": "I",
+            "Р†": "I",
+            "С–": "I",
         }
     )
     normalized = raw_value.strip().translate(bg_to_latin).upper()
@@ -1297,18 +1314,30 @@ class SplashScreen:
         self.splash_width, self.splash_height = responsive_window_size(
             self.screen_width,
             self.screen_height,
-            SPLASH_BASE_WIDTH,
-            SPLASH_BASE_HEIGHT,
+            520,
+            170,
         )
-        self.splash_scale = self.splash_width / SPLASH_BASE_WIDTH
+        self.splash_scale = self.splash_width / 520
         center_geometry(self.root, self.splash_width, self.splash_height)
-        self.root.configure(bg="black")
+        self.transparent_key = "#010203"
+        self.root.configure(bg=self.transparent_key)
         self.root.resizable(False, False)
+        self.root.overrideredirect(True)
+        try:
+            self.root.wm_attributes("-transparentcolor", self.transparent_key)
+        except tk.TclError:
+            pass
 
         self.progress_value = 0.0
         self.target_value = 0.0
-        self.status_text = tk.StringVar(value="Initializing core modules...")
+        self.status_text = tk.StringVar(value="Стартиране на WGA...")
         self.message_queue: queue.Queue[tuple[str, float | str]] = queue.Queue()
+        self.preloaded_state: dict[str, object] = {}
+        self.version_info = load_version_info()
+        self.splash_active = True
+        self.poll_job: str | None = None
+        self.animation_job: str | None = None
+        self.dashboard_job: str | None = None
 
         self.canvas = tk.Canvas(
             self.root,
@@ -1316,6 +1345,7 @@ class SplashScreen:
             height=self.splash_height,
             highlightthickness=0,
             bd=0,
+            bg=self.transparent_key,
         )
         self.canvas.pack(fill="both", expand=True)
 
@@ -1324,52 +1354,33 @@ class SplashScreen:
         self._start_boot_sequence()
 
     def _draw_background(self) -> None:
-        # Рисува зеления фон и линиите в стил WGA.
-        width = self.splash_width
-        height = self.splash_height
-        band_count = 240
-
-        self.canvas.create_rectangle(0, 0, width, height, fill="#000000", outline="")
-
-        for index in range(band_count):
-            x0 = index * width / band_count
-            x1 = (index + 1) * width / band_count
-            distance = abs((x0 + x1) / 2 - width / 2) / (width / 2)
-            green = int(40 + (1 - distance) * 150)
-            shade = max(0, min(255, green))
-            color = f"#{0:02x}{shade:02x}{0:02x}"
-            self.canvas.create_rectangle(x0, 0, x1, height, fill=color, outline=color)
-
-        for index in range(160):
-            x = (index * 37) % width
-            offset = abs(x - width / 2) / (width / 2)
-            line_width = 1 if index % 4 else 2
-            intensity = max(55, int(255 - offset * 180))
-            line_color = f"#{0:02x}{intensity:02x}{30:02x}"
-            self.canvas.create_line(x, 40, x, height - 20, fill=line_color, width=line_width)
-
-        for step in range(110, 0, -1):
-            alpha_band = int(115 * (step / 110))
-            radius_x = 175 + step * 2
-            radius_y = 260 + step * 2
-            left = width / 2 - radius_x / 2
-            top = height / 2 - radius_y / 2
-            right = width / 2 + radius_x / 2
-            bottom = height / 2 + radius_y / 2
-            color = f"#{0:02x}{alpha_band // 2:02x}{0:02x}"
-            self.canvas.create_oval(left, top, right, bottom, fill=color, outline="")
+        # Този preloader е без тежък фон - оставяме само текст и бар.
+        return
 
     def _create_loader(self) -> None:
-        # Създава самия loading bar и текстовете около него.
+        # Създава минималистичен preloader с име и текст какво се зарежда.
         center_x = self.splash_width / 2
         scale = self.splash_scale
-        self.canvas.create_text(center_x, 120 * scale, text=APP_TITLE, fill="#d9ffd9", font=("Segoe UI Semibold", max(18, int(24 * scale))))
-        self.canvas.create_text(center_x, 160 * scale, text="System Startup Interface", fill="#7cf97c", font=("Segoe UI", max(10, int(12 * scale))))
+        self.canvas.create_text(
+            center_x,
+            48 * scale,
+            text="WGA",
+            fill="#effff5",
+            font=("Segoe UI Semibold", max(26, int(34 * scale))),
+        )
 
-        self.bar_left = 310 * scale
-        self.bar_top = 340 * scale
+        self.status_label = self.canvas.create_text(
+            center_x,
+            84 * scale,
+            text=self.status_text.get(),
+            fill="#8df6b3",
+            font=("Segoe UI", max(10, int(11 * scale))),
+        )
+
         self.bar_width = 310 * scale
-        self.bar_height = max(24, 30 * scale)
+        self.bar_left = center_x - self.bar_width / 2
+        self.bar_top = 108 * scale
+        self.bar_height = max(18, 24 * scale)
         self.bar_radius = max(10, 12 * scale)
 
         self._draw_rounded_rect(
@@ -1397,13 +1408,6 @@ class SplashScreen:
             fill="#111111",
             font=("Segoe UI Semibold", max(11, int(14 * scale))),
         )
-        self.status_label = self.canvas.create_text(
-            center_x,
-            395 * scale,
-            text=self.status_text.get(),
-            fill="#d4ffd4",
-            font=("Segoe UI", max(10, int(11 * scale))),
-        )
 
     def _draw_rounded_rect(
         self,
@@ -1420,6 +1424,12 @@ class SplashScreen:
             splinesteps=30,
             **kwargs,
         )
+
+    def _canvas_alive(self) -> bool:
+        try:
+            return bool(self.canvas.winfo_exists())
+        except tk.TclError:
+            return False
 
     def _rounded_rect_points(self, x1: float, y1: float, x2: float, y2: float, radius: float) -> list[float]:
         safe_radius = min(radius, max(1.0, (x2 - x1) / 2), max(1.0, (y2 - y1) / 2))
@@ -1457,11 +1467,13 @@ class SplashScreen:
 
     def _run_startup_tasks(self) -> None:
         tasks = [
-            ("Loading configuration", 0.10, self._load_configuration),
-            ("Collecting system profile", 0.28, self._collect_system_profile),
-            ("Checking workspace files", 0.52, self._scan_workspace),
-            ("Preparing security engines", 0.77, self._prepare_engines),
-            ("Launching interface", 1.00, self._finalize_startup),
+            ("Зареждане на основната конфигурация...", 0.12, self._load_configuration),
+            ("Проверка на езиковите настройки...", 0.24, self._preload_language_status),
+            ("Събиране на системната информация...", 0.42, self._preload_system_health),
+            ("Проверка на състоянието на компонентите...", 0.60, self._preload_component_status),
+            ("Проверка на наличния софтуер...", 0.80, self._preload_auto_installer_status),
+            ("Проверка за актуализация...", 0.92, self._preload_update_status),
+            ("Подготовка на интерфейса...", 1.00, self._finalize_startup),
         ]
         for label, progress, action in tasks:
             self.message_queue.put(("status", label))
@@ -1470,64 +1482,123 @@ class SplashScreen:
         self.message_queue.put(("done", "Ready"))
 
     def _load_configuration(self) -> None:
+        # Зарежда базовите файлове, които после веднага трябват на UI-то.
+        load_secure_store()
+        load_settings()
         config_file = PROJECT_ROOT / "tasks.json"
         if config_file.exists():
             config_file.read_text(encoding="utf-8")
-        time.sleep(0.15)
 
-    def _collect_system_profile(self) -> None:
-        platform.platform()
-        platform.processor()
-        os.cpu_count()
-        total = 0
-        for number in range(1, 55_000):
-            total += math.isqrt(number)
-        _ = total
+    def _preload_language_status(self) -> None:
+        # Взима езиковия статус предварително, за да не чака UI-то след старта.
+        try:
+            self.preloaded_state["language_status"] = get_language_status()
+        except Exception as exc:
+            self.preloaded_state["language_status_error"] = str(exc)
 
-    def _scan_workspace(self) -> None:
-        file_count = 0
-        for path in PROJECT_ROOT.rglob("*"):
-            if path.is_file():
-                file_count += 1
-            if file_count >= 500:
-                break
-        time.sleep(0.1)
+    def _preload_system_health(self) -> None:
+        # Взима живите системни данни предварително за dashboard-а.
+        try:
+            self.preloaded_state["health_items"] = collect_health_items()
+        except Exception as exc:
+            self.preloaded_state["health_error"] = str(exc)
 
-    def _prepare_engines(self) -> None:
-        total = 0
-        for number in range(25_000):
-            total += (number * number) % 97
-        _ = total
+    def _preload_update_status(self) -> None:
+        # Прави онлайн проверката предварително, за да няма второ мислене след старта.
+        try:
+            result = check_for_updates(
+                str(self.version_info["version"]),
+                str(self.version_info.get("version_info_url", "")),
+            )
+            self.preloaded_state["update_result"] = result
+        except Exception as exc:
+            self.preloaded_state["update_error"] = str(exc)
+
+    def _build_dashboard_probe(self) -> "MainMenuUI":
+        # Прави лек помощен обект, който ползва същите проверки без да строи целия UI.
+        probe = MainMenuUI.__new__(MainMenuUI)
+        probe.root = self.root
+        probe.settings = load_settings()
+        probe.secure_store = load_secure_store()
+        probe.launch_info = get_launch_location_info()
+        probe.resource_status = check_resource_status(PROJECT_ROOT)
+        probe.version_info = self.version_info
+        probe.office_inventory_cache = {}
+        probe.office_online_cache = {}
+        probe.office_maintenance_cache = {}
+        probe.adobe_reader_status_cache = None
+        probe.language_status_cache = self.preloaded_state.get("language_status")
+        probe.nexus_admin_status_cache = None
+        probe.program_selector_tasks_cache = []
+        probe.program_selector_status_cache = {}
+        probe.component_status_cache = None
+        probe.latest_health_items = list(self.preloaded_state.get("health_items", [])) if isinstance(self.preloaded_state.get("health_items"), list) else []
+        return probe
+
+    def _preload_component_status(self) -> None:
+        # Подготвя десния панел със статусите на компонентите още преди UI-то.
+        try:
+            probe = self._build_dashboard_probe()
+            self.preloaded_state["component_status_rows"] = probe._dashboard_component_rows()
+        except Exception as exc:
+            self.preloaded_state["component_status_error"] = str(exc)
+
+    def _preload_auto_installer_status(self) -> None:
+        # Подготвя задачите и статуса им за dashboard инсталатора още в preloader-а.
+        try:
+            probe = self._build_dashboard_probe()
+            tasks = probe._auto_install_tasks()
+            status_map: dict[str, tuple[bool, str]] = {}
+            for task in tasks:
+                status_map[task["id"]] = probe._safe_task_install_state(task)
+            self.preloaded_state["program_selector_tasks"] = tasks
+            self.preloaded_state["program_selector_status"] = status_map
+        except Exception as exc:
+            self.preloaded_state["program_selector_error"] = str(exc)
 
     def _finalize_startup(self) -> None:
-        time.sleep(0.25)
+        time.sleep(0.05)
 
     def _poll_queue(self) -> None:
+        if not self.splash_active or not self._canvas_alive():
+            return
         try:
             while True:
                 message_type, payload = self.message_queue.get_nowait()
                 if message_type == "status":
                     self.status_text.set(str(payload))
-                    self.canvas.itemconfig(self.status_label, text=self.status_text.get())
+                    if self._canvas_alive():
+                        self.canvas.itemconfig(self.status_label, text=self.status_text.get())
                 elif message_type == "progress":
                     self.target_value = float(payload)
                 elif message_type == "done":
-                    self.status_text.set("System ready.")
-                    self.canvas.itemconfig(self.status_label, text=self.status_text.get())
+                    self.status_text.set("Всичко е заредено. Стартиране...")
+                    if self._canvas_alive():
+                        self.canvas.itemconfig(self.status_label, text=self.status_text.get())
                     self.target_value = 1.0
-                    self.root.after(700, self._show_dashboard)
+                    if self.dashboard_job is None:
+                        self.dashboard_job = self.root.after(250, self._show_dashboard)
+        except tk.TclError:
+            self.splash_active = False
+            return
         except queue.Empty:
             pass
-        self.root.after(40, self._poll_queue)
+        if self.splash_active and self._canvas_alive():
+            self.poll_job = self.root.after(40, self._poll_queue)
 
     def _animate_progress(self) -> None:
+        if not self.splash_active or not self._canvas_alive():
+            return
         if self.progress_value < self.target_value:
             delta = max(0.004, (self.target_value - self.progress_value) * 0.18)
             self.progress_value = min(self.target_value, self.progress_value + delta)
             self._update_bar()
-        self.root.after(16, self._animate_progress)
+        if self.splash_active and self._canvas_alive():
+            self.animation_job = self.root.after(16, self._animate_progress)
 
     def _update_bar(self) -> None:
+        if not self._canvas_alive():
+            return
         fill_width = max(4, self.bar_width * self.progress_value)
         points = self._rounded_rect_points(
             self.bar_left,
@@ -1536,19 +1607,55 @@ class SplashScreen:
             self.bar_top + self.bar_height,
             self.bar_radius,
         )
-        self.canvas.coords(self.progress_fill, *points)
-        self.canvas.itemconfig(self.progress_label, text=f"{int(self.progress_value * 100)}%")
+        try:
+            self.canvas.coords(self.progress_fill, *points)
+            self.canvas.itemconfig(self.progress_label, text=f"{int(self.progress_value * 100)}%")
+        except tk.TclError:
+            self.splash_active = False
 
     def _show_dashboard(self) -> None:
-        self.canvas.destroy()
+        if not self.splash_active or not self._canvas_alive():
+            return
+        self.splash_active = False
+        self.status_text.set("Изграждане на интерфейса...")
+        try:
+            self.canvas.itemconfig(self.status_label, text=self.status_text.get())
+        except tk.TclError:
+            return
+        self.root.update_idletasks()
+        for job_attr in ("poll_job", "animation_job", "dashboard_job"):
+            job_id = getattr(self, job_attr)
+            if job_id is not None:
+                try:
+                    self.root.after_cancel(job_id)
+                except tk.TclError:
+                    pass
+                setattr(self, job_attr, None)
+        MainMenuUI(
+            self.root,
+            startup_menu=get_startup_menu_from_args(),
+            preloaded_state=self.preloaded_state,
+        )
+        if self._canvas_alive():
+            try:
+                self.canvas.destroy()
+            except tk.TclError:
+                pass
+        try:
+            self.root.overrideredirect(False)
+        except tk.TclError:
+            pass
+        try:
+            self.root.wm_attributes("-transparentcolor", "")
+        except tk.TclError:
+            pass
         self.root.resizable(True, True)
         apply_main_window_layout(self.root)
-        MainMenuUI(self.root, startup_menu=get_startup_menu_from_args())
 
 
 # Основният интерфейс след зареждане на splash екрана.
 class MainMenuUI:
-    def __init__(self, root: tk.Tk, startup_menu: str | None = None) -> None:
+    def __init__(self, root: tk.Tk, startup_menu: str | None = None, preloaded_state: dict[str, object] | None = None) -> None:
         # Тук пазим почти всички състояния, кешове и UI променливи.
         self.root = root
         apply_tk_dpi_scaling(self.root)
@@ -1570,6 +1677,7 @@ class MainMenuUI:
         self.latest_health_items: list[HealthItem] = []
         self.health_refresh_job: str | None = None
         self.health_refresh_in_progress = False
+        self.health_refresh_interval_ms = 2500
         self.health_canvas: tk.Canvas | None = None
         self.health_scrollbar: ttk.Scrollbar | None = None
         self.health_inner_frame: tk.Frame | None = None
@@ -1577,6 +1685,9 @@ class MainMenuUI:
         self.health_scroll_job: str | None = None
         self.dashboard_info_scroll_job: str | None = None
         self.dashboard_info_scroll_position = 0.0
+        self.dashboard_render_job: str | None = None
+        self.dashboard_host_frame: tk.Frame | None = None
+        self.dashboard_is_rendering = False
         self.dashboard_live_widgets: dict[str, object] = {}
         self.update_result: UpdateResult | None = None
         self.update_download_url = ""
@@ -1590,6 +1701,8 @@ class MainMenuUI:
         self.program_selector_tasks_cache: list[dict[str, str]] = []
         self.program_selector_status_cache: dict[str, tuple[bool, str]] = {}
         self.program_selector_scan_running = False
+        self.component_status_cache: list[tuple[str, str, bool]] | None = None
+        self.component_status_refresh_in_progress = False
         self.office_inventory_cache: dict[str, object] = {}
         self.office_online_cache: dict[str, object] = {}
         self.office_maintenance_cache: dict[str, object] = {}
@@ -1665,10 +1778,10 @@ class MainMenuUI:
         )
         self.header_exit_button.place(relx=1.0, x=-24, y=22, anchor="ne")
 
-        self.header_home_button = tk.Button(
+        self.header_dashboard_button = tk.Button(
             self.header,
-            text="Главно меню",
-            command=self.go_home,
+            text="Dashboard",
+            command=self.go_dashboard,
             font=("Segoe UI Semibold", 10),
             bg=APP_ACCENT_SOFT,
             fg="#f2fff8",
@@ -1680,7 +1793,7 @@ class MainMenuUI:
             width=12,
             cursor="hand2",
         )
-        self.header_home_button.place(relx=1.0, x=-160, y=22, anchor="ne")
+        self.header_dashboard_button.place(x=704, y=22)
 
         self.subtitle_label = tk.Label(
             self.header,
@@ -1764,7 +1877,7 @@ class MainMenuUI:
 
         self.menu_title = tk.Label(
             self.left_panel,
-            text="Контролен панел",
+            text="Control Panel",
             font=("Segoe UI Semibold", 15),
             fg=APP_TEXT,
             bg=APP_PANEL,
@@ -1772,7 +1885,7 @@ class MainMenuUI:
 
         self.menu_path = tk.Label(
             self.left_panel,
-            text="Главно меню",
+            text="Dashboard",
             justify="left",
             wraplength=280,
             font=("Segoe UI", 10),
@@ -1785,20 +1898,20 @@ class MainMenuUI:
         self.sidebar_nav_buttons: dict[str, dict[str, tk.Widget]] = {}
         self.sidebar_section_label = tk.Label(
             self.sidebar_nav_frame,
-            text="Навигация",
+            text="Navigation",
             font=("Segoe UI Semibold", 9),
             fg=APP_TEXT_MUTED,
             bg=APP_PANEL,
         )
         self.sidebar_section_label.pack(anchor="w", padx=8, pady=(0, 6))
         sidebar_text_map = {
-            "main": "Начало\nТабло за управление",
-            "activation": "Активиране\nWindows и Office активиране",
-            "install_software": "Инсталиране на софтуер\nОфис, Adobe, Ninite и други",
-            "auto_installer": "Автоматичен инсталатор\nВсичко с едно кликване",
-            "language": "Езици\nЕзикови пакети и клавиатури",
-            "driver_backup": "Driver Backup\nАрхивиране и системен отчет",
-            "nexus_admin": "Nexus Admin\nСистемни инструменти",
+            "main": "Dashboard\nОбзор",
+            "activation": "Активация\nWindows и Office",
+            "install_software": "Софтуер\nИнсталации",
+            "auto_installer": "Auto Installer\nАвтоматични задачи",
+            "driver_backup": "Архивиране\nДрайвери и отчет",
+            "language": "Езици\nКлавиатури",
+            "nexus_admin": "Nexus Admin\nAdmin инструменти",
         }
         sidebar_icon_map = {
             "main": "home_small",
@@ -1819,24 +1932,24 @@ class MainMenuUI:
                 highlightbackground=APP_BORDER,
                 cursor="hand2",
             )
-            card.pack(fill="x", pady=5)
+            card.pack(fill="x", pady=3)
             stripe = tk.Frame(card, bg=APP_PANEL_ALT, width=5, cursor="hand2")
             stripe.pack(side="left", fill="y")
             body = tk.Frame(card, bg=APP_PANEL_ALT, cursor="hand2")
-            body.pack(side="left", fill="both", expand=True, padx=12, pady=12)
+            body.pack(side="left", fill="both", expand=True, padx=10, pady=8)
             icon_label = tk.Label(
                 body,
                 image=self.dashboard_icons.get(sidebar_icon_map.get(menu_key, "")),
                 bg=APP_PANEL_ALT,
                 cursor="hand2",
             )
-            icon_label.pack(side="left", padx=(0, 12))
+            icon_label.pack(side="left", padx=(0, 10))
             text_box = tk.Frame(body, bg=APP_PANEL_ALT, cursor="hand2")
             text_box.pack(side="left", fill="both", expand=True)
             title_label = tk.Label(
                 text_box,
                 text=title,
-                font=("Segoe UI Semibold", 11),
+                font=("Segoe UI Semibold", 10),
                 fg=APP_TEXT,
                 bg=APP_PANEL_ALT,
                 anchor="w",
@@ -1846,15 +1959,15 @@ class MainMenuUI:
             subtitle_label = tk.Label(
                 text_box,
                 text=subtitle,
-                font=("Segoe UI", 9),
+                font=("Segoe UI", 8),
                 fg=APP_TEXT_SOFT,
                 bg=APP_PANEL_ALT,
                 justify="left",
                 anchor="w",
-                wraplength=190,
+                wraplength=180,
                 cursor="hand2",
             )
-            subtitle_label.pack(anchor="w", pady=(3, 0))
+            subtitle_label.pack(anchor="w", pady=(1, 0))
             arrow_label = tk.Label(
                 body,
                 text="›",
@@ -1975,7 +2088,7 @@ class MainMenuUI:
         ).pack(side="right")
         tk.Label(
             self.sidebar_version_card,
-            text="© 2026 WinSys Guardian Team",
+            text="В© 2026 WinSys Guardian Team",
             font=("Segoe UI", 8),
             fg=APP_TEXT_MUTED,
             bg="#0d1715",
@@ -2026,10 +2139,21 @@ class MainMenuUI:
         self.overview_frame.columnconfigure(0, weight=1, uniform="overview")
         self.overview_frame.columnconfigure(1, weight=1, uniform="overview")
         self.overview_frame.columnconfigure(2, weight=1, uniform="overview")
+        self.software_summary_frame = tk.Frame(
+            self.right_panel,
+            bg=APP_PANEL_ALT,
+            bd=0,
+            highlightthickness=1,
+            highlightbackground=APP_BORDER,
+        )
 
         self.overview_version_value = tk.StringVar(value=f"v{self.version_info['version']}")
         self.overview_resources_value = tk.StringVar(value="Ресурси: проверка...")
         self.overview_launch_value = tk.StringVar(value=self.launch_info["drive_type_label"])
+        self.software_summary_resources_value = tk.StringVar(value=self._build_resource_summary())
+        self.software_summary_mode_value = tk.StringVar(
+            value=f"{self.launch_info['drive_type_label']} | {self.launch_info['drive']}"
+        )
         self.overview_menu_value = tk.StringVar(value="Главно меню")
 
         self._build_overview_card(
@@ -2189,6 +2313,47 @@ class MainMenuUI:
         self.resource_details_button.pack(side="right", pady=10)
         self._refresh_resource_panel()
 
+        summary_left = tk.Frame(self.software_summary_frame, bg=APP_PANEL_ALT)
+        summary_left.pack(side="left", fill="x", expand=True, padx=12, pady=8)
+        tk.Label(
+            summary_left,
+            text="Инсталационни ресурси",
+            font=("Segoe UI Semibold", 9),
+            fg=APP_TEXT_SOFT,
+            bg=APP_PANEL_ALT,
+        ).pack(anchor="w")
+        self.software_summary_resources_label = tk.Label(
+            summary_left,
+            textvariable=self.software_summary_resources_value,
+            font=("Segoe UI Semibold", 10),
+            fg=self._resource_status_color(),
+            bg=APP_PANEL_ALT,
+            anchor="w",
+            justify="left",
+            wraplength=520,
+        )
+        self.software_summary_resources_label.pack(anchor="w", fill="x", pady=(2, 0))
+
+        summary_right = tk.Frame(self.software_summary_frame, bg=APP_PANEL_ALT)
+        summary_right.pack(side="left", fill="x", expand=True, padx=(8, 12), pady=8)
+        tk.Label(
+            summary_right,
+            text="Работен режим",
+            font=("Segoe UI Semibold", 9),
+            fg=APP_TEXT_SOFT,
+            bg=APP_PANEL_ALT,
+        ).pack(anchor="w")
+        tk.Label(
+            summary_right,
+            textvariable=self.software_summary_mode_value,
+            font=("Segoe UI Semibold", 10),
+            fg=APP_WARNING,
+            bg=APP_PANEL_ALT,
+            anchor="w",
+            justify="left",
+            wraplength=360,
+        ).pack(anchor="w", fill="x", pady=(2, 0))
+
         self.nav_frame = tk.Frame(
             self.right_panel,
             bg=APP_BG,
@@ -2210,14 +2375,14 @@ class MainMenuUI:
         self.controls_frame = tk.Frame(self.nav_frame, bg=APP_BG)
         self.controls_frame.pack(side="right")
 
-        self.prev_button = self._make_nav_button(self.controls_frame, "\u041d\u0430\u0437\u0430\u0434", self.previous_page)
+        self.prev_button = self._make_nav_button(self.controls_frame, "\u041f\u0440\u0435\u0434\u0438\u0448\u043d\u0430", self.previous_page)
         self.prev_button.pack(side="left", padx=(0, 6))
         self.next_button = self._make_nav_button(self.controls_frame, "\u041d\u0430\u043f\u0440\u0435\u0434", self.next_page)
         self.next_button.pack(side="left", padx=(0, 6))
         self.back_button = self._make_nav_button(self.controls_frame, "\u041d\u0430\u0437\u0430\u0434", self.go_back, accent="#17361f")
         self.back_button.pack(side="left", padx=(0, 6))
-        self.home_button = self._make_nav_button(self.controls_frame, "\u041d\u0430\u0447\u0430\u043b\u043e", self.go_home, accent="#17361f")
-        self.home_button.pack(side="left", padx=(0, 6))
+        self.dashboard_button = self._make_nav_button(self.controls_frame, "Dashboard", self.go_dashboard, accent="#17361f")
+        self.dashboard_button.pack(side="left", padx=(0, 6))
         self.exit_button = self._make_nav_button(self.controls_frame, "\u0418\u0437\u0445\u043e\u0434", self.root.destroy, accent="#7a1f1f")
         self.exit_button.pack(side="left")
 
@@ -2265,13 +2430,11 @@ class MainMenuUI:
 
         self._update_layout_metrics()
         self._apply_responsive_theme()
+        self._apply_startup_preload(preloaded_state or {})
         self._refresh_overview_cards()
         self._update_sidebar_clock()
         self.render_menu(self.startup_menu, reset_history=True)
         self.root.bind("<Configure>", self._on_root_resize, add="+")
-        self._load_language_status_async()
-        self._load_system_health_async()
-        self._check_updates_async()
 
     def _build_system_summary(self) -> str:
         return (
@@ -2286,6 +2449,51 @@ class MainMenuUI:
             f"App Version: {self.version_info['version']}\n"
             "Mode: Portable Admin UI"
         )
+
+    def _apply_startup_preload(self, preloaded_state: dict[str, object]) -> None:
+        # Вкарва вече заредените данни в UI-то, за да не чакаме повторно след preloader-а.
+        language_status = preloaded_state.get("language_status")
+        if isinstance(language_status, LanguageStatus):
+            self.language_status_cache = language_status
+            self._apply_language_status_summary(
+                self._build_language_status_summary(language_status),
+                "#9aff9f" if language_status.has_language_pack or language_status.has_bulgarian else "#ffb0a8",
+            )
+        else:
+            self._load_language_status_async()
+
+        health_items = preloaded_state.get("health_items")
+        if isinstance(health_items, list):
+            self.latest_health_items = [item for item in health_items if isinstance(item, HealthItem)]
+        if self.latest_health_items:
+            self._apply_system_health_update(self.latest_health_items)
+        else:
+            self._load_system_health_async()
+
+        update_result = preloaded_state.get("update_result")
+        if isinstance(update_result, UpdateResult):
+            self._apply_update_result(update_result)
+        else:
+            self._check_updates_async()
+
+        program_tasks = preloaded_state.get("program_selector_tasks")
+        if isinstance(program_tasks, list):
+            self.program_selector_tasks_cache = [dict(task) for task in program_tasks if isinstance(task, dict)]
+        program_status = preloaded_state.get("program_selector_status")
+        if isinstance(program_status, dict):
+            self.program_selector_status_cache = {
+                str(task_id): value
+                for task_id, value in program_status.items()
+                if isinstance(value, tuple) and len(value) == 2
+            }
+
+        component_rows = preloaded_state.get("component_status_rows")
+        if isinstance(component_rows, list):
+            self.component_status_cache = [
+                tuple(row)
+                for row in component_rows
+                if isinstance(row, tuple) and len(row) == 3
+            ]
 
     def _build_header_device_text(self) -> str:
         # Кратък статус в header-а откъде е стартирано приложението.
@@ -2450,7 +2658,7 @@ class MainMenuUI:
     def _open_sidebar_menu(self, menu_key: str) -> None:
         # Бърза навигация от лявото меню.
         if menu_key == "main":
-            self.go_home()
+            self.go_dashboard()
             return
         self.history = ["main"]
         self.render_menu(menu_key)
@@ -2502,7 +2710,17 @@ class MainMenuUI:
         )
         self.root.after(1000, self._update_sidebar_clock)
 
-    def _toggle_dashboard_chrome(self, dashboard_mode: bool) -> None:
+    def _is_activation_menu(self, menu_key: str) -> bool:
+        return menu_key in {"activation", "windows10_activation", "windows11_activation", "office_activation"}
+
+    def _toggle_dashboard_chrome(
+        self,
+        dashboard_mode: bool,
+        hide_overview: bool = False,
+        hide_update_banner: bool = False,
+        show_resource_panel: bool = False,
+        show_software_summary: bool = False,
+    ) -> None:
         # Скрива старите общи панели, когато сме на новия dashboard изглед.
         if dashboard_mode:
             for widget in (
@@ -2511,22 +2729,42 @@ class MainMenuUI:
                 self.overview_frame,
                 self.update_banner,
                 self.resource_frame,
+                self.software_summary_frame,
                 self.nav_frame,
             ):
                 if widget.winfo_manager():
                     widget.pack_forget()
+            if self.cards_frame.winfo_manager():
+                self.cards_frame.pack_configure(fill="both", expand=True)
+            else:
+                self.cards_frame.pack(fill="both", expand=True)
+            self.cards_frame.lift()
             return
 
         if not self.card_title.winfo_manager():
             self.card_title.pack(anchor="w", before=self.cards_frame)
         if not self.card_subtitle.winfo_manager():
             self.card_subtitle.pack(anchor="w", pady=(4, 12), before=self.cards_frame)
-        if not self.overview_frame.winfo_manager():
+        if hide_overview:
+            if self.overview_frame.winfo_manager():
+                self.overview_frame.pack_forget()
+        elif not self.overview_frame.winfo_manager():
             self.overview_frame.pack(fill="x", pady=(0, 12), before=self.cards_frame)
-        if not self.update_banner.winfo_manager():
+        if hide_update_banner:
+            if self.update_banner.winfo_manager():
+                self.update_banner.pack_forget()
+        elif not self.update_banner.winfo_manager():
             self.update_banner.pack(fill="x", pady=(0, 12), before=self.cards_frame)
-        if not self.resource_frame.winfo_manager():
+        if not show_resource_panel:
+            if self.resource_frame.winfo_manager():
+                self.resource_frame.pack_forget()
+        elif not self.resource_frame.winfo_manager():
             self.resource_frame.pack(fill="x", pady=(0, 12), before=self.cards_frame)
+        if not show_software_summary:
+            if self.software_summary_frame.winfo_manager():
+                self.software_summary_frame.pack_forget()
+        elif not self.software_summary_frame.winfo_manager():
+            self.software_summary_frame.pack(fill="x", pady=(0, 8), before=self.cards_frame)
         if not self.nav_frame.winfo_manager():
             self.nav_frame.pack(fill="x", side="bottom", pady=(10, 0))
 
@@ -2629,6 +2867,10 @@ class MainMenuUI:
             text=self._build_resource_summary(),
             fg=self._resource_status_color(),
         )
+        if hasattr(self, "software_summary_resources_value"):
+            self.software_summary_resources_value.set(self._build_resource_summary())
+        if hasattr(self, "software_summary_resources_label"):
+            self.software_summary_resources_label.config(fg=self._resource_status_color())
         can_download = self.resource_status.missing > 0
         self.resource_download_button.config(
             state="normal" if can_download else "disabled",
@@ -3050,7 +3292,7 @@ class MainMenuUI:
             self._update_dashboard_live_widgets()
         if self.health_refresh_job is not None:
             self.root.after_cancel(self.health_refresh_job)
-        self.health_refresh_job = self.root.after(5000, self._load_system_health_async)
+        self.health_refresh_job = self.root.after(self.health_refresh_interval_ms, self._load_system_health_async)
 
     def _render_system_health(self, items: list[HealthItem]) -> None:
         if self.health_scroll_job is not None:
@@ -3208,7 +3450,10 @@ class MainMenuUI:
     def _stop_dashboard_info_scroll(self) -> None:
         # Спира скрола на картата със системната информация.
         if self.dashboard_info_scroll_job is not None:
-            self.root.after_cancel(self.dashboard_info_scroll_job)
+            try:
+                self.root.after_cancel(self.dashboard_info_scroll_job)
+            except tk.TclError:
+                pass
             self.dashboard_info_scroll_job = None
         self.dashboard_info_scroll_position = 0.0
 
@@ -3568,17 +3813,17 @@ class MainMenuUI:
     def _show_update_available_dialog(self, result: UpdateResult) -> None:
         details = "\n".join(f"- {item}" for item in (result.changelog or ())[:6])
         message = (
-            f"Налична е нова версия: v{result.latest_version}\n\n"
-            f"{result.notes or 'Има по-нова версия в GitHub.'}"
+            f"Available update: v{result.latest_version}\n\n"
+            f"{result.notes or 'A newer version is available on GitHub.'}"
         )
         if details:
-            message += f"\n\nИстория на промените:\n{details}"
-        if messagebox.askyesno("Налична актуализация", f"{message}\n\nДа я инсталираме ли сега?", parent=self.root):
+            message += f"\n\nChangelog:\n{details}"
+        if messagebox.askyesno("Available Update", f"{message}\n\nInstall it now?", parent=self.root):
             self._open_update_download()
 
     def _show_update_history(self) -> None:
         history_window = tk.Toplevel(self.root)
-        history_window.title("История на актуализациите")
+        history_window.title("Update History")
         history_window.geometry("620x430")
         history_window.transient(self.root)
         apply_app_icon(history_window)
@@ -3670,15 +3915,15 @@ class MainMenuUI:
         if self.update_installing:
             return
         if not messagebox.askyesno(
-            "Инсталиране на актуализация",
-            "Приложението ще изтегли актуализацията, ще подмени файловете, след това ще се затвори и ще се отвори отново. Да продължим ли?",
+            "Install Update",
+            "The application will download the update, replace the files, close, and reopen. Continue?",
             parent=self.root,
         ):
             return
 
         self.update_installing = True
         progress_window = tk.Toplevel(self.root)
-        progress_window.title("WGA актуализация")
+        progress_window.title("WGA Update")
         progress_window.transient(self.root)
         progress_window.resizable(False, False)
         apply_app_icon(progress_window)
@@ -3822,12 +4067,25 @@ class MainMenuUI:
         self.card_subtitle.config(text=menu["subtitle"])
         self.subtitle_label.config(text=menu["subtitle"])
         self.status_var.set(f"Отворено е меню: {menu['title']}.")
-        self.header_home_button.config(state="disabled" if menu_key == "main" else "normal")
+        self.header_dashboard_button.config(state="disabled" if menu_key == "main" else "normal")
+        self.dashboard_button.config(state="disabled" if menu_key == "main" else "normal")
         self._refresh_sidebar_navigation()
         self._refresh_overview_cards()
-        self._toggle_dashboard_chrome(menu_key == "main")
+        install_style_menus = {"install_software", "office_install_center", "secret_install", "office_center"}
+        compact_content_menus = install_style_menus | {"auto_installer", "driver_backup"}
+        use_install_style = menu_key in install_style_menus
+        use_compact_content = menu_key in compact_content_menus
+        self._toggle_dashboard_chrome(
+            menu_key == "main",
+            hide_overview=self._is_activation_menu(menu_key) or use_compact_content,
+            hide_update_banner=self._is_activation_menu(menu_key) or use_compact_content,
+            show_resource_panel=False,
+            show_software_summary=use_install_style,
+        )
         self._toggle_language_status_panel(menu_key == "language")
         self._render_cards()
+        if menu_key == "main":
+            self.root.after(120, self._ensure_dashboard_visible)
 
     def _toggle_language_status_panel(self, visible: bool) -> None:
         if not visible and self.language_status_panel.winfo_ismapped():
@@ -3838,13 +4096,23 @@ class MainMenuUI:
         return " > ".join(trail)
 
     def _render_cards(self) -> None:
+        if self.current_menu == "main" and self.dashboard_is_rendering:
+            self.root.after(50, self._render_cards)
+            return
         self._stop_dashboard_info_scroll()
+        if self.dashboard_render_job is not None:
+            try:
+                self.root.after_cancel(self.dashboard_render_job)
+            except tk.TclError:
+                pass
+            self.dashboard_render_job = None
         self.dashboard_live_widgets = {}
         for widget in self.cards_frame.winfo_children():
             if widget is self.language_status_panel:
                 widget.grid_forget()
                 continue
             widget.destroy()
+        self.dashboard_host_frame = None
         for index in range(12):
             self.cards_frame.rowconfigure(index, weight=0, minsize=0)
             self.cards_frame.columnconfigure(index, weight=0, minsize=0)
@@ -3853,7 +4121,10 @@ class MainMenuUI:
             self._render_auto_installer()
             return
         if self.current_menu == "main":
-            self._render_main_dashboard_v2()
+            self._render_home_dashboard()
+            return
+        if self.current_menu == "activation":
+            self._render_activation_menu()
             return
 
         items = MENU_TREE[self.current_menu]["items"]
@@ -3894,6 +4165,252 @@ class MainMenuUI:
         self.page_label.config(text=f"Page {self.current_page + 1} / {total_pages}")
         self.prev_button.config(state="normal" if self.current_page > 0 else "disabled")
         self.next_button.config(state="normal" if self.current_page < total_pages - 1 else "disabled")
+        self.back_button.config(state="normal" if self.history else "disabled")
+
+    def _render_home_dashboard(self) -> None:
+        if not self.cards_frame.winfo_manager():
+            self.cards_frame.pack(fill="both", expand=True)
+        self.cards_frame.lift()
+        self._finish_render_home_dashboard()
+
+    def _show_dashboard_direct(self, reset_history: bool = True) -> None:
+        # Force path for every Dashboard button: it always redraws the real dashboard renderer.
+        if reset_history:
+            self.history.clear()
+        self.current_menu = "main"
+        self.current_page = 0
+        menu = MENU_TREE["main"]
+        self.menu_path.config(text=self._build_path())
+        self.card_title.config(text=menu["title"])
+        self.card_subtitle.config(text=menu["subtitle"])
+        self.subtitle_label.config(text=menu["subtitle"])
+        self.header_dashboard_button.config(state="disabled")
+        self.dashboard_button.config(state="disabled")
+        self._refresh_sidebar_navigation()
+        self._refresh_overview_cards()
+        self._toggle_dashboard_chrome(True)
+        self._toggle_language_status_panel(False)
+        self._finish_render_home_dashboard()
+        self.status_var.set("Dashboard е зареден.")
+        self.root.after(120, self._ensure_dashboard_visible)
+
+    def _finish_render_home_dashboard(self) -> None:
+        if self.dashboard_is_rendering:
+            return
+        self.dashboard_is_rendering = True
+        self.dashboard_render_job = None
+        try:
+            self._stop_dashboard_info_scroll()
+            self.dashboard_live_widgets = {}
+            self.dashboard_host_frame = None
+            for widget in self.cards_frame.winfo_children():
+                if widget is self.language_status_panel:
+                    widget.grid_forget()
+                    continue
+                widget.destroy()
+            for index in range(12):
+                self.cards_frame.rowconfigure(index, weight=0, minsize=0)
+                self.cards_frame.columnconfigure(index, weight=0, minsize=0)
+            self.cards_frame.columnconfigure(0, weight=1)
+            self.cards_frame.rowconfigure(0, weight=1)
+            dashboard_host = tk.Frame(self.cards_frame, bg=APP_BG, bd=0)
+            dashboard_host.pack(fill="both", expand=True)
+            self.dashboard_host_frame = dashboard_host
+
+            try:
+                self._render_main_dashboard_v2(dashboard_host)
+            except Exception as exc:
+                self._render_home_dashboard_fallback(exc, traceback.format_exc())
+            self.cards_frame.lift()
+            self.root.update_idletasks()
+        finally:
+            self.dashboard_is_rendering = False
+
+    def _ensure_dashboard_visible(self) -> None:
+        if self.current_menu != "main" or not self.cards_frame.winfo_exists():
+            return
+        if not self.cards_frame.winfo_manager():
+            self.cards_frame.pack(fill="both", expand=True)
+        self.root.update_idletasks()
+        if self._dashboard_has_visible_content():
+            return
+        self._finish_render_home_dashboard()
+        self.root.after(120, self._verify_dashboard_visible)
+
+    def _verify_dashboard_visible(self) -> None:
+        if self.current_menu != "main" or not self.cards_frame.winfo_exists():
+            return
+        self.root.update_idletasks()
+        if self._dashboard_has_visible_content():
+            return
+        self._show_dashboard_debug_message(
+            "Dashboard не се вижда след принудително прерисуване.",
+            self._dashboard_debug_report("no visible dashboard widgets"),
+        )
+
+    def _dashboard_has_visible_content(self) -> bool:
+        host = self.dashboard_host_frame
+        if isinstance(host, tk.Frame) and host.winfo_exists() and host.winfo_ismapped():
+            return bool(host.winfo_children()) and any(
+                child.winfo_exists() and child.winfo_ismapped() and child.winfo_width() > 1 and child.winfo_height() > 1
+                for child in host.winfo_children()
+            )
+        return any(
+            child is not self.language_status_panel
+            and child.winfo_exists()
+            and child.winfo_ismapped()
+            and child.winfo_width() > 1
+            and child.winfo_height() > 1
+            for child in self.cards_frame.winfo_children()
+        )
+
+    def _dashboard_debug_report(self, reason: str, traceback_text: str = "") -> str:
+        try:
+            child_lines = []
+            for index, child in enumerate(self.cards_frame.winfo_children(), start=1):
+                child_lines.append(
+                    f"{index}. {child.winfo_class()} mapped={child.winfo_ismapped()} "
+                    f"manager={child.winfo_manager()} size={child.winfo_width()}x{child.winfo_height()}"
+                )
+            children_text = "\n".join(child_lines) if child_lines else "няма children в cards_frame"
+            return (
+                f"Причина: {reason}\n"
+                f"current_menu={self.current_menu}\n"
+                f"history={self.history}\n"
+                f"cards_frame manager={self.cards_frame.winfo_manager()} "
+                f"mapped={self.cards_frame.winfo_ismapped()} "
+                f"size={self.cards_frame.winfo_width()}x{self.cards_frame.winfo_height()}\n"
+                f"root size={self.root.winfo_width()}x{self.root.winfo_height()}\n\n"
+                f"cards_frame children:\n{children_text}\n\n"
+                f"{traceback_text}"
+            )
+        except Exception as report_exc:
+            return f"Неуспешно събиране на dashboard диагностика: {report_exc}"
+
+    def _show_dashboard_debug_message(self, title: str, details: str) -> None:
+        self.status_var.set(title)
+        try:
+            messagebox.showerror("Dashboard диагностика", f"{title}\n\n{details}", parent=self.root)
+        except tk.TclError:
+            pass
+
+    def _render_home_dashboard_fallback(self, exc: Exception, traceback_text: str = "") -> None:
+        self._show_dashboard_debug_message(
+            "Dashboard не може да се зареди.",
+            self._dashboard_debug_report(str(exc), traceback_text),
+        )
+        parent = self.dashboard_host_frame if isinstance(self.dashboard_host_frame, tk.Frame) and self.dashboard_host_frame.winfo_exists() else self.cards_frame
+        fallback = tk.Frame(
+            parent,
+            bg=APP_PANEL,
+            bd=0,
+            highlightthickness=1,
+            highlightbackground=APP_DANGER,
+        )
+        fallback.grid(row=0, column=0, sticky="nsew", padx=8, pady=8)
+        tk.Label(
+            fallback,
+            text="Dashboard не може да се зареди",
+            font=self._font(16, "bold", "Segoe UI Semibold"),
+            fg="#ffb0b0",
+            bg=APP_PANEL,
+        ).pack(anchor="w", padx=18, pady=(18, 6))
+        tk.Label(
+            fallback,
+            text=str(exc),
+            font=self._font(10),
+            fg=APP_TEXT_SOFT,
+            bg=APP_PANEL,
+            justify="left",
+            wraplength=max(420, self.right_subtitle_wrap),
+        ).pack(anchor="w", fill="x", padx=18, pady=(0, 12))
+        tk.Button(
+            fallback,
+            text="Опитай отново",
+            command=self.go_home,
+            font=self._font(10, "bold", "Segoe UI Semibold"),
+            bg=APP_ACCENT_SOFT,
+            fg="#f2fff8",
+            activebackground="#27a67a",
+            activeforeground="#ffffff",
+            bd=0,
+            padx=16,
+            pady=10,
+            cursor="hand2",
+        ).pack(anchor="w", padx=18, pady=(0, 18))
+        self.page_label.config(text="Dashboard error")
+        self.prev_button.config(state="disabled")
+        self.next_button.config(state="disabled")
+        self.back_button.config(state="disabled")
+
+    def _render_activation_menu(self) -> None:
+        self.cards_frame.columnconfigure(0, weight=1)
+        self.cards_frame.columnconfigure(1, weight=1)
+        self.cards_frame.columnconfigure(2, weight=1)
+        self.cards_frame.rowconfigure(0, weight=0)
+        self.cards_frame.rowconfigure(1, weight=1)
+
+        header = tk.Frame(
+            self.cards_frame,
+            bg="#0b211d",
+            bd=0,
+            highlightthickness=1,
+            highlightbackground=APP_BORDER_STRONG,
+        )
+        header.grid(row=0, column=0, columnspan=3, sticky="ew", padx=8, pady=(0, 12))
+
+        icon_wrap = tk.Frame(header, bg="#102f29", width=self._scale_px(72), height=self._scale_px(72), highlightthickness=1, highlightbackground=APP_ACCENT)
+        icon_wrap.pack(side="left", padx=16, pady=14)
+        icon_wrap.pack_propagate(False)
+        key_icon = self.dashboard_icons.get("key")
+        if key_icon is not None:
+            tk.Label(icon_wrap, image=key_icon, bg="#102f29").pack(expand=True)
+        else:
+            tk.Label(icon_wrap, text="KEY", font=self._font(12, "bold", "Segoe UI Semibold"), fg=APP_ACCENT, bg="#102f29").pack(expand=True)
+
+        text_area = tk.Frame(header, bg="#0b211d")
+        text_area.pack(side="left", fill="both", expand=True, pady=14)
+        tk.Label(
+            text_area,
+            text="Activation Control Center",
+            font=self._font(18, "bold", "Segoe UI Semibold"),
+            fg=APP_TEXT,
+            bg="#0b211d",
+        ).pack(anchor="w")
+        tk.Label(
+            text_area,
+            text="Избери Windows или Office workflow. Ключовете и действията са отделени в чисти модули, за да няма разсейващи панели.",
+            font=self._font(10),
+            fg=APP_TEXT_SOFT,
+            bg="#0b211d",
+            wraplength=max(520, self.right_subtitle_wrap),
+            justify="left",
+        ).pack(anchor="w", pady=(4, 10))
+
+        chips = tk.Frame(text_area, bg="#0b211d")
+        chips.pack(anchor="w")
+        for label, color in (("Windows 10", APP_ACCENT_BLUE), ("Windows 11", APP_ACCENT), ("Office", APP_WARNING)):
+            chip = tk.Label(
+                chips,
+                text=label,
+                font=self._font(8, "bold", "Segoe UI Semibold"),
+                fg="#f7fffb",
+                bg="#122f2a",
+                padx=12,
+                pady=5,
+                highlightthickness=1,
+                highlightbackground=color,
+            )
+            chip.pack(side="left", padx=(0, 8))
+
+        items = MENU_TREE[self.current_menu]["items"]
+        for column, item in enumerate(items):
+            card = self._build_card(self.cards_frame, item)
+            card.grid(row=1, column=column, sticky="nsew", padx=8, pady=8)
+
+        self.page_label.config(text="Activation Center")
+        self.prev_button.config(state="disabled")
+        self.next_button.config(state="disabled")
         self.back_button.config(state="normal" if self.history else "disabled")
 
     def _discover_standalone_installers(self, known_relative_files: set[str]) -> list[dict[str, str]]:
@@ -4034,6 +4551,8 @@ class MainMenuUI:
         return rows
 
     def _dashboard_component_rows(self) -> list[tuple[str, str, bool]]:
+        if self.component_status_cache:
+            return list(self.component_status_cache)
         # Събира десния списък със статуси на компоненти.
         windows_value, windows_ok = self._component_windows_activation_status()
         office_value, office_ok = self._component_office_activation_status()
@@ -4053,6 +4572,44 @@ class MainMenuUI:
             ("Firewall", firewall_value, firewall_ok),
             ("BitLocker", bitlocker_value, bitlocker_ok),
         ]
+
+    def _dashboard_component_rows_for_dashboard(self) -> list[tuple[str, str, bool]]:
+        if self.component_status_cache:
+            return list(self.component_status_cache)
+        self._refresh_component_status_async()
+        return [
+            ("Windows статус", "Проверява се...", False),
+            ("Office статус", "Проверява се...", False),
+            (".NET Framework", "Проверява се...", False),
+            ("DirectX", "Проверява се...", False),
+            ("Visual C++ Redistributable", "Проверява се...", False),
+            ("Windows Defender", "Проверява се...", False),
+            ("Firewall", "Проверява се...", False),
+            ("BitLocker", "Проверява се...", False),
+        ]
+
+    def _refresh_component_status_async(self) -> None:
+        if self.component_status_refresh_in_progress:
+            return
+        self.component_status_refresh_in_progress = True
+
+        def worker() -> None:
+            try:
+                rows = self._dashboard_component_rows()
+            except Exception as exc:
+                rows = [("Компонентен статус", f"Грешка: {exc}", False)]
+            try:
+                self.root.after(0, lambda: self._apply_component_status_rows(rows))
+            except RuntimeError:
+                self.component_status_refresh_in_progress = False
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _apply_component_status_rows(self, rows: list[tuple[str, str, bool]]) -> None:
+        self.component_status_refresh_in_progress = False
+        self.component_status_cache = list(rows)
+        if self.current_menu == "main":
+            self._render_cards()
 
     def _component_windows_activation_status(self) -> tuple[str, bool]:
         # Проверява реалния статус на активацията на Windows.
@@ -4283,7 +4840,7 @@ class MainMenuUI:
         percent_match = re.search(r"(\d{1,3})\s*%", value)
         if percent_match:
             return max(0, min(100, int(percent_match.group(1))))
-        ratio_match = re.search(r"([0-9]+(?:[.,][0-9]+)?)\s*(?:GB|V|°C)?.*?/\s*([0-9]+(?:[.,][0-9]+)?)", value)
+        ratio_match = re.search(r"([0-9]+(?:[.,][0-9]+)?)\s*(?:GB|V|В°C)?.*?/\s*([0-9]+(?:[.,][0-9]+)?)", value)
         if ratio_match:
             try:
                 used = float(ratio_match.group(1).replace(",", "."))
@@ -4459,7 +5016,7 @@ class MainMenuUI:
         def set_dashboard_install_selection(value: bool) -> None:
             for task in preview_tasks:
                 task_id = task["id"]
-                installed_now, _detail = self._safe_task_install_state(task)
+                installed_now, _detail = self._dashboard_task_install_state(task)
                 if installed_now:
                     self.auto_install_vars[task_id].set(False)
                     continue
@@ -4471,7 +5028,7 @@ class MainMenuUI:
             if task["category"] != category:
                 category = task["category"]
                 tk.Label(list_holder, text=category, font=self._font(10, "bold", "Segoe UI Semibold"), fg=APP_ACCENT, bg=APP_PANEL_ALT).pack(anchor="w", padx=12, pady=(10, 4))
-            installed_now, installed_text = self._safe_task_install_state(task)
+            installed_now, installed_text = self._dashboard_task_install_state(task)
             row = tk.Frame(list_holder, bg=APP_PANEL_ALT)
             row.pack(fill="x", padx=12, pady=2)
             tk.Label(row, text=f"□ {index}. {task['label']}", font=self._font(9), fg=APP_TEXT, bg=APP_PANEL_ALT, anchor="w").pack(side="left", fill="x", expand=True)
@@ -4519,7 +5076,7 @@ class MainMenuUI:
         if self.dashboard_icons.get("shield_small") is not None:
             tk.Label(component_header, image=self.dashboard_icons["shield_small"], bg=APP_PANEL).pack(side="left", padx=(0, 8))
         tk.Label(component_header, text="Състояние на компонентите", font=self._font(14, "bold", "Segoe UI Semibold"), fg=APP_TEXT, bg=APP_PANEL).pack(side="left")
-        for label, value, ok in self._dashboard_component_rows():
+        for label, value, ok in self._dashboard_component_rows_for_dashboard():
             row = tk.Frame(component_panel, bg=APP_PANEL_ALT)
             row.pack(fill="x", padx=14, pady=4)
             tk.Label(row, text=label, font=self._font(9), fg=APP_TEXT, bg=APP_PANEL_ALT, anchor="w").pack(side="left", padx=10, pady=8)
@@ -4584,10 +5141,9 @@ class MainMenuUI:
         self.next_button.config(state="disabled")
         self.back_button.config(state="disabled")
 
-    def _render_main_dashboard_v2(self) -> None:
+    def _render_main_dashboard_v2(self, parent: tk.Widget | None = None) -> None:
         # Нов dashboard за Начало, подреден максимално близо до референтната визия.
-        self.cards_frame.columnconfigure(0, weight=1)
-        self.cards_frame.rowconfigure(0, weight=1)
+        dashboard_parent = parent or self.cards_frame
 
         def make_panel(parent: tk.Widget, *, bg: str = APP_PANEL, border: str = APP_BORDER, radius: int = 18) -> tk.Frame:
             return self._build_soft_panel(parent, panel_bg=bg, border=border, radius=radius, base_bg=APP_BG)
@@ -4607,8 +5163,8 @@ class MainMenuUI:
             else:
                 tk.Label(parent, text=fallback, font=self._font(18, "bold", "Segoe UI Symbol"), fg=fg, bg=bg).pack(side=side, padx=(0, 10))
 
-        outer = tk.Frame(self.cards_frame, bg=APP_BG, bd=0)
-        outer.grid(row=0, column=0, sticky="nsew")
+        outer = tk.Frame(dashboard_parent, bg=APP_BG, bd=0)
+        outer.pack(fill="both", expand=True)
         self.dashboard_live_widgets = {}
 
         status_ok = all(item.ok for item in self.latest_health_items) if self.latest_health_items else False
@@ -4921,7 +5477,7 @@ class MainMenuUI:
         def set_dashboard_install_selection(value: bool) -> None:
             for task in preview_tasks:
                 task_id = task["id"]
-                installed_now, _detail = self._safe_task_install_state(task)
+                installed_now, _detail = self._dashboard_task_install_state(task)
                 if installed_now:
                     self.auto_install_vars[task_id].set(False)
                     continue
@@ -4934,7 +5490,7 @@ class MainMenuUI:
             if task["category"] != category:
                 category = task["category"]
                 tk.Label(installer_viewport, text=category, font=self._font(9, "bold", "Segoe UI Semibold"), fg=APP_ACCENT, bg=APP_PANEL_ALT).pack(anchor="w", padx=12, pady=(10, 4))
-            installed_now, _ = self._safe_task_install_state(task)
+            installed_now, _ = self._dashboard_task_install_state(task)
             task_id = task["id"]
             if installed_now:
                 self.auto_install_vars[task_id].set(False)
@@ -5062,7 +5618,7 @@ class MainMenuUI:
         component_viewport.bind("<Configure>", refresh_component_scroll)
         component_canvas.bind("<Configure>", refresh_component_scroll)
         self._bind_dashboard_canvas_mousewheel(component_canvas, component_canvas)
-        for label, value, ok in self._dashboard_component_rows():
+        for label, value, ok in self._dashboard_component_rows_for_dashboard():
             row = tk.Frame(component_viewport, bg=APP_PANEL_ALT)
             row.pack(fill="x", padx=10, pady=3)
             inner = tk.Frame(row, bg=APP_PANEL_ALT)
@@ -5071,7 +5627,7 @@ class MainMenuUI:
             status_group = tk.Frame(inner, bg=APP_PANEL_ALT)
             status_group.pack(side="left", padx=(14, 0))
             tk.Label(status_group, text=value, font=self._font(8, "bold", "Segoe UI Semibold"), fg=APP_ACCENT if ok else APP_DANGER, bg=APP_PANEL_ALT, justify="left", anchor="w").pack(side="left")
-            tk.Label(status_group, text="◉" if ok else "!", font=self._font(10, "bold", "Segoe UI Semibold"), fg=APP_ACCENT if ok else APP_DANGER, bg=APP_PANEL_ALT).pack(side="left", padx=(8, 0))
+            tk.Label(status_group, text="\u25c9" if ok else "!", font=self._font(10, "bold", "Segoe UI Semibold"), fg=APP_ACCENT if ok else APP_DANGER, bg=APP_PANEL_ALT).pack(side="left", padx=(8, 0))
         self._bind_dashboard_canvas_mousewheel(component_viewport, component_canvas)
         quick_panel = make_panel(right_column, radius=20)
         quick_panel.grid(row=1, column=0, sticky="nsew", pady=(8, 0))
@@ -5152,7 +5708,13 @@ class MainMenuUI:
         accent = self._card_accent(item)
         card_bg = APP_PANEL_SOFT if item["kind"] == "menu" else APP_PANEL_ALT
         border_color = APP_BORDER_STRONG if item["kind"] == "menu" else APP_BORDER
+        has_remove_button = False
+        if self._is_office_install_item(item):
+            office_info = self._office_install_info(item["action_id"])
+            has_remove_button = bool(office_info.installed and office_info.uninstall_string)
         card_height = self.scaled_menu_card_min_height.get(self.current_menu, self.scaled_card_min_height)
+        if has_remove_button:
+            card_height = max(card_height, self._scale_px(265))
         card = tk.Frame(
             parent,
             bg=card_bg,
@@ -5166,12 +5728,19 @@ class MainMenuUI:
         top = tk.Frame(card, bg=card_bg)
         top.pack(fill="x", padx=self._scale_px(14), pady=(self._scale_px(12), self._scale_px(8)))
 
-        dot_size = self._scale_px(16)
-        dot = tk.Canvas(top, width=dot_size, height=dot_size, bg=card_bg, highlightthickness=0)
-        dot.create_oval(self._scale_px(2), self._scale_px(2), dot_size - self._scale_px(2), dot_size - self._scale_px(2), fill=accent, outline="")
-        dot.pack(side="left")
+        icon_image = self.dashboard_icons.get(item.get("icon", ""))
+        if icon_image is not None:
+            icon_box = tk.Frame(top, bg="#112925", bd=0, highlightthickness=1, highlightbackground=accent, width=self._scale_px(38), height=self._scale_px(38))
+            icon_box.pack(side="left")
+            icon_box.pack_propagate(False)
+            tk.Label(icon_box, image=icon_image, bg="#112925").pack(expand=True)
+        else:
+            dot_size = self._scale_px(16)
+            dot = tk.Canvas(top, width=dot_size, height=dot_size, bg=card_bg, highlightthickness=0)
+            dot.create_oval(self._scale_px(2), self._scale_px(2), dot_size - self._scale_px(2), dot_size - self._scale_px(2), fill=accent, outline="")
+            dot.pack(side="left")
 
-        compact_text_menus = {"office_center", "nexus_admin", "office_install_center", "secret_install"}
+        compact_text_menus = {"office_center", "nexus_admin", "office_install_center", "secret_install", "driver_backup"}
         title_font = self._font(11 if self.current_menu in compact_text_menus else 12, "bold", "Segoe UI Semibold")
         title_wraplength = self.compact_card_title_wrap if self.current_menu in compact_text_menus else self.card_title_wrap
         title = tk.Label(
@@ -5203,16 +5772,11 @@ class MainMenuUI:
         spacer = tk.Frame(card, bg=card_bg)
         spacer.pack(fill="both", expand=True)
 
-        has_remove_button = False
-        if self._is_office_install_item(item):
-            office_info = self._office_install_info(item["action_id"])
-            has_remove_button = bool(office_info.installed and office_info.uninstall_string)
-
-        # В Office Install Center всички карти пазят еднакво място за бутоните, за да са с еднакъв размер.
-        force_double_action_area = self.current_menu == "office_install_center"
-        action_area_height = CARD_ACTION_DOUBLE_HEIGHT if has_remove_button or force_double_action_area else CARD_ACTION_HEIGHT
+        compact_action_menus = {"office_center", "office_install_center", "secret_install", "driver_backup"}
+        action_area_height = CARD_ACTION_DOUBLE_HEIGHT if has_remove_button else CARD_ACTION_HEIGHT
         action_area = tk.Frame(card, bg=card_bg, height=max(self.card_button_height_px + self._scale_px(12), self._scale_px(action_area_height)))
-        action_area.pack(fill="x", padx=self._scale_px(14), pady=(self._scale_px(16), self._scale_px(16)), side="bottom")
+        action_pady = self._scale_px(8 if self.current_menu in compact_action_menus else 16)
+        action_area.pack(fill="x", padx=self._scale_px(14), pady=(action_pady, action_pady), side="bottom")
         action_area.pack_propagate(False)
 
         action_text = self._button_text(item["kind"])
@@ -5707,6 +6271,9 @@ class MainMenuUI:
         kind = item["kind"]
         if kind == "menu":
             target = item["target"]
+            if target == "main":
+                self.go_dashboard()
+                return
             if target != self.current_menu:
                 self.history.append(self.current_menu)
             self.render_menu(target)
@@ -5867,17 +6434,17 @@ class MainMenuUI:
     def _add_desktop_icons(self) -> None:
         # Пуска отделен прозорец с прогрес, докато Windows системните икони се включват.
         confirmed = messagebox.askyesno(
-            "Добавяне на икони",
-            "Да се добавят ли на работния плот системните икони This PC, Network, Control Panel и User Files?",
+            "Add Desktop Icons",
+            "Add the standard system icons This PC, Network, Control Panel and User Files to the desktop?",
             parent=self.root,
         )
         if not confirmed:
-            self.status_var.set("Добавянето на икони на работния плот беше отменено.")
+            self.status_var.set("Adding desktop icons was canceled.")
             return
 
-        self.status_var.set("Добавят се системни икони на работния плот...")
+        self.status_var.set("Adding desktop system icons...")
         self._open_activation_window(
-            title="Добавяне на икони",
+            title="Add Desktop Icons",
             heading="Системни икони на работния плот",
             intro="Приложението включва системните икони на Windows и опреснява работния плот.",
         )
@@ -5914,12 +6481,12 @@ class MainMenuUI:
                 prepared_task["remove_first"] = bool(self.auto_remove_vars.get(task_id) and self.auto_remove_vars[task_id].get())
                 tasks.append(prepared_task)
         if not tasks:
-            messagebox.showinfo("Автоматичен инсталатор", "Избери поне една задача за инсталиране.", parent=self.root)
+            messagebox.showinfo("Auto Installer", "Select at least one install task.", parent=self.root)
             return
 
         confirmed = messagebox.askyesno(
-            "Автоматичен инсталатор",
-            f"Ще бъдат изпълнени {len(tasks)} задачи една след друга.\n\nДа започнем ли?",
+            "Auto Installer",
+            f"{len(tasks)} task(s) will run one after another.\n\nStart now?",
             parent=self.root,
         )
         if not confirmed:
@@ -5927,7 +6494,7 @@ class MainMenuUI:
 
         self._close_program_selector_window()
         self.auto_install_running = True
-        self.status_var.set("Автоматичният инсталатор стартира...")
+        self.status_var.set("Auto Installer is starting...")
         self._open_activation_window(
             title="Автоматичен инсталатор",
             heading="Автоматичен инсталатор",
@@ -5997,6 +6564,8 @@ class MainMenuUI:
         return output or f"{title} завърши успешно."
 
     def _auto_install_tasks(self) -> list[dict[str, str]]:
+        if self.program_selector_tasks_cache:
+            return [dict(task) for task in self.program_selector_tasks_cache]
         # Събира всички налични инсталации за прозореца с тикчета.
         tasks: list[dict[str, str]] = [dict(task) for task in PROGRAM_SELECTOR_LOCAL_TASKS]
         known_resource_ids = {
@@ -6072,6 +6641,46 @@ class MainMenuUI:
                 }
             )
         return tasks
+
+    def _dashboard_task_install_state(self, task: dict[str, str]) -> tuple[bool, str]:
+        cached = self.program_selector_status_cache.get(task["id"])
+        if cached is not None:
+            return cached
+        self._refresh_program_selector_status_async()
+        return False, "Проверява се..."
+
+    def _refresh_program_selector_status_async(self) -> None:
+        if self.program_selector_scan_running:
+            return
+        self.program_selector_scan_running = True
+
+        def worker() -> None:
+            try:
+                tasks = self._auto_install_tasks()
+                status_map: dict[str, tuple[bool, str]] = {}
+                for task in tasks:
+                    status_map[task["id"]] = self._safe_task_install_state(task)
+            except Exception:
+                tasks = self.program_selector_tasks_cache or []
+                status_map = dict(self.program_selector_status_cache)
+            try:
+                self.root.after(0, lambda: self._apply_program_selector_status_cache(tasks, status_map))
+            except RuntimeError:
+                self.program_selector_scan_running = False
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _apply_program_selector_status_cache(
+        self,
+        tasks: list[dict[str, str]],
+        status_map: dict[str, tuple[bool, str]],
+    ) -> None:
+        self.program_selector_scan_running = False
+        if tasks:
+            self.program_selector_tasks_cache = [dict(task) for task in tasks]
+        self.program_selector_status_cache = dict(status_map)
+        if self.current_menu == "main":
+            self._render_cards()
 
     def _local_task_spec(self, task_id: str) -> dict[str, str] | None:
         # Връща настройките за локален installer, ако задачата е такава.
@@ -6578,6 +7187,7 @@ class MainMenuUI:
         wraplength: int,
         start_button_text: str,
         show_close_button: bool,
+        show_descriptions: bool = True,
     ) -> None:
         # Зарежда проверките във фонов режим и после рисува менюто наведнъж.
         if self.program_selector_tasks_cache and self.program_selector_status_cache and not self.program_selector_scan_running:
@@ -6586,6 +7196,7 @@ class MainMenuUI:
                 wraplength=wraplength,
                 start_button_text=start_button_text,
                 show_close_button=show_close_button,
+                show_descriptions=show_descriptions,
                 tasks=self.program_selector_tasks_cache,
                 status_map=self.program_selector_status_cache,
             )
@@ -6658,6 +7269,7 @@ class MainMenuUI:
                         wraplength=wraplength,
                         start_button_text=start_button_text,
                         show_close_button=show_close_button,
+                        show_descriptions=show_descriptions,
                         tasks=tasks,
                         status_map=status_map,
                     )
@@ -6675,6 +7287,7 @@ class MainMenuUI:
         wraplength: int,
         start_button_text: str,
         show_close_button: bool = False,
+        show_descriptions: bool = True,
         tasks: list[dict[str, str]] | None = None,
         status_map: dict[str, tuple[bool, str]] | None = None,
     ) -> None:
@@ -6751,17 +7364,18 @@ class MainMenuUI:
             )
             check_button.pack(anchor="w", fill="x")
             self._bind_program_selector_mousewheel(check_button, canvas)
-            description_label = tk.Label(
-                row,
-                text=task["description"],
-                bg="#112716",
-                fg="#91b897",
-                font=("Segoe UI", 9),
-                wraplength=wraplength,
-                justify="left",
-            )
-            description_label.pack(anchor="w", padx=(24, 0), pady=(2, 0))
-            self._bind_program_selector_mousewheel(description_label, canvas)
+            if show_descriptions:
+                description_label = tk.Label(
+                    row,
+                    text=task["description"],
+                    bg="#112716",
+                    fg="#91b897",
+                    font=("Segoe UI", 9),
+                    wraplength=wraplength,
+                    justify="left",
+                )
+                description_label.pack(anchor="w", padx=(24, 0), pady=(2, 0))
+                self._bind_program_selector_mousewheel(description_label, canvas)
 
             if installed_now:
                 installed_label = tk.Label(
@@ -6875,6 +7489,9 @@ class MainMenuUI:
 
     def _safe_task_install_state(self, task: dict[str, str]) -> tuple[bool, str]:
         # Ako nqkoq proverka grymne na nov komputar, spisykyt pak ostava viden.
+        cached = self.program_selector_status_cache.get(task["id"])
+        if cached is not None:
+            return cached
         try:
             return self._task_install_state(task)
         except Exception as exc:
@@ -6937,8 +7554,11 @@ class MainMenuUI:
         # Това е обновената версия на страницата за автоматичен инсталатор.
         self.cards_frame.columnconfigure(0, weight=1)
         self.cards_frame.rowconfigure(0, weight=1)
-        header_wrap = max(520, self.right_subtitle_wrap + self._scale_px(120))
-        selector_wrap = max(520, self.right_subtitle_wrap + self._scale_px(100))
+        available_width = max(720, self.root.winfo_width() - self.sidebar_width - self._scale_px(130))
+        available_height = max(520, self.root.winfo_height() - self.header_height_px - self._scale_px(170))
+        panel_width = min(self._scale_px(920), available_width)
+        panel_height = min(self._scale_px(650), available_height)
+        selector_wrap = max(520, panel_width - self._scale_px(90))
 
         outer = tk.Frame(
             self.cards_frame,
@@ -6946,27 +7566,21 @@ class MainMenuUI:
             bd=0,
             highlightthickness=1,
             highlightbackground="#2d7f4a",
+            width=panel_width,
+            height=panel_height,
         )
-        outer.grid(row=0, column=0, sticky="nsew", padx=8, pady=8)
+        outer.grid(row=0, column=0, padx=8, pady=8)
+        outer.pack_propagate(False)
 
         header = tk.Frame(outer, bg="#102515")
-        header.pack(fill="x", padx=16, pady=(14, 8))
+        header.pack(fill="x", padx=16, pady=(14, 4))
         tk.Label(
             header,
             text="Автоматичен инсталатор",
             font=("Segoe UI Semibold", 16),
             bg="#102515",
             fg="#edffef",
-        ).pack(anchor="w")
-        tk.Label(
-            header,
-            text="Избери какво да се инсталира. Задачите ще се изпълнят една след друга и ще получиш общ отчет.",
-            font=("Segoe UI", 10),
-            bg="#102515",
-            fg="#9bc39e",
-            wraplength=header_wrap,
-            justify="left",
-        ).pack(anchor="w", pady=(4, 0))
+        ).pack(anchor="center")
 
         content_holder = tk.Frame(outer, bg="#102515")
         content_holder.pack(fill="both", expand=True)
@@ -6975,6 +7589,7 @@ class MainMenuUI:
             wraplength=selector_wrap,
             start_button_text="Инсталирай избраните",
             show_close_button=False,
+            show_descriptions=False,
         )
 
         self.page_label.config(text="Автоматичен режим")
@@ -7052,7 +7667,7 @@ class MainMenuUI:
         }
 
     def _apply_responsive_theme(self) -> None:
-        # Obnovqva osnovnite widget-и sled premervane, za da stoqt dobre na razlichni monitori.
+        # Obnovqva osnovnite widget-Рё sled premervane, za da stoqt dobre na razlichni monitori.
         self.header.configure(height=self.header_height_px)
         self.title_label.configure(font=self._font(22, "bold", "Segoe UI Semibold"))
         self.subtitle_label.configure(font=self._font(10), wraplength=max(420, self._scale_px(720)))
@@ -7060,8 +7675,8 @@ class MainMenuUI:
         self.version_chip.configure(font=self._font(9, "bold", "Segoe UI Semibold"))
         self.header_admin_chip.configure(font=self._font(9, "bold", "Segoe UI Semibold"))
         self.header_exit_button.configure(font=self._font(10, "bold", "Segoe UI Semibold"), width=max(8, int(10 * self.ui_scale)))
-        self.header_home_button.configure(font=self._font(10, "bold", "Segoe UI Semibold"), width=max(10, int(12 * self.ui_scale)))
-        self.header_home_button.place_configure(x=-max(168, self._scale_px(186)), y=self._scale_px(22))
+        self.header_dashboard_button.configure(font=self._font(10, "bold", "Segoe UI Semibold"), width=max(10, int(12 * self.ui_scale)))
+        self.header_dashboard_button.place_configure(x=max(600, self._scale_px(704)), y=self._scale_px(22))
         self.header_exit_button.place_configure(x=-24, y=self._scale_px(22))
         self.version_chip.place_configure(x=max(420, self._scale_px(520)), y=self._scale_px(22))
         self.header_admin_chip.place_configure(x=max(500, self._scale_px(608)), y=self._scale_px(22))
@@ -7074,13 +7689,14 @@ class MainMenuUI:
         self.sidebar_clock_card.winfo_children()[0].configure(font=self._font(16, "bold", "Segoe UI Semibold"))
         self.sidebar_clock_card.winfo_children()[1].configure(font=self._font(9))
         for parts in self.sidebar_nav_buttons.values():
-            parts["title"].configure(font=self._font(11, "bold", "Segoe UI Semibold"))
-            parts["subtitle"].configure(font=self._font(9), wraplength=max(150, self.sidebar_width - 128))
-            parts["arrow"].configure(font=self._font(16, "bold", "Segoe UI Semibold"))
+            parts["title"].configure(font=self._font(10, "bold", "Segoe UI Semibold"))
+            parts["subtitle"].configure(font=self._font(8), wraplength=max(145, self.sidebar_width - 120))
+            parts["arrow"].configure(font=self._font(14, "bold", "Segoe UI Semibold"))
         self.system_info.configure(font=("Consolas", max(8, self.body_text_size)), wraplength=self.system_info_wrap)
         self.hint_label.configure(font=self._font(9), wraplength=self.system_info_wrap)
         self.health_title.configure(font=self._font(14, "bold", "Segoe UI Semibold"))
-        self.health_loading_label.configure(font=self._font(10), wraplength=max(220, self.sidebar_width - 60))
+        if self.health_loading_label.winfo_exists():
+            self.health_loading_label.configure(font=self._font(10), wraplength=max(220, self.sidebar_width - 60))
         self.status_bar.configure(font=self._font(10))
         self.card_title.configure(font=self._font(19, "bold", "Segoe UI Semibold"))
         self.card_subtitle.configure(font=self._font(10), wraplength=self.right_subtitle_wrap)
@@ -8224,18 +8840,18 @@ class MainMenuUI:
         remove_existing = False
         if installed_now and self._task_supports_remove(spec):
             remove_existing = messagebox.askyesno(
-                "Намерена е стара версия",
-                f"Намерено е:\n{installed_text}\n\nДа я премахна ли първо и после да стартирам новия installer?",
+                "Existing version found",
+                f"Found:\n{installed_text}\n\nRemove it first and then start the new installer?",
                 parent=self.root,
             )
 
         confirmed = messagebox.askyesno(
-            "Локален installer",
-            f"Да стартирам ли {spec['label']} от:\n\n{local_file}",
+            "Local Installer",
+            f"Start {spec['label']} from:\n\n{local_file}",
             parent=self.root,
         )
         if not confirmed:
-            self.status_var.set(f"Инсталацията за {spec['label']} беше отказана.")
+            self.status_var.set(f"Installation for {spec['label']} was canceled.")
             return
 
         self.status_var.set(f"Стартиране на {spec['label']}...")
@@ -8292,15 +8908,15 @@ class MainMenuUI:
             "Adobe Reader",
             (
                 f"{details}\n\n"
-                "Да инсталирам/обновя ли Adobe Reader до актуалната версия чрез winget?"
+                "Install/update Adobe Reader to the current version through winget?"
             ),
             parent=self.root,
         )
         if not confirmed:
-            self.status_var.set("Adobe Reader инсталацията беше отказана.")
+            self.status_var.set("Adobe Reader installation was canceled.")
             return
 
-        self.status_var.set("Стартиране на Adobe Reader online инсталация...")
+        self.status_var.set("Starting Adobe Reader online installation...")
         self._open_activation_window(
             title="Adobe Reader",
             heading="Adobe Reader Online Setup",
@@ -8351,7 +8967,7 @@ class MainMenuUI:
                 lambda: self._update_activation_progress(
                     60,
                     f"Стартиране на {spec['label']}...",
-                    f"Файл: {local_file.name}",
+                    f"Р¤Р°Р№Р»: {local_file.name}",
                 ),
             )
             result = subprocess.run(
@@ -9094,18 +9710,25 @@ class MainMenuUI:
         if not self.history:
             return
         target = self.history.pop()
-        self.current_menu = target
-        self.current_page = 0
-        self.menu_path.config(text=self._build_path())
-        self.card_title.config(text=MENU_TREE[target]["title"])
-        self.card_subtitle.config(text=MENU_TREE[target]["subtitle"])
-        self.subtitle_label.config(text=MENU_TREE[target]["subtitle"])
+        if target == "main":
+            self.go_dashboard()
+            self.status_var.set("Returned to Dashboard.")
+            return
+        self.render_menu(target)
         self.status_var.set(f"Returned to {MENU_TREE[target]['title']}.")
-        self.header_home_button.config(state="disabled" if target == "main" else "normal")
-        self._render_cards()
 
     def go_home(self) -> None:
-        self.render_menu("main", reset_history=True)
+        self._stop_dashboard_info_scroll()
+        if self.dashboard_render_job is not None:
+            try:
+                self.root.after_cancel(self.dashboard_render_job)
+            except tk.TclError:
+                pass
+            self.dashboard_render_job = None
+        self._show_dashboard_direct(reset_history=True)
+
+    def go_dashboard(self) -> None:
+        self.go_home()
 
     def next_page(self) -> None:
         items = MENU_TREE[self.current_menu]["items"]

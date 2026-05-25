@@ -1,10 +1,11 @@
 {
-  "version": "0.2.39",
+  "version": "0.2.40",
   "version_info_url": "https://raw.githubusercontent.com/gyx4ee/WGA/refs/heads/main/version.json",
   "download_url": "https://github.com/gyx4ee/WGA/releases/latest",
   "package_url": "https://raw.githubusercontent.com/gyx4ee/WGA/refs/heads/main/WGA-portable.zip",
-  "notes": "Refined the Home dashboard again with a cleaner centered sidebar brand block, restored the original Home navigation button, improved the framed dashboard panels, fixed mouse-wheel scrolling inside the System Status and Automatic Installer cards, enabled working installer checkboxes with installed-item protection, and switched the component status panel to more honest real checks for activation, runtime, security, and storage components.",
+  "notes": "Fixed the Dashboard return flow so every Dashboard button forces a clean redraw, added diagnostics for blank dashboard states, stabilized dashboard rendering against background refresh races, restored Bulgarian text encoding, cleaned and compacted Activation, Install Software, Office Install Center, Office Online God Mode, Archive, and Automatic Installer menus, centered the Automatic Installer, and updated the build package to include all visual assets.",
   "changelog": [
+    "v0.2.40 - Fixed the Dashboard return flow so every Dashboard button forces a clean redraw, added diagnostics for blank dashboard states, stabilized dashboard rendering against background refresh races, restored Bulgarian text encoding, cleaned and compacted Activation, Install Software, Office Install Center, Office Online God Mode, Archive, and Automatic Installer menus, centered the Automatic Installer, and updated the build package to include all visual assets.",
     "v0.2.39 - Refined the Home dashboard again with a cleaner centered sidebar brand block, restored the original Home navigation button, improved the framed dashboard panels, fixed mouse-wheel scrolling inside the System Status and Automatic Installer cards, enabled working installer checkboxes with installed-item protection, and switched the component status panel to more honest real checks for activation, runtime, security, and storage components.",
     "v0.2.38 - Reworked the Home dashboard closer to the reference mockup with a stronger left navigation, live clock footer, richer status banner, fuller metric cards, icon-led system panels, and a denser automatic installer preview so the main screen finally matches the generated concept much more directly.",
     "v0.2.37 - Added the missing dashboard icon system and wired the generated icon sheet into the redesigned Home screen so the sidebar, status panels, metric cards, and quick actions now carry real visual icons closer to the reference design.",

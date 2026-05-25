@@ -13,6 +13,7 @@ DRIVE_REMOVABLE = 2
 
 @dataclass
 class DriverBackupResult:
+    # Описва какво е създадено след backup на драйверите.
     backup_dir: Path
     zip_path: Path | None
     log_path: Path
@@ -21,10 +22,12 @@ class DriverBackupResult:
 
 
 def desktop_path() -> Path:
+    # Връща стандартния Desktop път.
     return Path.home() / "Desktop"
 
 
 def onedrive_path() -> Path | None:
+    # Проверява най-често срещаните OneDrive папки.
     candidates = [
         Path.home() / "OneDrive",
         Path.home() / "OneDrive - Personal",
@@ -36,16 +39,19 @@ def onedrive_path() -> Path | None:
 
 
 def timestamp_string() -> str:
+    # Използваме време в името, за да не се презаписват архивите.
     return datetime.now().strftime("%Y-%m-%d_%H-%M")
 
 
 def create_backup_folder(base_path: Path) -> Path:
+    # Създава нова папка за текущия backup.
     destination = base_path / f"DriversBackup_{timestamp_string()}"
     destination.mkdir(parents=True, exist_ok=True)
     return destination
 
 
 def run_command(command: list[str], cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
+    # Обща функция за тихо пускане на системни команди.
     return subprocess.run(
         command,
         capture_output=True,
@@ -57,6 +63,7 @@ def run_command(command: list[str], cwd: Path | None = None) -> subprocess.Compl
 
 
 def export_drivers(destination: Path, mode: str) -> tuple[subprocess.CompletedProcess[str], Path]:
+    # Изнася драйверите с pnputil или DISM според избрания режим.
     log_path = destination / "backup_log.txt"
     if mode == "clean":
         result = run_command(["pnputil", "/export-driver", "*", str(destination)])
@@ -71,6 +78,7 @@ def export_drivers(destination: Path, mode: str) -> tuple[subprocess.CompletedPr
 
 
 def create_driver_list(destination: Path) -> Path:
+    # Записва текстов списък на намерените драйвери.
     drivers_list_path = destination / "drivers_list.txt"
     result = run_command(["pnputil", "/enum-drivers"])
     content = "\n".join(part.strip() for part in (result.stdout, result.stderr) if part and part.strip())
@@ -79,6 +87,7 @@ def create_driver_list(destination: Path) -> Path:
 
 
 def create_restore_script(destination: Path) -> Path:
+    # Прави готов .bat файл за по-лесно възстановяване.
     restore_script_path = destination / "RESTORE_DRIVERS.bat"
     restore_script_path.write_text(
         "@echo off\n"
@@ -95,6 +104,7 @@ def create_restore_script(destination: Path) -> Path:
 
 
 def compress_backup(destination: Path, delete_original: bool = False) -> Path:
+    # Компресира backup папката в zip архив.
     archive_path = Path(shutil.make_archive(str(destination), "zip", root_dir=destination.parent, base_dir=destination.name))
     if delete_original:
         shutil.rmtree(destination, ignore_errors=True)
@@ -102,6 +112,7 @@ def compress_backup(destination: Path, delete_original: bool = False) -> Path:
 
 
 def detect_removable_drives() -> list[Path]:
+    # Търси включени USB устройства по буквите на дисковете.
     drives: list[Path] = []
     kernel32 = ctypes.windll.kernel32
     for letter in "DEFGHIJKLMNOPQRSTUVWXYZ":
@@ -114,6 +125,7 @@ def detect_removable_drives() -> list[Path]:
 
 
 def create_recovery_usb(last_backup_dir: Path, usb_root: Path) -> tuple[Path, Path]:
+    # Копира последния backup на флашка и добавя restore скрипт.
     recovery_dir = usb_root / "DriverRecoveryBackup"
     if recovery_dir.exists():
         shutil.rmtree(recovery_dir, ignore_errors=True)
@@ -134,10 +146,12 @@ def create_recovery_usb(last_backup_dir: Path, usb_root: Path) -> tuple[Path, Pa
 
 
 def restore_drivers_from_backup(backup_dir: Path) -> subprocess.CompletedProcess[str]:
+    # Стартира възстановяване на драйвери от избрана папка.
     return run_command(["pnputil", "/add-driver", str(backup_dir / "*.inf"), "/subdirs", "/install"])
 
 
 def generate_pc_report(destination: Path) -> Path:
+    # Генерира подробен хардуерен отчет с PowerShell.
     report_path = destination / "PC_Report.txt"
     sections = [
         ("CPU INFO", "Get-CimInstance Win32_Processor | Select-Object Name,NumberOfCores,NumberOfLogicalProcessors | Format-List"),

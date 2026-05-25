@@ -33,12 +33,14 @@ MEMORY_TYPE_MAP = {
 
 @dataclass
 class HealthItem:
+    # Един ред от системната информация - име, стойност и дали е ок.
     label: str
     value: str
     ok: bool
 
 
 class MemoryStatusEx(ctypes.Structure):
+    # Това е Windows структура за четене на RAM статуса.
     _fields_ = [
         ("dwLength", ctypes.c_uint32),
         ("dwMemoryLoad", ctypes.c_uint32),
@@ -53,6 +55,7 @@ class MemoryStatusEx(ctypes.Structure):
 
 
 def _run_powershell_json(command: str) -> list[dict[str, object]]:
+    # Пуска PowerShell и връща резултата като JSON масив.
     result = subprocess.run(
         POWERSHELL + [f"{command} | ConvertTo-Json -Depth 4"],
         capture_output=True,
@@ -76,10 +79,12 @@ def _run_powershell_json(command: str) -> list[dict[str, object]]:
 
 
 def _bytes_to_gb(value: int) -> float:
+    # Превръща байтове в гигабайти за по-лесно показване.
     return value / (1024 ** 3)
 
 
 def _memory_snapshot() -> tuple[float, float, int]:
+    # Чете общата, използваната RAM и процента натоварване.
     status = MemoryStatusEx()
     status.dwLength = ctypes.sizeof(MemoryStatusEx)
     ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(status))
@@ -90,13 +95,26 @@ def _memory_snapshot() -> tuple[float, float, int]:
 
 
 def _cpu_name() -> str:
+    # Взима името на процесора.
     rows = _run_powershell_json("Get-CimInstance Win32_Processor | Select-Object -First 1 Name")
     if rows and rows[0].get("Name"):
         return str(rows[0]["Name"]).strip()
     return platform.processor() or "Unknown CPU"
 
 
+def _cpu_load() -> tuple[str, bool]:
+    # Взима текущото натоварване на процесора в проценти.
+    rows = _run_powershell_json(
+        "Get-CimInstance Win32_Processor | Select-Object -First 1 LoadPercentage"
+    )
+    if rows and isinstance(rows[0].get("LoadPercentage"), (int, float)):
+        value = int(rows[0]["LoadPercentage"])
+        return f"{value}%", value < 85
+    return "Unknown", False
+
+
 def _single_cim_value(command: str, key: str) -> str:
+    # Малка помощна функция за четене на единична CIM стойност.
     rows = _run_powershell_json(command)
     if rows and rows[0].get(key) not in (None, ""):
         return str(rows[0][key]).strip()
@@ -104,6 +122,7 @@ def _single_cim_value(command: str, key: str) -> str:
 
 
 def _os_details() -> str:
+    # Събира кратка информация за Windows версията и build-а.
     caption = _single_cim_value(
         "Get-CimInstance Win32_OperatingSystem | Select-Object -First 1 Caption",
         "Caption",
@@ -121,6 +140,7 @@ def _os_details() -> str:
 
 
 def _computer_identity() -> str:
+    # Показва името на компютъра и активния потребител.
     computer = os.environ.get("COMPUTERNAME") or socket.gethostname() or "Unknown PC"
     user = os.environ.get("USERNAME") or "Unknown user"
     domain = os.environ.get("USERDOMAIN") or ""
@@ -129,6 +149,7 @@ def _computer_identity() -> str:
 
 
 def _primary_ip() -> str:
+    # Опитва да намери основния локален IP адрес.
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
             sock.connect(("8.8.8.8", 80))
@@ -141,6 +162,7 @@ def _primary_ip() -> str:
 
 
 def _uptime() -> str:
+    # Изчислява от колко време машината не е рестартирана.
     ticks = ctypes.windll.kernel32.GetTickCount64()
     seconds = int(ticks / 1000)
     days, remainder = divmod(seconds, 86400)
@@ -152,6 +174,7 @@ def _uptime() -> str:
 
 
 def _bios_version() -> str:
+    # Чете производителя и версията на BIOS.
     manufacturer = _single_cim_value(
         "Get-CimInstance Win32_BIOS | Select-Object -First 1 Manufacturer",
         "Manufacturer",
@@ -164,6 +187,7 @@ def _bios_version() -> str:
 
 
 def _motherboard() -> str:
+    # Чете основна информация за дънната платка.
     rows = _run_powershell_json(
         "Get-CimInstance Win32_BaseBoard | Select-Object -First 1 Manufacturer, Product"
     )
@@ -175,6 +199,7 @@ def _motherboard() -> str:
 
 
 def _gpu_summary() -> str:
+    # Събира кратко описание на видеокартите.
     rows = _run_powershell_json(
         "Get-CimInstance Win32_VideoController | Select-Object Name, AdapterRAM"
     )
@@ -192,6 +217,7 @@ def _gpu_summary() -> str:
 
 
 def _battery_status() -> tuple[str, bool]:
+    # Показва батерията, ако устройството има такава.
     rows = _run_powershell_json(
         "Get-CimInstance Win32_Battery | Select-Object -First 1 EstimatedChargeRemaining, BatteryStatus"
     )
@@ -206,6 +232,7 @@ def _battery_status() -> tuple[str, bool]:
 
 
 def _secure_boot_status() -> tuple[str, bool]:
+    # Проверява дали Secure Boot е включен.
     result = subprocess.run(
         POWERSHELL + ["Confirm-SecureBootUEFI"],
         capture_output=True,
@@ -222,12 +249,17 @@ def _secure_boot_status() -> tuple[str, bool]:
 
 
 def _ram_type() -> str:
-    rows = _run_powershell_json("Get-CimInstance Win32_PhysicalMemory | Select-Object SMBIOSMemoryType, MemoryType, Speed")
+    # Опитва да определи модела, типа и скоростта на RAM паметта.
+    rows = _run_powershell_json(
+        "Get-CimInstance Win32_PhysicalMemory | Select-Object SMBIOSMemoryType, MemoryType, Speed, Manufacturer, PartNumber, Capacity"
+    )
     if not rows:
         return "Unknown"
 
     ram_types: list[str] = []
     speeds: list[str] = []
+    models: list[str] = []
+    module_sizes: list[str] = []
     for row in rows:
         type_code = row.get("SMBIOSMemoryType") or row.get("MemoryType")
         if isinstance(type_code, (int, float)):
@@ -237,13 +269,24 @@ def _ram_type() -> str:
         speed = row.get("Speed")
         if isinstance(speed, (int, float)) and int(speed) > 0:
             speeds.append(f"{int(speed)} MHz")
+        manufacturer = str(row.get("Manufacturer") or "").strip()
+        part_number = str(row.get("PartNumber") or "").strip()
+        model = " ".join(part for part in (manufacturer, part_number) if part).strip()
+        if model and model not in models:
+            models.append(model)
+        capacity = row.get("Capacity")
+        if isinstance(capacity, (int, float)) and int(capacity) > 0:
+            module_sizes.append(f"{_bytes_to_gb(int(capacity)):.0f} GB")
 
     ram_type = ", ".join(ram_types) if ram_types else "Unknown"
     speed_text = speeds[0] if speeds else "Speed N/A"
-    return f"{ram_type} / {speed_text}"
+    model_text = models[0] if models else "Unknown module"
+    modules_text = f"{len(module_sizes)}x{module_sizes[0]}" if module_sizes else "Unknown size"
+    return f"{model_text} / {ram_type} / {speed_text} / {modules_text}"
 
 
 def _cpu_voltage() -> tuple[str, bool]:
+    # Връща CPU voltage, ако сензорът е достъпен.
     rows = _run_powershell_json("Get-CimInstance Win32_Processor | Select-Object -First 1 CurrentVoltage")
     if not rows or rows[0].get("CurrentVoltage") in (None, 0, ""):
         return "Sensor unavailable", False
@@ -255,6 +298,7 @@ def _cpu_voltage() -> tuple[str, bool]:
 
 
 def _temperature() -> tuple[str, bool]:
+    # Връща температурата от наличните ACPI сензори.
     rows = _run_powershell_json(
         r"Get-CimInstance MSAcpi_ThermalZoneTemperature -Namespace root/wmi | Select-Object CurrentTemperature"
     )
@@ -274,6 +318,7 @@ def _temperature() -> tuple[str, bool]:
 
 
 def _disk_items() -> list[HealthItem]:
+    # Обхожда всички дискове и изчислява използваното място.
     items: list[HealthItem] = []
     volume_rows = _run_powershell_json(
         "Get-CimInstance Win32_LogicalDisk | Select-Object DeviceID, FileSystem, VolumeName"
@@ -311,10 +356,12 @@ def _disk_items() -> list[HealthItem]:
 
 
 def collect_health_items() -> list[HealthItem]:
+    # Събира всички health редове за показване в главното меню.
     total_ram, used_ram, ram_load = _memory_snapshot()
     ram_ok = ram_load < 85
     temperature_value, temperature_ok = _temperature()
     voltage_value, voltage_ok = _cpu_voltage()
+    cpu_load_value, cpu_load_ok = _cpu_load()
     ram_type_value = _ram_type()
     battery_value, battery_ok = _battery_status()
     secure_boot_value, secure_boot_ok = _secure_boot_status()
@@ -325,6 +372,7 @@ def collect_health_items() -> list[HealthItem]:
         HealthItem(label="IP:", value=_primary_ip(), ok=True),
         HealthItem(label="Uptime:", value=_uptime(), ok=True),
         HealthItem(label="CPU:", value=_cpu_name(), ok=True),
+        HealthItem(label="CPU Load:", value=cpu_load_value, ok=cpu_load_ok),
         HealthItem(label="Temperature:", value=temperature_value, ok=temperature_ok),
         HealthItem(label="CPU Voltage:", value=voltage_value, ok=voltage_ok),
         HealthItem(label="GPU:", value=_gpu_summary(), ok=True),

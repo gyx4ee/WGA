@@ -12,10 +12,12 @@ OFFICE_VERSION_LABELS = {
 
 
 def get_office_version_label(action_id: str) -> str:
+    # Свързва вътрешното action_id с човешкото име на Office версията.
     return OFFICE_VERSION_LABELS[action_id]
 
 
 def locate_ospp_script(version_label: str) -> Path:
+    # Търси OSPP.VBS, защото той прави Office активацията.
     office_folder = "Office16"
     candidate_roots = [
         Path(os.environ.get("ProgramFiles", r"C:\Program Files")) / "Microsoft Office" / office_folder,
@@ -33,6 +35,7 @@ def locate_ospp_script(version_label: str) -> Path:
 
 
 def build_office_activation_commands(version_label: str, product_key: str) -> list[tuple[int, str, list[str]]]:
+    # Подготвя стъпките за въвеждане на ключ и после активация.
     ospp_script = locate_ospp_script(version_label)
     return [
         (

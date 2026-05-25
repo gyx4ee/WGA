@@ -6,7 +6,8 @@ Set-Location $projectRoot
 $pyInstallerCmd = "python -m PyInstaller"
 $isccCandidates = @(
     "C:\Program Files (x86)\Inno Setup 6\ISCC.exe",
-    "C:\Program Files\Inno Setup 6\ISCC.exe"
+    "C:\Program Files\Inno Setup 6\ISCC.exe",
+    "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe"
 )
 $iscc = $isccCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
 
@@ -16,7 +17,7 @@ Remove-Item -Recurse -Force "$projectRoot\dist" -ErrorAction SilentlyContinue
 Remove-Item -Recurse -Force "$projectRoot\installer-output" -ErrorAction SilentlyContinue
 
 Write-Host "Building WinSys Guardian Advanced executable..." -ForegroundColor Cyan
-cmd /c "$pyInstallerCmd --noconfirm --clean --onedir --windowed --name WGA --icon `"assets\wga-icon.ico`" --add-data `"assets\wga-icon.ico;assets`" --add-data `"installers_manifest.json;.`" --add-data `"version.json;.`" app.py"
+cmd /c "$pyInstallerCmd --noconfirm --clean --onedir --windowed --name WGA --icon `"assets\wga-icon.ico`" --add-data `"assets;assets`" --add-data `"installers_manifest.json;.`" --add-data `"version.json;.`" app.py"
 
 Write-Host "Creating portable update package..." -ForegroundColor Cyan
 $portableZip = "$projectRoot\installer-output\WGA-portable.zip"

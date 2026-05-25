@@ -13,6 +13,7 @@ UNINSTALL_PATHS = [
 
 @dataclass
 class InstalledOfficeInfo:
+    # Пази какво Office открихме в системата.
     installed: bool
     display_name: str = ""
     uninstall_string: str = ""
@@ -30,6 +31,7 @@ OFFICE_MATCH_RULES = {
 
 
 def _iter_uninstall_entries() -> list[dict[str, str]]:
+    # Обхожда uninstall записите в registry, за да търси Office.
     entries: list[dict[str, str]] = []
     for hive, path in UNINSTALL_PATHS:
         try:
@@ -56,6 +58,7 @@ def _iter_uninstall_entries() -> list[dict[str, str]]:
 
 
 def _query_value(key: winreg.HKEYType, value_name: str) -> str:
+    # Чете безопасно стойност от registry ключ.
     try:
         value, _ = winreg.QueryValueEx(key, value_name)
         return str(value).strip()
@@ -64,6 +67,7 @@ def _query_value(key: winreg.HKEYType, value_name: str) -> str:
 
 
 def detect_installed_office(action_id: str) -> InstalledOfficeInfo:
+    # Опитва да разпознае дали конкретна Office версия вече е инсталирана.
     match_parts = OFFICE_MATCH_RULES.get(action_id, [])
     for entry in _iter_uninstall_entries():
         display_name = entry["display_name"]

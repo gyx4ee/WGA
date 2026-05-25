@@ -5,7 +5,7 @@ a = Analysis(
     ['app.py'],
     pathex=[],
     binaries=[],
-    datas=[('assets\\wga-icon.ico', 'assets'), ('installers_manifest.json', '.'), ('version.json', '.')],
+    datas=[('assets', 'assets'), ('installers_manifest.json', '.'), ('version.json', '.')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

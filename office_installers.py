@@ -8,6 +8,7 @@ from path_utils import resolve_installers_root
 
 
 def current_project_root() -> Path:
+    # Връща папката на програмата, независимо дали е .py или .exe билд.
     if getattr(sys, "frozen", False):
         return Path(sys.executable).resolve().parent
     return Path(__file__).resolve().parent
@@ -15,6 +16,7 @@ def current_project_root() -> Path:
 
 @dataclass(frozen=True)
 class OfficeInstaller:
+    # Описва къде са setup и config файловете за дадена Office версия.
     action_id: str
     label: str
     folder: str
@@ -22,14 +24,17 @@ class OfficeInstaller:
 
     @property
     def setup_path(self) -> Path:
+        # Това е setup.exe за избраната версия.
         return self.installers_root / self.folder / "setup.exe"
 
     @property
     def config_path(self) -> Path:
+        # Това е XML конфигурацията за silent/controlled install.
         return self.installers_root / self.folder / self.config_name
 
     @property
     def installers_root(self) -> Path:
+        # Взимаме общата Installers папка за текущото място на програмата.
         return resolve_installers_root(current_project_root())
 
 
@@ -80,4 +85,5 @@ OFFICE_OFFLINE_INSTALLERS: dict[str, OfficeInstaller] = {
 
 
 def get_office_offline_installer(action_id: str) -> OfficeInstaller:
+    # Връща готова конфигурация за избрания Office installer.
     return OFFICE_OFFLINE_INSTALLERS[action_id]

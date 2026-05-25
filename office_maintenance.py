@@ -8,6 +8,7 @@ from office_online import find_winget_executable
 
 @dataclass
 class OfficeMaintenanceStatus:
+    # Описва дали даден maintenance инструмент е наличен.
     available: bool
     message: str
 
@@ -32,6 +33,7 @@ OFFICE_FORCE_UNINSTALL_IDS = (
 
 
 def find_ospp_vbs() -> Path | None:
+    # Търси OSPP.VBS за проверка на активацията.
     for search_root in OSPP_SEARCH_ROOTS:
         if not search_root.exists():
             continue
@@ -42,6 +44,7 @@ def find_ospp_vbs() -> Path | None:
 
 
 def find_click_to_run_executable() -> Path | None:
+    # Търси Office repair инструмента на стандартните места.
     for candidate in CLICK_TO_RUN_CANDIDATES:
         if candidate.exists():
             return candidate
@@ -49,6 +52,7 @@ def find_click_to_run_executable() -> Path | None:
 
 
 def check_maintenance_action(action_id: str) -> OfficeMaintenanceStatus:
+    # Проверява дали избраната maintenance функция може да се стартира.
     if action_id == "office_check_activation_status":
         ospp_vbs = find_ospp_vbs()
         if ospp_vbs:

@@ -10,6 +10,7 @@ from urllib.request import urlopen
 
 @dataclass
 class UpdateResult:
+    # Пази резултата от online проверката за нова версия.
     status: str
     latest_version: str = ""
     download_url: str = ""
@@ -20,6 +21,7 @@ class UpdateResult:
 
 
 def _normalize_version(version: str) -> tuple[int, ...]:
+    # Превръща версия като 0.2.4 в числа за сравнение.
     parts: list[int] = []
     for item in version.strip().split("."):
         try:
@@ -30,6 +32,7 @@ def _normalize_version(version: str) -> tuple[int, ...]:
 
 
 def _fetch_json(url: str, timeout: int = 6) -> dict[str, str]:
+    # Изтегля JSON файла с информация за последната версия.
     prepared_url = _prepare_url(url)
     prepared_url = _with_cache_buster(prepared_url)
     with urlopen(prepared_url, timeout=timeout) as response:
@@ -39,6 +42,7 @@ def _fetch_json(url: str, timeout: int = 6) -> dict[str, str]:
 
 
 def _prepare_url(url: str) -> str:
+    # Проверява дали update адресът е валиден пълен URL.
     stripped_url = url.strip()
     if not stripped_url:
         raise ValueError("Missing update URL.")
@@ -54,6 +58,7 @@ def _prepare_url(url: str) -> str:
 
 
 def _with_cache_buster(url: str) -> str:
+    # Добавя време към адреса, за да заобиколим GitHub кеша.
     parts = urlsplit(url)
     query = dict(parse_qsl(parts.query, keep_blank_values=True))
     query["_wga_ts"] = str(int(time.time()))
@@ -61,6 +66,7 @@ def _with_cache_buster(url: str) -> str:
 
 
 def check_for_updates(current_version: str, version_info_url: str) -> UpdateResult:
+    # Сравнява локалната версия с online version.json файла.
     if not version_info_url.strip():
         return UpdateResult(status="not_configured")
 

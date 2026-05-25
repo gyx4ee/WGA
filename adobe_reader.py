@@ -20,6 +20,7 @@ ADOBE_INSTALLER_PATTERNS = (
 
 @dataclass(frozen=True)
 class AdobeReaderStatus:
+    # Тук пазим събраната информация за Adobe Reader.
     installed_version: str
     latest_version: str
     winget_available: bool
@@ -41,6 +42,7 @@ class AdobeReaderStatus:
 
 
 def _run_command(command: list[str]) -> subprocess.CompletedProcess[str]:
+    # Пускаме системна команда тихо, без черен прозорец.
     return subprocess.run(
         command,
         capture_output=True,
@@ -51,6 +53,7 @@ def _run_command(command: list[str]) -> subprocess.CompletedProcess[str]:
 
 
 def _extract_winget_field(output: str, field: str) -> str:
+    # Взимаме конкретно поле от текста, който winget връща.
     pattern = rf"^{re.escape(field)}\s*:\s*(.+)$"
     for line in output.splitlines():
         match = re.search(pattern, line.strip(), flags=re.IGNORECASE)
@@ -60,6 +63,7 @@ def _extract_winget_field(output: str, field: str) -> str:
 
 
 def _latest_reader_version(winget_exe: str | None) -> tuple[str, str]:
+    # Проверяваме коя е последната версия според winget.
     if not winget_exe:
         return "", "Winget не е открит. Онлайн проверката за актуална версия не е налична."
     result = _run_command([winget_exe, "show", "--id", ADOBE_READER_WINGET_ID, "--source", "winget"])
@@ -71,6 +75,7 @@ def _latest_reader_version(winget_exe: str | None) -> tuple[str, str]:
 
 
 def _installed_reader_version(winget_exe: str | None) -> str:
+    # Проверяваме дали Adobe Reader вече е инсталиран на този компютър.
     if not winget_exe:
         return ""
     result = _run_command([winget_exe, "list", "--id", ADOBE_READER_WINGET_ID, "--source", "winget"])
@@ -86,6 +91,7 @@ def _installed_reader_version(winget_exe: str | None) -> str:
 
 
 def _file_version(path: Path) -> str:
+    # Четем версията директно от локалния installer файл.
     safe_path = str(path).replace("'", "''")
     command = [
         "powershell",
@@ -102,6 +108,7 @@ def _file_version(path: Path) -> str:
 
 
 def find_local_adobe_installer(program_root: Path) -> Path | None:
+    # Търсим локален Adobe installer в Installers папката и под-папките й.
     installers_root = resolve_installers_root(program_root)
     if not installers_root.exists():
         return None
@@ -130,6 +137,7 @@ def find_local_adobe_installer(program_root: Path) -> Path | None:
 
 
 def check_adobe_reader_status(program_root: Path) -> AdobeReaderStatus:
+    # Събираме на едно място online и local статуса за Adobe Reader.
     winget_exe = find_winget_executable()
     latest_version, latest_message = _latest_reader_version(winget_exe)
     installed_version = _installed_reader_version(winget_exe)

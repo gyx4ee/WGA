@@ -12,6 +12,7 @@ TRADITIONAL_TIP = "0402:00040402"
 
 @dataclass
 class LanguageStatus:
+    # Пази текущото състояние на българския език и клавиатурите.
     has_bulgarian: bool
     has_language_pack: bool
     has_bds: bool
@@ -22,6 +23,7 @@ class LanguageStatus:
 
 
 def _run_powershell(script: str) -> subprocess.CompletedProcess[str]:
+    # Пуска PowerShell команда тихо и връща резултата.
     return subprocess.run(
         ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script],
         capture_output=True,
@@ -32,6 +34,7 @@ def _run_powershell(script: str) -> subprocess.CompletedProcess[str]:
 
 
 def get_language_status() -> LanguageStatus:
+    # Проверява дали има bg-BG език, езиков пакет и подредби.
     script = r"""
 $list = Get-WinUserLanguageList
 $bg = $list | Where-Object { $_.LanguageTag -eq 'bg-BG' } | Select-Object -First 1
@@ -88,6 +91,7 @@ if ($bg) { $tips = @($bg.InputMethodTips) }
 
 
 def build_language_action(action_id: str, status: LanguageStatus) -> tuple[str, str]:
+    # Връща име на действие и готов PowerShell код за него.
     if action_id == "language_refresh":
         return ("Refresh Language Status", "No command is required.")
 
