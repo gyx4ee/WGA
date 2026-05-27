@@ -1,3 +1,4 @@
+# Основният файл събира прозорците, менюто, dashboard екрана и връзките към помощните модули.
 from __future__ import annotations
 
 import base64
@@ -94,7 +95,9 @@ RESOURCE_ROOT = Path(getattr(sys, "_MEIPASS", PROJECT_ROOT)).resolve()
 SETTINGS_FILE = PROJECT_ROOT / "settings.json"
 SECURE_STORE_FILE = PROJECT_ROOT / ".wga_secure_store.json"
 DASHBOARD_ICON_SHEET_RELATIVE = "assets/dashboard-icon-sheet.png"
+DASHBOARD_ICONS_MANIFEST_RELATIVE = "assets/dashboard-icons/dashboard-icons.json"
 APP_LOGO_RELATIVE = "assets/wga-icon.png"
+MENU_ICONS_MANIFEST_RELATIVE = "assets/menu-icons/menu-icons.json"
 
 APP_BG = "#071311"
 APP_PANEL = "#0d1c1a"
@@ -115,13 +118,14 @@ SIDEBAR_SECTIONS: tuple[tuple[str, str], ...] = (
     ("main", "Обзор"),
     ("activation", "Активация"),
     ("install_software", "Софтуер"),
+    ("language", "Езици"),
     ("auto_installer", "Авто инсталатор"),
     ("driver_backup", "Архивиране"),
-    ("language", "Езици"),
     ("nexus_admin", "Nexus Admin"),
 )
 
 
+# Връща път към файл спрямо runtime папката на приложението.
 def runtime_file(relative_path: str) -> Path:
     # Търси файла на правилното място според това дали работим от build или от проект.
     portable_path = PROJECT_ROOT / relative_path
@@ -139,11 +143,13 @@ def runtime_file(relative_path: str) -> Path:
     return bundled_path
 
 
+# Ограничава числова стойност в зададени граници.
 def clamp(value: float, minimum: float, maximum: float) -> float:
     # Ograni4ava stoinost v bezopasen diapazon.
     return max(minimum, min(maximum, value))
 
 
+# Настройва DPI поведението на приложението под Windows.
 def configure_windows_dpi_awareness() -> None:
     # Kazva na Windows, che prilojenieto trqbva da se ma6abira pravilno na razlichni monitori.
     try:
@@ -157,6 +163,7 @@ def configure_windows_dpi_awareness() -> None:
         pass
 
 
+# Синхронизира мащабирането на tkinter с текущия DPI.
 def apply_tk_dpi_scaling(window: tk.Misc) -> float:
     # Nastroyva Tkinter spored realniq DPI, za da ne izliza droben ili zamazan tekst.
     try:
@@ -180,6 +187,7 @@ def apply_tk_dpi_scaling(window: tk.Misc) -> float:
     return dpi
 
 
+# Изчислява размер на прозорец според екрана.
 def responsive_window_size(screen_width: int, screen_height: int, base_width: int, base_height: int) -> tuple[int, int]:
     # Smalqva ili uvelichava prozoreca според monitora, za da se vizhda qsno bez da izliza ot ekrana.
     width_scale = (screen_width - 80) / max(1, base_width)
@@ -188,6 +196,7 @@ def responsive_window_size(screen_width: int, screen_height: int, base_width: in
     return max(780, int(base_width * scale)), max(520, int(base_height * scale))
 
 
+# Помощна функция за center geometry.
 def center_geometry(window: tk.Misc, width: int, height: int) -> None:
     # Centrira prozoreca na ekrana.
     window.update_idletasks()
@@ -198,6 +207,7 @@ def center_geometry(window: tk.Misc, width: int, height: int) -> None:
     window.geometry(f"{width}x{height}+{position_x}+{position_y}")
 
 
+# Помощна функция за apply main window layout.
 def apply_main_window_layout(window: tk.Tk) -> None:
     # Podbira podhodyasht razmer za glavniq ekran spored rezolyuciqta na monitora.
     screen_width = window.winfo_screenwidth()
@@ -230,7 +240,8 @@ NAV_BUTTON_WIDTH = 11
 CARD_MIN_HEIGHT = 185
 MENU_CARD_MIN_HEIGHT = {
     "office_center": 215,
-    "nexus_admin": 265,
+    "nexus_admin": 215,
+    "language": 185,
     "office_install_center": 215,
     "secret_install": 215,
     "driver_backup": 215,
@@ -908,6 +919,7 @@ UI_TRANSLATIONS = {
 }
 
 
+# Помощна функция за localize menu tree.
 def _localize_menu_tree(data: object) -> object:
     if isinstance(data, dict):
         localized: dict[str, object] = {}
@@ -936,6 +948,7 @@ FILE_ATTRIBUTE_HIDDEN = 0x02
 FILE_ATTRIBUTE_NORMAL = 0x80
 
 
+# Зарежда settings от файл или конфигурация.
 def load_settings() -> dict[str, str]:
     # Зарежда обикновените настройки на приложението.
     if not SETTINGS_FILE.exists():
@@ -947,11 +960,13 @@ def load_settings() -> dict[str, str]:
     return data if isinstance(data, dict) else {}
 
 
+# Записва settings за следващо използване.
 def save_settings(settings: dict[str, str]) -> None:
     # Записва настройките в settings.json.
     SETTINGS_FILE.write_text(json.dumps(settings, indent=2), encoding="utf-8")
 
 
+# Зарежда version info от файл или конфигурация.
 def load_version_info() -> dict[str, object]:
     # Зарежда локалната версия и адресите за online update.
     defaults = {
@@ -981,6 +996,7 @@ def load_version_info() -> dict[str, object]:
     return merged
 
 
+# Помощна функция за format bytes per second.
 def format_bytes_per_second(value: float) -> str:
     # Форматира скоростта в удобен за четене вид.
     units = ("B/s", "KB/s", "MB/s", "GB/s")
@@ -992,6 +1008,7 @@ def format_bytes_per_second(value: float) -> str:
     return f"{current:.1f} GB/s"
 
 
+# Помощна функция за format file size.
 def format_file_size(value: int) -> str:
     # Форматира размер на файл в B, KB, MB или GB.
     units = ("B", "KB", "MB", "GB")
@@ -1003,6 +1020,7 @@ def format_file_size(value: int) -> str:
     return f"{current:.1f} GB"
 
 
+# Помощна функция за format duration.
 def format_duration(seconds: int) -> str:
     # Форматира секунди като оставащо време.
     seconds = max(0, int(seconds))
@@ -1015,12 +1033,14 @@ def format_duration(seconds: int) -> str:
     return f"{secs} сек"
 
 
+# Помощна функция за portable secret key.
 def _portable_secret_key() -> bytes:
     # Прави локален ключ за леко скриване на чувствителните данни.
     secret_seed = f"{APP_TITLE}|WGA-Portable-Store|{PROJECT_ROOT.name}"
     return hashlib.sha256(secret_seed.encode("utf-8")).digest()
 
 
+# Помощна функция за encrypt for current user.
 def encrypt_for_current_user(text: str) -> str:
     # Кодира текста преди да се запише в защитения файл.
     source = text.encode("utf-8")
@@ -1029,6 +1049,7 @@ def encrypt_for_current_user(text: str) -> str:
     return base64.b64encode(encrypted).decode("ascii")
 
 
+# Помощна функция за decrypt for current user.
 def decrypt_for_current_user(encoded_text: str) -> str:
     # Декодира текста, записан в защитения файл.
     encrypted = base64.b64decode(encoded_text.encode("ascii"))
@@ -1037,22 +1058,26 @@ def decrypt_for_current_user(encoded_text: str) -> str:
     return decrypted.decode("utf-8")
 
 
+# Помощна функция за hash secret.
 def hash_secret(value: str) -> str:
     # Прави hash на парола или ключ, без да пазим оригинала.
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
+# Помощна функция за ensure hidden file.
 def ensure_hidden_file(path: Path) -> None:
     # Скрива файла в Windows Explorer.
     ctypes.windll.kernel32.SetFileAttributesW(str(path), FILE_ATTRIBUTE_HIDDEN)
 
 
+# Помощна функция за ensure normal file.
 def ensure_normal_file(path: Path) -> None:
     # Връща файла в нормален вид, за да може да се редактира или замени.
     if path.exists():
         ctypes.windll.kernel32.SetFileAttributesW(str(path), FILE_ATTRIBUTE_NORMAL)
 
 
+# Връща drive label в удобен за останалия код вид.
 def get_drive_label(path: Path) -> str:
     # Връща името на устройството, например името на флашката.
     drive_root = path.anchor or str(path.drive)
@@ -1076,6 +1101,7 @@ def get_drive_label(path: Path) -> str:
     return volume_name.value or "Unnamed Drive"
 
 
+# Връща launch location info в удобен за останалия код вид.
 def get_launch_location_info() -> dict[str, str]:
     # Събира информация откъде е стартирано приложението.
     storage_info = get_runtime_storage_info(PROJECT_ROOT)
@@ -1090,6 +1116,7 @@ def get_launch_location_info() -> dict[str, str]:
     }
 
 
+# Зарежда secure store от файл или конфигурация.
 def load_secure_store() -> dict[str, str]:
     # Зарежда скрития файл с ключове и служебни пароли.
     if not SECURE_STORE_FILE.exists():
@@ -1121,6 +1148,7 @@ def load_secure_store() -> dict[str, str]:
     return data if isinstance(data, dict) else {"admin_menu_password_hash": hash_secret(DEFAULT_WINDOWS11_MENU_PASSWORD)}
 
 
+# Записва secure store за следващо използване.
 def save_secure_store(store: dict[str, str]) -> None:
     # Записва защитените данни обратно в скрития файл.
     serialized = json.dumps(store, indent=2)
@@ -1131,6 +1159,7 @@ def save_secure_store(store: dict[str, str]) -> None:
     ensure_hidden_file(SECURE_STORE_FILE)
 
 
+# Помощна функция за is running as admin.
 def is_running_as_admin() -> bool:
     # Проверява дали приложението има администраторски права.
     try:
@@ -1139,6 +1168,7 @@ def is_running_as_admin() -> bool:
         return False
 
 
+# Помощна функция за apply app icon.
 def apply_app_icon(root: tk.Tk | tk.Toplevel) -> None:
     # Слага иконата на прозорците на приложението.
     if not APP_ICON_FILE.exists():
@@ -1149,6 +1179,7 @@ def apply_app_icon(root: tk.Tk | tk.Toplevel) -> None:
         pass
 
 
+# Помощна функция за relaunch as admin.
 def relaunch_as_admin() -> bool:
     # Стартира приложението отново с admin права и запазва подадените параметри.
     current_args = sys.argv[1:]
@@ -1170,6 +1201,7 @@ def relaunch_as_admin() -> bool:
     return result > 32
 
 
+# Връща startup menu from args в удобен за останалия код вид.
 def get_startup_menu_from_args() -> str | None:
     # Чете подаденото меню от shortcut аргумент като: --menu windows11_activation
     args = sys.argv[1:]
@@ -1181,6 +1213,7 @@ def get_startup_menu_from_args() -> str | None:
     return None
 
 
+# Помощна функция за enable windows desktop icons.
 def enable_windows_desktop_icons(progress_callback=None) -> list[str]:
     # Показва системните икони на работния плот през Windows registry.
     enabled_labels: list[str] = []
@@ -1213,6 +1246,7 @@ def enable_windows_desktop_icons(progress_callback=None) -> list[str]:
     return enabled_labels
 
 
+# Помощна функция за refresh windows desktop.
 def refresh_windows_desktop() -> None:
     # Опреснява работния плот след промяна на системните икони.
     try:
@@ -1231,6 +1265,7 @@ def refresh_windows_desktop() -> None:
             continue
 
 
+# Помощна функция за switch keyboard layout to english.
 def switch_keyboard_layout_to_english() -> int | None:
     # Превключва клавиатурата към английска подредба за по-сигурно въвеждане на ключове.
     user32 = ctypes.windll.user32
@@ -1241,12 +1276,14 @@ def switch_keyboard_layout_to_english() -> int | None:
     return current_layout if current_layout else None
 
 
+# Възстановява keyboard layout от подготвен backup.
 def restore_keyboard_layout(layout_handle: int | None) -> None:
     # Връща старата клавиатурна подредба след като приключим с въвеждането.
     if layout_handle:
         ctypes.windll.user32.ActivateKeyboardLayout(layout_handle, 0)
 
 
+# Помощна функция за normalize product key input.
 def normalize_product_key_input(raw_value: str) -> str:
     # Нормализира продуктов ключ и поправя често срещано въвеждане на кирилица.
     bg_to_latin = str.maketrans(
@@ -1287,6 +1324,7 @@ def normalize_product_key_input(raw_value: str) -> str:
     return normalized
 
 
+# Помощна функция за ask product key.
 def ask_product_key(parent: tk.Misc, title: str, prompt: str, initialvalue: str = "") -> str | None:
     # Показва поле за ключ, като първо превключва към английска клавиатура.
     previous_layout = switch_keyboard_layout_to_english()
@@ -1303,6 +1341,7 @@ def ask_product_key(parent: tk.Misc, title: str, prompt: str, initialvalue: str 
 
 # Началният loading екран на приложението.
 class SplashScreen:
+    # Помощна функция за init  .
     def __init__(self, root: tk.Tk) -> None:
         # Подготвя splash екрана и стартира анимацията.
         self.root = root
@@ -1353,10 +1392,12 @@ class SplashScreen:
         self._create_loader()
         self._start_boot_sequence()
 
+    # Помощна функция за draw background.
     def _draw_background(self) -> None:
         # Този preloader е без тежък фон - оставяме само текст и бар.
         return
 
+    # Създава loader и връща резултата към приложението.
     def _create_loader(self) -> None:
         # Създава минималистичен preloader с име и текст какво се зарежда.
         center_x = self.splash_width / 2
@@ -1409,6 +1450,7 @@ class SplashScreen:
             font=("Segoe UI Semibold", max(11, int(14 * scale))),
         )
 
+    # Помощна функция за draw rounded rect.
     def _draw_rounded_rect(
         self,
         x1: float,
@@ -1425,12 +1467,14 @@ class SplashScreen:
             **kwargs,
         )
 
+    # Помощна функция за canvas alive.
     def _canvas_alive(self) -> bool:
         try:
             return bool(self.canvas.winfo_exists())
         except tk.TclError:
             return False
 
+    # Помощна функция за rounded rect points.
     def _rounded_rect_points(self, x1: float, y1: float, x2: float, y2: float, radius: float) -> list[float]:
         safe_radius = min(radius, max(1.0, (x2 - x1) / 2), max(1.0, (y2 - y1) / 2))
         return [
@@ -1460,11 +1504,13 @@ class SplashScreen:
             y1,
         ]
 
+    # Помощна функция за start boot sequence.
     def _start_boot_sequence(self) -> None:
         threading.Thread(target=self._run_startup_tasks, daemon=True).start()
         self._poll_queue()
         self._animate_progress()
 
+    # Стартира startup tasks и връща резултата.
     def _run_startup_tasks(self) -> None:
         tasks = [
             ("Зареждане на основната конфигурация...", 0.12, self._load_configuration),
@@ -1481,6 +1527,7 @@ class SplashScreen:
             self.message_queue.put(("progress", progress))
         self.message_queue.put(("done", "Ready"))
 
+    # Зарежда configuration от файл или конфигурация.
     def _load_configuration(self) -> None:
         # Зарежда базовите файлове, които после веднага трябват на UI-то.
         load_secure_store()
@@ -1489,6 +1536,7 @@ class SplashScreen:
         if config_file.exists():
             config_file.read_text(encoding="utf-8")
 
+    # Помощна функция за preload language status.
     def _preload_language_status(self) -> None:
         # Взима езиковия статус предварително, за да не чака UI-то след старта.
         try:
@@ -1496,6 +1544,7 @@ class SplashScreen:
         except Exception as exc:
             self.preloaded_state["language_status_error"] = str(exc)
 
+    # Помощна функция за preload system health.
     def _preload_system_health(self) -> None:
         # Взима живите системни данни предварително за dashboard-а.
         try:
@@ -1503,6 +1552,7 @@ class SplashScreen:
         except Exception as exc:
             self.preloaded_state["health_error"] = str(exc)
 
+    # Помощна функция за preload update status.
     def _preload_update_status(self) -> None:
         # Прави онлайн проверката предварително, за да няма второ мислене след старта.
         try:
@@ -1514,6 +1564,7 @@ class SplashScreen:
         except Exception as exc:
             self.preloaded_state["update_error"] = str(exc)
 
+    # Подготвя dashboard probe според избраните настройки.
     def _build_dashboard_probe(self) -> "MainMenuUI":
         # Прави лек помощен обект, който ползва същите проверки без да строи целия UI.
         probe = MainMenuUI.__new__(MainMenuUI)
@@ -1535,6 +1586,7 @@ class SplashScreen:
         probe.latest_health_items = list(self.preloaded_state.get("health_items", [])) if isinstance(self.preloaded_state.get("health_items"), list) else []
         return probe
 
+    # Помощна функция за preload component status.
     def _preload_component_status(self) -> None:
         # Подготвя десния панел със статусите на компонентите още преди UI-то.
         try:
@@ -1543,6 +1595,7 @@ class SplashScreen:
         except Exception as exc:
             self.preloaded_state["component_status_error"] = str(exc)
 
+    # Помощна функция за preload auto installer status.
     def _preload_auto_installer_status(self) -> None:
         # Подготвя задачите и статуса им за dashboard инсталатора още в preloader-а.
         try:
@@ -1556,9 +1609,11 @@ class SplashScreen:
         except Exception as exc:
             self.preloaded_state["program_selector_error"] = str(exc)
 
+    # Помощна функция за finalize startup.
     def _finalize_startup(self) -> None:
         time.sleep(0.05)
 
+    # Помощна функция за poll queue.
     def _poll_queue(self) -> None:
         if not self.splash_active or not self._canvas_alive():
             return
@@ -1586,6 +1641,7 @@ class SplashScreen:
         if self.splash_active and self._canvas_alive():
             self.poll_job = self.root.after(40, self._poll_queue)
 
+    # Помощна функция за animate progress.
     def _animate_progress(self) -> None:
         if not self.splash_active or not self._canvas_alive():
             return
@@ -1596,6 +1652,7 @@ class SplashScreen:
         if self.splash_active and self._canvas_alive():
             self.animation_job = self.root.after(16, self._animate_progress)
 
+    # Обновява bar след промяна в състоянието.
     def _update_bar(self) -> None:
         if not self._canvas_alive():
             return
@@ -1613,6 +1670,7 @@ class SplashScreen:
         except tk.TclError:
             self.splash_active = False
 
+    # Показва dashboard в интерфейса.
     def _show_dashboard(self) -> None:
         if not self.splash_active or not self._canvas_alive():
             return
@@ -1655,6 +1713,7 @@ class SplashScreen:
 
 # Основният интерфейс след зареждане на splash екрана.
 class MainMenuUI:
+    # Помощна функция за init  .
     def __init__(self, root: tk.Tk, startup_menu: str | None = None, preloaded_state: dict[str, object] | None = None) -> None:
         # Тук пазим почти всички състояния, кешове и UI променливи.
         self.root = root
@@ -1667,6 +1726,7 @@ class MainMenuUI:
         self.resource_status: ResourceStatus = check_resource_status(PROJECT_ROOT)
         self.version_info = load_version_info()
         self.dashboard_icons = self._load_dashboard_icon_sheet()
+        self.menu_icons = self._load_menu_icons()
         self.dashboard_logo_large, self.dashboard_logo_small = self._load_dashboard_logo()
         self.activation_window: tk.Toplevel | None = None
         self.activation_status_var: tk.StringVar | None = None
@@ -1844,28 +1904,28 @@ class MainMenuUI:
         self.left_panel.pack(side="left", fill="y")
         self.left_panel.pack_propagate(False)
         self.sidebar_brand = tk.Frame(self.left_panel, bg=APP_PANEL)
-        self.sidebar_brand.pack(fill="x", padx=14, pady=(16, 8))
+        self.sidebar_brand.pack(fill="x", padx=14, pady=(10, 4))
         if self.dashboard_logo_large is not None:
             self.sidebar_brand_logo = tk.Label(self.sidebar_brand, image=self.dashboard_logo_large, bg=APP_PANEL)
         else:
             self.sidebar_brand_logo = tk.Label(self.sidebar_brand, text="🛡", font=("Segoe UI Symbol", 28), fg=APP_ACCENT, bg=APP_PANEL)
-        self.sidebar_brand_logo.pack(anchor="center", pady=(0, 6))
+        self.sidebar_brand_logo.pack(anchor="center", pady=(0, 3))
         brand_text = tk.Frame(self.sidebar_brand, bg=APP_PANEL)
         brand_text.pack(fill="x", expand=True)
         tk.Label(
             brand_text,
             text="WinSys Guardian",
-            font=("Segoe UI Semibold", 20),
+            font=("Segoe UI Semibold", 18),
             fg="#f4fff8",
             bg=APP_PANEL,
-        ).pack(anchor="center", pady=(2, 0))
+        ).pack(anchor="center", pady=(0, 0))
         tk.Label(
             brand_text,
             text="A D V A N C E D",
-            font=("Segoe UI Semibold", 11),
+            font=("Segoe UI Semibold", 9),
             fg=APP_ACCENT,
             bg=APP_PANEL,
-        ).pack(anchor="center", pady=(2, 0))
+        ).pack(anchor="center", pady=(0, 0))
         self.sidebar_toggle_label = tk.Label(
             self.left_panel,
             text="☰",
@@ -1873,7 +1933,7 @@ class MainMenuUI:
             fg=APP_TEXT_SOFT,
             bg=APP_PANEL,
         )
-        self.sidebar_toggle_label.pack(anchor="e", padx=22, pady=(0, 10))
+        self.sidebar_toggle_label.pack(anchor="e", padx=22, pady=(0, 4))
 
         self.menu_title = tk.Label(
             self.left_panel,
@@ -1894,7 +1954,7 @@ class MainMenuUI:
         )
 
         self.sidebar_nav_frame = tk.Frame(self.left_panel, bg=APP_PANEL)
-        self.sidebar_nav_frame.pack(fill="x", padx=12, pady=(4, 12))
+        self.sidebar_nav_frame.pack(fill="x", padx=12, pady=(2, 8))
         self.sidebar_nav_buttons: dict[str, dict[str, tk.Widget]] = {}
         self.sidebar_section_label = tk.Label(
             self.sidebar_nav_frame,
@@ -1903,7 +1963,7 @@ class MainMenuUI:
             fg=APP_TEXT_MUTED,
             bg=APP_PANEL,
         )
-        self.sidebar_section_label.pack(anchor="w", padx=8, pady=(0, 6))
+        self.sidebar_section_label.pack(anchor="w", padx=8, pady=(0, 4))
         sidebar_text_map = {
             "main": "Dashboard\nОбзор",
             "activation": "Активация\nWindows и Office",
@@ -1924,6 +1984,7 @@ class MainMenuUI:
         }
         for menu_key, label in SIDEBAR_SECTIONS:
             title, subtitle = (sidebar_text_map.get(menu_key, label).split("\n", 1) + [""])[:2]
+            sidebar_image = self.menu_icons.get(f"{menu_key}_small") or self.dashboard_icons.get(sidebar_icon_map.get(menu_key, ""))
             card = tk.Frame(
                 self.sidebar_nav_frame,
                 bg=APP_PANEL_ALT,
@@ -1932,24 +1993,24 @@ class MainMenuUI:
                 highlightbackground=APP_BORDER,
                 cursor="hand2",
             )
-            card.pack(fill="x", pady=3)
-            stripe = tk.Frame(card, bg=APP_PANEL_ALT, width=5, cursor="hand2")
+            card.pack(fill="x", pady=2)
+            stripe = tk.Frame(card, bg=APP_PANEL_ALT, width=4, cursor="hand2")
             stripe.pack(side="left", fill="y")
             body = tk.Frame(card, bg=APP_PANEL_ALT, cursor="hand2")
-            body.pack(side="left", fill="both", expand=True, padx=10, pady=8)
+            body.pack(side="left", fill="both", expand=True, padx=8, pady=5)
             icon_label = tk.Label(
                 body,
-                image=self.dashboard_icons.get(sidebar_icon_map.get(menu_key, "")),
+                image=sidebar_image,
                 bg=APP_PANEL_ALT,
                 cursor="hand2",
             )
-            icon_label.pack(side="left", padx=(0, 10))
+            icon_label.pack(side="left", padx=(0, 8))
             text_box = tk.Frame(body, bg=APP_PANEL_ALT, cursor="hand2")
             text_box.pack(side="left", fill="both", expand=True)
             title_label = tk.Label(
                 text_box,
                 text=title,
-                font=("Segoe UI Semibold", 10),
+                font=("Segoe UI Semibold", 9),
                 fg=APP_TEXT,
                 bg=APP_PANEL_ALT,
                 anchor="w",
@@ -1959,7 +2020,7 @@ class MainMenuUI:
             subtitle_label = tk.Label(
                 text_box,
                 text=subtitle,
-                font=("Segoe UI", 8),
+                font=("Segoe UI", 7),
                 fg=APP_TEXT_SOFT,
                 bg=APP_PANEL_ALT,
                 justify="left",
@@ -1967,11 +2028,11 @@ class MainMenuUI:
                 wraplength=180,
                 cursor="hand2",
             )
-            subtitle_label.pack(anchor="w", pady=(1, 0))
+            subtitle_label.pack(anchor="w", pady=(0, 0))
             arrow_label = tk.Label(
                 body,
                 text="›",
-                font=("Segoe UI Semibold", 16),
+                font=("Segoe UI Semibold", 13),
                 fg=APP_TEXT_MUTED,
                 bg=APP_PANEL_ALT,
                 cursor="hand2",
@@ -2457,6 +2518,7 @@ class MainMenuUI:
         self.render_menu(self.startup_menu, reset_history=True)
         self.root.bind("<Configure>", self._on_root_resize, add="+")
 
+    # Подготвя system summary според избраните настройки.
     def _build_system_summary(self) -> str:
         return (
             f"OS: {platform.system()} {platform.release()}\n"
@@ -2471,6 +2533,7 @@ class MainMenuUI:
             "Mode: Portable Admin UI"
         )
 
+    # Помощна функция за apply startup preload.
     def _apply_startup_preload(self, preloaded_state: dict[str, object]) -> None:
         # Вкарва вече заредените данни в UI-то, за да не чакаме повторно след preloader-а.
         language_status = preloaded_state.get("language_status")
@@ -2516,6 +2579,7 @@ class MainMenuUI:
                 if isinstance(row, tuple) and len(row) == 3
             ]
 
+    # Подготвя header device text според избраните настройки.
     def _build_header_device_text(self) -> str:
         # Кратък статус в header-а откъде е стартирано приложението.
         return (
@@ -2524,8 +2588,13 @@ class MainMenuUI:
             f"{self.launch_info['device_name']}"
         )
 
+    # Зарежда dashboard icon sheet от файл или конфигурация.
     def _load_dashboard_icon_sheet(self) -> dict[str, tk.PhotoImage]:
         # Реже иконите от общия sprite sheet, за да ги ползваме по целия dashboard.
+        png_icons = self._load_dashboard_png_icons()
+        if png_icons:
+            return png_icons
+
         sheet_path = runtime_file(DASHBOARD_ICON_SHEET_RELATIVE)
         if not sheet_path.exists():
             return {}
@@ -2571,6 +2640,99 @@ class MainMenuUI:
             icons[f"{name}_small"] = cropped.subsample(9, 9)
         return icons
 
+    # Зарежда dashboard logo от файл или конфигурация.
+    def _load_dashboard_png_icons(self) -> dict[str, tk.PhotoImage]:
+        manifest_path = runtime_file(DASHBOARD_ICONS_MANIFEST_RELATIVE)
+        if not manifest_path.exists():
+            return {}
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8-sig"))
+        except (OSError, json.JSONDecodeError):
+            return {}
+
+        icons: dict[str, tk.PhotoImage] = {}
+        for icon_key, spec in manifest.items():
+            if not isinstance(spec, dict):
+                continue
+            icon_file = spec.get("file")
+            if not isinstance(icon_file, str):
+                continue
+            icon_path = runtime_file(icon_file)
+            if not icon_path.exists():
+                continue
+            try:
+                image = tk.PhotoImage(file=str(icon_path))
+            except tk.TclError:
+                continue
+            base_size = max(1, min(image.width(), image.height()))
+            divisor_large = max(1, base_size // 64)
+            divisor_small = max(1, base_size // 34)
+            icons[str(icon_key)] = image.subsample(divisor_large, divisor_large)
+            icons[f"{icon_key}_small"] = image.subsample(divisor_small, divisor_small)
+        return icons
+
+    def _load_menu_icons(self) -> dict[str, tk.PhotoImage]:
+        manifest_path = runtime_file(MENU_ICONS_MANIFEST_RELATIVE)
+        if not manifest_path.exists():
+            return {}
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return {}
+
+        icons: dict[str, tk.PhotoImage] = {}
+        for menu_key, spec in manifest.items():
+            if not isinstance(spec, dict):
+                continue
+            icon_file = spec.get("file")
+            if not isinstance(icon_file, str):
+                continue
+            icon_path = runtime_file(icon_file)
+            if not icon_path.exists():
+                continue
+            try:
+                image = tk.PhotoImage(file=str(icon_path))
+            except tk.TclError:
+                continue
+            base_size = max(1, min(image.width(), image.height()))
+            divisor_large = max(1, base_size // 64)
+            divisor_card = max(1, base_size // 46)
+            divisor_small = max(1, base_size // 30)
+            icons[f"{menu_key}_large"] = image.subsample(divisor_large, divisor_large)
+            icons[f"{menu_key}_card"] = image.subsample(divisor_card, divisor_card)
+            icons[f"{menu_key}_small"] = image.subsample(divisor_small, divisor_small)
+            icons[menu_key] = icons[f"{menu_key}_card"]
+        return icons
+
+    def _menu_icon_for_item(self, item: dict[str, str], size: str = "card") -> tk.PhotoImage | None:
+        if item.get("kind") == "menu":
+            menu_key = item.get("target", "")
+            return self.menu_icons.get(f"{menu_key}_{size}") or self.menu_icons.get(menu_key)
+        action_id = item.get("action_id", "")
+        if action_id:
+            action_key = f"action_{action_id}"
+            action_icon = self.menu_icons.get(f"{action_key}_{size}") or self.menu_icons.get(action_key)
+            if action_icon is not None:
+                return action_icon
+        label_key = f"card_{self.current_menu}_{self._menu_icon_key(item.get('label', ''))}"
+        label_icon = self.menu_icons.get(f"{label_key}_{size}") or self.menu_icons.get(label_key)
+        if label_icon is not None:
+            return label_icon
+        action_icon_map = {
+            "add_desktop_icons": "main",
+            "open_console": "nexus_admin",
+            "driver_pc_report": "driver_backup",
+        }
+        mapped_key = action_icon_map.get(action_id)
+        if mapped_key:
+            return self.menu_icons.get(f"{mapped_key}_{size}") or self.menu_icons.get(mapped_key)
+        return None
+
+    def _menu_icon_key(self, value: str) -> str:
+        normalized = value.lower().replace("&", "and")
+        normalized = re.sub(r"[^a-z0-9]+", "_", normalized).strip("_")
+        return normalized or "card"
+
     def _load_dashboard_logo(self) -> tuple[tk.PhotoImage | None, tk.PhotoImage | None]:
         # Зарежда голямо и малко лого за dashboard панелите.
         logo_path = runtime_file(APP_LOGO_RELATIVE)
@@ -2582,6 +2744,7 @@ class MainMenuUI:
             return None, None
         return image.subsample(7, 7), image.subsample(11, 11)
 
+    # Подготвя overview card според избраните настройки.
     def _build_overview_card(
         self,
         parent: tk.Widget,
@@ -2637,6 +2800,7 @@ class MainMenuUI:
             wraplength=240,
         ).pack(anchor="w")
 
+    # Помощна функция за sidebar section for menu.
     def _sidebar_section_for_menu(self, menu_key: str) -> str:
         # Свързва подменютата с основната секция в левия sidebar.
         activation_group = {"activation", "windows10_activation", "windows11_activation", "office_activation"}
@@ -2657,6 +2821,7 @@ class MainMenuUI:
             return "auto_installer"
         return "main"
 
+    # Помощна функция за refresh sidebar navigation.
     def _refresh_sidebar_navigation(self) -> None:
         # Оцветява активната секция в sidebar-а.
         active_key = self._sidebar_section_for_menu(self.current_menu)
@@ -2676,6 +2841,7 @@ class MainMenuUI:
             parts["subtitle"].configure(bg=card_bg, fg=subtitle_fg)
             parts["arrow"].configure(bg=card_bg, fg=arrow_fg)
 
+    # Отваря sidebar menu или съответния прозорец.
     def _open_sidebar_menu(self, menu_key: str) -> None:
         # Бърза навигация от лявото меню.
         if menu_key == "main":
@@ -2684,6 +2850,7 @@ class MainMenuUI:
         self.history = ["main"]
         self.render_menu(menu_key)
 
+    # Помощна функция за refresh overview cards.
     def _refresh_overview_cards(self) -> None:
         # Обновява кратките статуси в горния dashboard ред.
         self.overview_version_value.set(f"v{self.version_info['version']}")
@@ -2699,6 +2866,7 @@ class MainMenuUI:
         )
         self.overview_menu_value.set(MENU_TREE[self.current_menu]["title"])
 
+    # Обновява sidebar clock след промяна в състоянието.
     def _update_sidebar_clock(self) -> None:
         # Поддържа часовника вляво като на mockup-а.
         weekday_names = [
@@ -2731,9 +2899,11 @@ class MainMenuUI:
         )
         self.root.after(1000, self._update_sidebar_clock)
 
+    # Помощна функция за is activation menu.
     def _is_activation_menu(self, menu_key: str) -> bool:
         return menu_key in {"activation", "windows10_activation", "windows11_activation", "office_activation"}
 
+    # Помощна функция за toggle dashboard chrome.
     def _toggle_dashboard_chrome(
         self,
         dashboard_mode: bool,
@@ -2789,6 +2959,7 @@ class MainMenuUI:
         if not self.nav_frame.winfo_manager():
             self.nav_frame.pack(fill="x", side="bottom", pady=(10, 0))
 
+    # Помощна функция за rounded rect points.
     def _rounded_rect_points(self, x1: int, y1: int, x2: int, y2: int, radius: int) -> list[int]:
         # Смята точките за заоблен правоъгълник върху Canvas.
         r = max(4, min(radius, (x2 - x1) // 2, (y2 - y1) // 2))
@@ -2807,6 +2978,7 @@ class MainMenuUI:
             x1, y1,
         ]
 
+    # Подготвя soft panel според избраните настройки.
     def _build_soft_panel(
         self,
         parent: tk.Widget,
@@ -2831,6 +3003,7 @@ class MainMenuUI:
         canvas.place(relx=0, rely=0, relwidth=1, relheight=1)
         inner.lift()
 
+        # Помощна функция за redraw.
         def redraw(_event: tk.Event | None = None) -> None:
             width = max(outer.winfo_width() - 2, 40)
             height = max(outer.winfo_height() - 2, 40)
@@ -2851,6 +3024,7 @@ class MainMenuUI:
         outer.redraw_panel = redraw  # type: ignore[attr-defined]
         return outer
 
+    # Помощна функция за resource status color.
     def _resource_status_color(self) -> str:
         if not self.resource_status.configured:
             return "#f9e6a8"
@@ -2860,6 +3034,7 @@ class MainMenuUI:
             return "#ffe08a"
         return "#ffb0a8"
 
+    # Подготвя resource summary според избраните настройки.
     def _build_resource_summary(self) -> str:
         status = self.resource_status
         if not status.configured:
@@ -2875,6 +3050,7 @@ class MainMenuUI:
             f"{self.launch_info['drive']} | Installers: {status.installers_root}"
         )
 
+    # Помощна функция за refresh resource panel.
     def _refresh_resource_panel(self) -> None:
         self.launch_info = get_launch_location_info()
         self.resource_status = check_resource_status(PROJECT_ROOT)
@@ -2902,6 +3078,7 @@ class MainMenuUI:
         if hasattr(self, "software_summary_download_button"):
             self.software_summary_download_button.config(**download_button_state)
 
+    # Показва resource details в интерфейса.
     def _show_resource_details(self) -> None:
         self._refresh_resource_panel()
         messagebox.showinfo(
@@ -2910,6 +3087,7 @@ class MainMenuUI:
             parent=self.root,
         )
 
+    # Изтегля missing resources от зададения адрес.
     def _download_missing_resources(self) -> None:
         self._refresh_resource_panel()
         missing_downloads = [
@@ -2941,9 +3119,11 @@ class MainMenuUI:
         progress_ui = self._open_resource_download_window(len(missing_downloads))
         threading.Thread(target=self._run_resource_downloads, args=(missing_downloads, progress_ui), daemon=True).start()
 
+    # Стартира resource downloads и връща резултата.
     def _run_resource_downloads(self, items: list[object]) -> None:
         errors: list[str] = []
 
+        # Помощна функция за progress.
         def progress(downloaded: int, total: int, name: str) -> None:
             percent = int((downloaded / total) * 100) if total else 0
             self.root.after(0, lambda: self.status_var.set(f"Изтегляне: {name} - {percent}%"))
@@ -2954,6 +3134,7 @@ class MainMenuUI:
             except Exception as exc:
                 errors.append(f"{item.name}: {exc}")
 
+        # Помощна функция за finish.
         def finish() -> None:
             self._refresh_resource_panel()
             if errors:
@@ -2975,6 +3156,7 @@ class MainMenuUI:
 
         self.root.after(0, finish)
 
+    # Стартира resource downloads и връща резултата.
     def _run_resource_downloads(self, items: list[object]) -> None:
         errors: list[str] = []
         total_items = len(items)
@@ -3014,6 +3196,7 @@ class MainMenuUI:
         log_box.config(state="disabled")
         self.root.after(0, lambda: self._center_window(progress_window, 620, 320))
 
+        # Помощна функция за append log.
         def append_log(text: str) -> None:
             if not progress_window.winfo_exists():
                 return
@@ -3022,10 +3205,12 @@ class MainMenuUI:
             log_box.see("end")
             log_box.config(state="disabled")
 
+        # Помощна функция за progress.
         def progress(downloaded: int, total: int, name: str, speed: float = 0.0, eta: int = 0, item_index: int = 1) -> None:
             percent = int((downloaded / total) * 100) if total else 0
             total_percent = int(((item_index - 1) + (percent / 100)) * 100 / max(1, total_items))
 
+            # Помощна функция за update.
             def update() -> None:
                 self.status_var.set(f"Изтегляне: {name} - {percent}%")
                 if progress_window.winfo_exists():
@@ -3047,6 +3232,7 @@ class MainMenuUI:
                 errors.append(f"{item.name}: {exc}")
                 self.root.after(0, lambda item=item, exc=exc: append_log(f"Проблем: {item.name} - {exc}"))
 
+        # Помощна функция за finish.
         def finish() -> None:
             self._refresh_resource_panel()
             if progress_window.winfo_exists():
@@ -3066,6 +3252,7 @@ class MainMenuUI:
 
         self.root.after(0, finish)
 
+    # Отваря resource download window или съответния прозорец.
     def _open_resource_download_window(self, total_items: int) -> dict[str, object]:
         # Този прозорец само показва информация. Самото теглене върви отделно.
         progress_window = tk.Toplevel(self.root)
@@ -3143,6 +3330,7 @@ class MainMenuUI:
             "total_items": total_items,
         }
 
+    # Помощна функция за resource download window exists.
     def _resource_download_window_exists(self, ui: dict[str, object] | None) -> bool:
         if not ui:
             return False
@@ -3152,6 +3340,7 @@ class MainMenuUI:
         except tk.TclError:
             return False
 
+    # Помощна функция за append resource download log.
     def _append_resource_download_log(self, ui: dict[str, object] | None, text: str) -> None:
         if not self._resource_download_window_exists(ui):
             return
@@ -3164,6 +3353,7 @@ class MainMenuUI:
         except tk.TclError:
             return
 
+    # Обновява resource download ui след промяна в състоянието.
     def _update_resource_download_ui(
         self,
         ui: dict[str, object] | None,
@@ -3198,6 +3388,7 @@ class MainMenuUI:
         except tk.TclError:
             return
 
+    # Стартира resource downloads и връща резултата.
     def _run_resource_downloads(self, items: list[object], ui: dict[str, object] | None = None) -> None:
         # Тази функция върви във фонов thread, за да не блокира самото приложение.
         errors: list[str] = []
@@ -3206,6 +3397,7 @@ class MainMenuUI:
         for index, item in enumerate(items, start=1):
             self.root.after(0, lambda item=item, index=index: self._append_resource_download_log(ui, f"[{index}/{total_items}] Изтегляне: {item.name}"))
 
+            # Помощна функция за progress.
             def progress(
                 downloaded: int,
                 total: int,
@@ -3238,6 +3430,7 @@ class MainMenuUI:
                 errors.append(f"{item.name}: {exc}")
                 self.root.after(0, lambda item=item, exc=exc: self._append_resource_download_log(ui, f"Проблем: {item.name} - {exc}"))
 
+        # Помощна функция за finish.
         def finish() -> None:
             self._refresh_resource_panel()
             if self._resource_download_window_exists(ui):
@@ -3265,15 +3458,18 @@ class MainMenuUI:
 
         self.root.after(0, finish)
 
+    # Зарежда system health async от файл или конфигурация.
     def _load_system_health_async(self) -> None:
         if self.health_refresh_in_progress:
             return
         self.health_refresh_in_progress = True
         threading.Thread(target=self._collect_and_render_system_health, daemon=True).start()
 
+    # Зарежда language status async от файл или конфигурация.
     def _load_language_status_async(self) -> None:
         threading.Thread(target=self._collect_and_render_language_status, daemon=True).start()
 
+    # Събира and render language status от системата.
     def _collect_and_render_language_status(self) -> None:
         try:
             status = get_language_status()
@@ -3285,7 +3481,9 @@ class MainMenuUI:
             color = "#ffb0a8"
         self.root.after(0, lambda: self._apply_language_status_summary(text, color))
 
+    # Подготвя language status summary според избраните настройки.
     def _build_language_status_summary(self, status: LanguageStatus) -> str:
+        # Помощна функция за marker.
         def marker(value: bool) -> str:
             return "[OK]" if value else "[--]"
 
@@ -3297,10 +3495,12 @@ class MainMenuUI:
             f"{marker(status.has_traditional)} Фонетична традиционна"
         )
 
+    # Помощна функция за apply language status summary.
     def _apply_language_status_summary(self, text: str, color: str) -> None:
         self.language_status_var.set(text)
         self.language_status_label.config(fg=color)
 
+    # Събира and render system health от системата.
     def _collect_and_render_system_health(self) -> None:
         try:
             items = collect_health_items()
@@ -3309,6 +3509,7 @@ class MainMenuUI:
         self.latest_health_items = items
         self.root.after(0, lambda: self._apply_system_health_update(items))
 
+    # Помощна функция за apply system health update.
     def _apply_system_health_update(self, items: list[HealthItem]) -> None:
         # Прилага новите health данни, обновява dashboard-а и планира следващ refresh.
         self.health_refresh_in_progress = False
@@ -3319,6 +3520,7 @@ class MainMenuUI:
             self.root.after_cancel(self.health_refresh_job)
         self.health_refresh_job = self.root.after(self.health_refresh_interval_ms, self._load_system_health_async)
 
+    # Рисува system health върху текущия екран.
     def _render_system_health(self, items: list[HealthItem]) -> None:
         if self.health_scroll_job is not None:
             self.root.after_cancel(self.health_scroll_job)
@@ -3349,6 +3551,7 @@ class MainMenuUI:
         self.health_canvas.pack(side="left", fill="both", expand=True)
         self.health_scrollbar.pack(side="right", fill="y")
 
+        # Обновява scroll region след промяна в състоянието.
         def update_scroll_region(_: object | None = None) -> None:
             if self.health_canvas is None or self.health_inner_frame is None:
                 return
@@ -3402,11 +3605,13 @@ class MainMenuUI:
 
         self.health_frame.after(200, self._start_health_auto_scroll)
 
+    # Обработва събитието on health mousewheel.
     def _on_health_mousewheel(self, event: tk.Event) -> None:
         if self.health_canvas is None:
             return
         self.health_canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
 
+    # Обработва събитието on dashboard info mousewheel.
     def _on_dashboard_info_mousewheel(self, canvas: tk.Canvas, event: tk.Event) -> str:
         # Позволява ръчно скролване с мишката в картата със системното състояние.
         self._stop_dashboard_info_scroll()
@@ -3444,6 +3649,7 @@ class MainMenuUI:
         )
         return "break"
 
+    # Помощна функция за start health auto scroll.
     def _start_health_auto_scroll(self) -> None:
         if self.health_canvas is None:
             return
@@ -3455,6 +3661,7 @@ class MainMenuUI:
         self.health_canvas.yview_moveto(0.0)
         self.health_scroll_job = self.root.after(1200, self._auto_scroll_health)
 
+    # Помощна функция за auto scroll health.
     def _auto_scroll_health(self) -> None:
         if self.health_canvas is None or not self.health_canvas.winfo_exists():
             self.health_scroll_job = None
@@ -3472,6 +3679,7 @@ class MainMenuUI:
 
         self.health_scroll_job = self.root.after(delay, self._auto_scroll_health)
 
+    # Помощна функция за stop dashboard info scroll.
     def _stop_dashboard_info_scroll(self) -> None:
         # Спира скрола на картата със системната информация.
         if self.dashboard_info_scroll_job is not None:
@@ -3482,6 +3690,7 @@ class MainMenuUI:
             self.dashboard_info_scroll_job = None
         self.dashboard_info_scroll_position = 0.0
 
+    # Обновява dashboard live widgets след промяна в състоянието.
     def _update_dashboard_live_widgets(self) -> None:
         # Обновява само живите карти в dashboard-а, без да прерисува цялото меню.
         if self.current_menu != "main" or not self.dashboard_live_widgets:
@@ -3538,6 +3747,7 @@ class MainMenuUI:
         if isinstance(info_widgets, dict):
             self._refresh_dashboard_info_panel(info_widgets)
 
+    # Помощна функция за refresh dashboard info panel.
     def _refresh_dashboard_info_panel(self, widget_map: dict[str, object]) -> None:
         # Обновява само картата със системното състояние.
         canvas = widget_map.get("canvas")
@@ -3564,6 +3774,7 @@ class MainMenuUI:
         if callable(refresh_callback):
             refresh_callback()
 
+    # Помощна функция за bind dashboard info mousewheel.
     def _bind_dashboard_info_mousewheel(self, widget: tk.Misc, canvas: tk.Canvas) -> None:
         # Връзва колелцето към всички вътрешни елементи на картата.
         for sequence in ("<MouseWheel>", "<Button-4>", "<Button-5>"):
@@ -3571,6 +3782,7 @@ class MainMenuUI:
         for child in widget.winfo_children():
             self._bind_dashboard_info_mousewheel(child, canvas)
 
+    # Помощна функция за populate dashboard info rows.
     def _populate_dashboard_info_rows(self, parent: tk.Frame, wraplength: int) -> None:
         # Пълни плаващата карта с редовете за системата.
         system_icon_map = {
@@ -3625,6 +3837,7 @@ class MainMenuUI:
                 wraplength=wraplength,
             ).pack(side="left", fill="x", expand=True)
 
+    # Помощна функция за start dashboard info scroll.
     def _start_dashboard_info_scroll(self, canvas: tk.Canvas, item_a: int, item_b: int, content_height: int) -> None:
         # Движи текста нагоре плавно в картата със системното състояние.
         if self.current_menu != "main" or not canvas.winfo_exists() or content_height <= 0:
@@ -3653,6 +3866,7 @@ class MainMenuUI:
             lambda: self._start_dashboard_info_scroll(canvas, item_a, item_b, content_height),
         )
 
+    # Обработва събитието on dashboard info mousewheel.
     def _on_dashboard_info_mousewheel(self, canvas: tk.Canvas, event: tk.Event) -> str:
         # Позволява скрол с мишката в картата със системното състояние.
         self._stop_dashboard_info_scroll()
@@ -3672,6 +3886,7 @@ class MainMenuUI:
         )
         return "break"
 
+    # Помощна функция за refresh dashboard info panel.
     def _refresh_dashboard_info_panel(self, widget_map: dict[str, object]) -> None:
         # Обновява само картата със системното състояние.
         canvas = widget_map.get("canvas")
@@ -3690,6 +3905,7 @@ class MainMenuUI:
         if callable(refresh_callback):
             refresh_callback()
 
+    # Помощна функция за start dashboard info scroll.
     def _start_dashboard_info_scroll(self, canvas: tk.Canvas) -> None:
         # Движи текста нагоре плавно в картата със системното състояние.
         if self.current_menu != "main" or not canvas.winfo_exists():
@@ -3711,6 +3927,7 @@ class MainMenuUI:
             lambda: self._start_dashboard_info_scroll(canvas),
         )
 
+    # Обработва събитието on dashboard canvas mousewheel.
     def _on_dashboard_canvas_mousewheel(self, canvas: tk.Canvas, event: tk.Event) -> str:
         # Позволява обикновен скрол с мишката в dashboard canvas без автоматично движение.
         if not canvas.winfo_exists():
@@ -3725,6 +3942,7 @@ class MainMenuUI:
             canvas.yview_scroll(direction, "units")
         return "break"
 
+    # Помощна функция за bind dashboard canvas mousewheel.
     def _bind_dashboard_canvas_mousewheel(self, widget: tk.Misc, canvas: tk.Canvas) -> None:
         # Връзва колелцето към всички вътрешни елементи на scrollable canvas в dashboard-а.
         for sequence in ("<MouseWheel>", "<Button-4>", "<Button-5>"):
@@ -3732,9 +3950,11 @@ class MainMenuUI:
         for child in widget.winfo_children():
             self._bind_dashboard_canvas_mousewheel(child, canvas)
 
+    # Проверява updates async и връща резултат за интерфейса.
     def _check_updates_async(self) -> None:
         threading.Thread(target=self._perform_update_check, daemon=True).start()
 
+    # Помощна функция за perform update check.
     def _perform_update_check(self) -> None:
         result = check_for_updates(
             str(self.version_info["version"]),
@@ -3742,6 +3962,7 @@ class MainMenuUI:
         )
         self.root.after(0, lambda: self._apply_update_result(result))
 
+    # Помощна функция за apply update result.
     def _apply_update_result(self, result: UpdateResult) -> None:
         self.update_result = result
         status_map = {
@@ -3827,6 +4048,7 @@ class MainMenuUI:
             self.update_popup_shown = True
             self.root.after(250, lambda: self._show_update_available_dialog(result))
 
+    # Обновява history lines след промяна в състоянието.
     def _update_history_lines(self) -> list[str]:
         if self.update_result and self.update_result.changelog:
             return list(self.update_result.changelog)
@@ -3835,6 +4057,7 @@ class MainMenuUI:
             return [str(item) for item in raw_changelog if str(item).strip()]
         return []
 
+    # Показва update available dialog в интерфейса.
     def _show_update_available_dialog(self, result: UpdateResult) -> None:
         details = "\n".join(f"- {item}" for item in (result.changelog or ())[:6])
         message = (
@@ -3846,6 +4069,7 @@ class MainMenuUI:
         if messagebox.askyesno("Available Update", f"{message}\n\nInstall it now?", parent=self.root):
             self._open_update_download()
 
+    # Показва update history в интерфейса.
     def _show_update_history(self) -> None:
         history_window = tk.Toplevel(self.root)
         history_window.title("Update History")
@@ -3916,6 +4140,7 @@ class MainMenuUI:
             cursor="hand2",
         ).pack(side="right")
 
+    # Отваря update download или съответния прозорец.
     def _open_update_download(self) -> None:
         package_url = self.update_package_url.strip()
         if package_url:
@@ -3931,11 +4156,13 @@ class MainMenuUI:
             return
         webbrowser.open(self.update_download_url.strip())
 
+    # Помощна функция за restart command.
     def _restart_command(self) -> list[str]:
         if getattr(sys, "frozen", False):
             return [sys.executable]
         return [sys.executable, str(Path(__file__).resolve())]
 
+    # Стартира инсталационната логика за update package.
     def _install_update_package(self, package_url: str) -> None:
         if self.update_installing:
             return
@@ -3983,9 +4210,11 @@ class MainMenuUI:
         y = self.root.winfo_rooty() + max(0, (self.root.winfo_height() - height) // 2)
         progress_window.geometry(f"+{x}+{y}")
 
+        # Обновява progress след промяна в състоянието.
         def update_progress(value: int) -> None:
             self.root.after(0, lambda: progress_var.set(value))
 
+        # Помощна функция за worker.
         def worker() -> None:
             try:
                 self.root.after(0, lambda: status_var.set("Сваляне на update пакета..."))
@@ -3996,6 +4225,7 @@ class MainMenuUI:
                     progress_callback=update_progress,
                 )
 
+                # Помощна функция за finish.
                 def finish() -> None:
                     status_var.set("Готово. Приложението ще се рестартира...")
                     progress_var.set(100)
@@ -4004,6 +4234,7 @@ class MainMenuUI:
 
                 self.root.after(0, finish)
             except Exception as exc:
+                # Помощна функция за fail.
                 def fail() -> None:
                     self.update_installing = False
                     progress_window.destroy()
@@ -4017,6 +4248,7 @@ class MainMenuUI:
 
         threading.Thread(target=worker, daemon=True).start()
 
+    # Помощна функция за make nav button.
     def _make_nav_button(
         self,
         parent: tk.Widget,
@@ -4042,6 +4274,7 @@ class MainMenuUI:
             cursor="hand2",
         )
 
+    # Помощна функция за make card button.
     def _make_card_button(
         self,
         parent: tk.Widget,
@@ -4080,6 +4313,7 @@ class MainMenuUI:
             state=state,
         )
 
+    # Рисува menu върху текущия екран.
     def render_menu(self, menu_key: str, reset_history: bool = False) -> None:
         if reset_history:
             self.history.clear()
@@ -4097,7 +4331,7 @@ class MainMenuUI:
         self._refresh_sidebar_navigation()
         self._refresh_overview_cards()
         install_style_menus = {"install_software", "office_install_center", "secret_install", "office_center"}
-        compact_content_menus = install_style_menus | {"auto_installer", "driver_backup"}
+        compact_content_menus = install_style_menus | {"auto_installer", "driver_backup", "language", "nexus_admin"}
         use_install_style = menu_key in install_style_menus
         use_compact_content = menu_key in compact_content_menus
         self._toggle_dashboard_chrome(
@@ -4107,19 +4341,22 @@ class MainMenuUI:
             show_resource_panel=False,
             show_software_summary=use_install_style,
         )
-        self._toggle_language_status_panel(menu_key == "language")
+        self._toggle_language_status_panel(False)
         self._render_cards()
         if menu_key == "main":
             self.root.after(120, self._ensure_dashboard_visible)
 
+    # Помощна функция за toggle language status panel.
     def _toggle_language_status_panel(self, visible: bool) -> None:
         if not visible and self.language_status_panel.winfo_ismapped():
             self.language_status_panel.grid_forget()
 
+    # Подготвя path според избраните настройки.
     def _build_path(self) -> str:
         trail = [MENU_TREE[key]["title"] for key in self.history + [self.current_menu]]
         return " > ".join(trail)
 
+    # Рисува cards върху текущия екран.
     def _render_cards(self) -> None:
         if self.current_menu == "main" and self.dashboard_is_rendering:
             self.root.after(50, self._render_cards)
@@ -4173,18 +4410,7 @@ class MainMenuUI:
             card = self._build_card(self.cards_frame, item)
             card.grid(row=row, column=column, sticky="nsew", padx=8, pady=8)
 
-        if self.current_menu == "language":
-            panel_column = card_columns
-            self.cards_frame.columnconfigure(panel_column, weight=0, minsize=self.language_panel_width)
-            self.language_status_panel.grid(
-                row=0,
-                column=panel_column,
-                rowspan=row_count,
-                sticky="nsew",
-                padx=(12, 8),
-                pady=8,
-            )
-        elif self.language_status_panel.winfo_ismapped():
+        if self.language_status_panel.winfo_ismapped():
             self.language_status_panel.grid_forget()
 
         self.page_label.config(text=f"Page {self.current_page + 1} / {total_pages}")
@@ -4192,12 +4418,14 @@ class MainMenuUI:
         self.next_button.config(state="normal" if self.current_page < total_pages - 1 else "disabled")
         self.back_button.config(state="normal" if self.history else "disabled")
 
+    # Рисува home dashboard върху текущия екран.
     def _render_home_dashboard(self) -> None:
         if not self.cards_frame.winfo_manager():
             self.cards_frame.pack(fill="both", expand=True)
         self.cards_frame.lift()
         self._finish_render_home_dashboard()
 
+    # Показва dashboard direct в интерфейса.
     def _show_dashboard_direct(self, reset_history: bool = True) -> None:
         # Force path for every Dashboard button: it always redraws the real dashboard renderer.
         if reset_history:
@@ -4219,6 +4447,7 @@ class MainMenuUI:
         self.status_var.set("Dashboard е зареден.")
         self.root.after(120, self._ensure_dashboard_visible)
 
+    # Помощна функция за finish render home dashboard.
     def _finish_render_home_dashboard(self) -> None:
         if self.dashboard_is_rendering:
             return
@@ -4251,6 +4480,7 @@ class MainMenuUI:
         finally:
             self.dashboard_is_rendering = False
 
+    # Помощна функция за ensure dashboard visible.
     def _ensure_dashboard_visible(self) -> None:
         if self.current_menu != "main" or not self.cards_frame.winfo_exists():
             return
@@ -4262,6 +4492,7 @@ class MainMenuUI:
         self._finish_render_home_dashboard()
         self.root.after(120, self._verify_dashboard_visible)
 
+    # Помощна функция за verify dashboard visible.
     def _verify_dashboard_visible(self) -> None:
         if self.current_menu != "main" or not self.cards_frame.winfo_exists():
             return
@@ -4273,6 +4504,7 @@ class MainMenuUI:
             self._dashboard_debug_report("no visible dashboard widgets"),
         )
 
+    # Помощна функция за dashboard has visible content.
     def _dashboard_has_visible_content(self) -> bool:
         host = self.dashboard_host_frame
         if isinstance(host, tk.Frame) and host.winfo_exists() and host.winfo_ismapped():
@@ -4289,6 +4521,7 @@ class MainMenuUI:
             for child in self.cards_frame.winfo_children()
         )
 
+    # Помощна функция за dashboard debug report.
     def _dashboard_debug_report(self, reason: str, traceback_text: str = "") -> str:
         try:
             child_lines = []
@@ -4312,6 +4545,7 @@ class MainMenuUI:
         except Exception as report_exc:
             return f"Неуспешно събиране на dashboard диагностика: {report_exc}"
 
+    # Показва dashboard debug message в интерфейса.
     def _show_dashboard_debug_message(self, title: str, details: str) -> None:
         self.status_var.set(title)
         try:
@@ -4319,6 +4553,7 @@ class MainMenuUI:
         except tk.TclError:
             pass
 
+    # Рисува home dashboard fallback върху текущия екран.
     def _render_home_dashboard_fallback(self, exc: Exception, traceback_text: str = "") -> None:
         self._show_dashboard_debug_message(
             "Dashboard не може да се зареди.",
@@ -4368,6 +4603,7 @@ class MainMenuUI:
         self.next_button.config(state="disabled")
         self.back_button.config(state="disabled")
 
+    # Рисува activation menu върху текущия екран.
     def _render_activation_menu(self) -> None:
         self.cards_frame.columnconfigure(0, weight=1)
         self.cards_frame.columnconfigure(1, weight=1)
@@ -4438,6 +4674,7 @@ class MainMenuUI:
         self.next_button.config(state="disabled")
         self.back_button.config(state="normal" if self.history else "disabled")
 
+    # Помощна функция за discover standalone installers.
     def _discover_standalone_installers(self, known_relative_files: set[str]) -> list[dict[str, str]]:
         # Намира локални installer файлове в Installers, които още не са описани ръчно.
         installers_root = self.resource_status.installers_root
@@ -4479,6 +4716,7 @@ class MainMenuUI:
                 )
         return discovered
 
+    # Помощна функция за health item value.
     def _health_item_value(self, label: str) -> tuple[str, bool]:
         # Намира последната известна стойност за конкретен health ред.
         for item in self.latest_health_items:
@@ -4486,6 +4724,7 @@ class MainMenuUI:
                 return item.value, item.ok
         return "Няма данни", False
 
+    # Помощна функция за dashboard system rows.
     def _dashboard_system_rows(self) -> list[tuple[str, str]]:
         # Подрежда всички налични системни данни за плаващата карта в началото.
         source_items = self.latest_health_items
@@ -4575,6 +4814,7 @@ class MainMenuUI:
 
         return rows
 
+    # Помощна функция за dashboard component rows.
     def _dashboard_component_rows(self) -> list[tuple[str, str, bool]]:
         if self.component_status_cache:
             return list(self.component_status_cache)
@@ -4598,6 +4838,7 @@ class MainMenuUI:
             ("BitLocker", bitlocker_value, bitlocker_ok),
         ]
 
+    # Помощна функция за dashboard component rows for dashboard.
     def _dashboard_component_rows_for_dashboard(self) -> list[tuple[str, str, bool]]:
         if self.component_status_cache:
             return list(self.component_status_cache)
@@ -4613,11 +4854,13 @@ class MainMenuUI:
             ("BitLocker", "Проверява се...", False),
         ]
 
+    # Помощна функция за refresh component status async.
     def _refresh_component_status_async(self) -> None:
         if self.component_status_refresh_in_progress:
             return
         self.component_status_refresh_in_progress = True
 
+        # Помощна функция за worker.
         def worker() -> None:
             try:
                 rows = self._dashboard_component_rows()
@@ -4630,12 +4873,14 @@ class MainMenuUI:
 
         threading.Thread(target=worker, daemon=True).start()
 
+    # Помощна функция за apply component status rows.
     def _apply_component_status_rows(self, rows: list[tuple[str, str, bool]]) -> None:
         self.component_status_refresh_in_progress = False
         self.component_status_cache = list(rows)
         if self.current_menu == "main":
             self._render_cards()
 
+    # Помощна функция за component windows activation status.
     def _component_windows_activation_status(self) -> tuple[str, bool]:
         # Проверява реалния статус на активацията на Windows.
         script = (
@@ -4690,6 +4935,7 @@ class MainMenuUI:
         )
         return ("Има записан ключ", False) if saved_windows_key else ("Неактивиран", False)
 
+    # Помощна функция за component office activation status.
     def _component_office_activation_status(self) -> tuple[str, bool]:
         # Проверява реалния статус на Office през OSPP.VBS.
         ospp_vbs = find_ospp_vbs()
@@ -4724,6 +4970,7 @@ class MainMenuUI:
         saved_office_key = any(bool(self.secure_store.get(f"{key}_product_key", "").strip()) for key in OFFICE_ACTION_IDS)
         return ("Има записан Office ключ", False) if saved_office_key else ("Няма данни", False)
 
+    # Помощна функция за component service running.
     def _component_service_running(self, service_name: str) -> bool | None:
         # Проверява дали дадена Windows услуга е стартирана.
         try:
@@ -4746,6 +4993,7 @@ class MainMenuUI:
             return False
         return None
 
+    # Помощна функция за component dotnet status.
     def _component_dotnet_status(self) -> tuple[str, bool]:
         # Чете .NET 4.x версията от registry.
         try:
@@ -4761,6 +5009,7 @@ class MainMenuUI:
             return ".NET 4.7.2", True
         return f"Release {release}", True
 
+    # Помощна функция за component directx status.
     def _component_directx_status(self) -> tuple[str, bool]:
         # Проверява наличието на DirectX 12 runtime по системния DLL.
         system_root = Path(os.environ.get("WINDIR", r"C:\Windows"))
@@ -4776,6 +5025,7 @@ class MainMenuUI:
             pass
         return "Няма данни", False
 
+    # Помощна функция за component visual cpp status.
     def _component_visual_cpp_status(self) -> tuple[str, bool]:
         # Търси инсталирани Visual C++ пакети в uninstall списъка.
         found: list[str] = []
@@ -4806,6 +5056,7 @@ class MainMenuUI:
             return "Липсват", False
         return f"Налични ({len(found)})", True
 
+    # Помощна функция за component defender status.
     def _component_defender_status(self) -> tuple[str, bool]:
         # Проверява дали услугата на Windows Defender работи.
         running = self._component_service_running("WinDefend")
@@ -4813,6 +5064,7 @@ class MainMenuUI:
             return "Няма данни", False
         return ("Активен", True) if running else ("Спрян", False)
 
+    # Помощна функция за component firewall status.
     def _component_firewall_status(self) -> tuple[str, bool]:
         # Проверява дали услугата на Windows Firewall работи.
         running = self._component_service_running("MpsSvc")
@@ -4820,6 +5072,7 @@ class MainMenuUI:
             return "Няма данни", False
         return ("Активна", True) if running else ("Изключена", False)
 
+    # Помощна функция за component bitlocker status.
     def _component_bitlocker_status(self) -> tuple[str, bool]:
         # Проверява BitLocker чрез manage-bde и пада към по-лек service fallback.
         try:
@@ -4843,6 +5096,7 @@ class MainMenuUI:
             return "Няма данни", False
         return ("Готов", True) if running else ("Изключен", False)
 
+    # Помощна функция за dashboard metric cards.
     def _dashboard_metric_cards(self) -> list[dict[str, object]]:
         # Горните бързи метрики по снимката.
         temp_value, temp_ok = self._health_item_value("Temperature:")
@@ -4860,6 +5114,7 @@ class MainMenuUI:
             {"key": "disk_c", "icon": "disk", "title": "Системен диск (C:)", "value": disk_value, "status": "Добро" if disk_ok else "Запълнен", "ok": disk_ok},
         ]
 
+    # Помощна функция за dashboard metric percent.
     def _dashboard_metric_percent(self, value: str, fallback_ok: bool) -> int:
         # Изчислява процента за живите dashboard карти.
         percent_match = re.search(r"(\d{1,3})\s*%", value)
@@ -4876,15 +5131,17 @@ class MainMenuUI:
                 pass
         return 72 if fallback_ok else 26
 
+    # Помощна функция за dashboard quick actions.
     def _dashboard_quick_actions(self) -> list[dict[str, str]]:
         # Бързи действия в долния десен панел.
         return [
             {"icon": "actions_small", "label": "Почистване\nна системата", "action_id": "reset_onedrive_2"},
             {"icon": "refresh_small", "label": "Рестартиране\nна услуги", "action_id": "reset_onedrive_1"},
             {"icon": "monitor_small", "label": "Проверка\nна здравето", "action_id": "driver_pc_report"},
-            {"icon": "admin_small", "label": "Конзола\n(Admin)", "action_id": "open_console"},
+            {"icon": "globe_small", "label": "Езици\nКлавиатури", "menu": "language"},
         ]
 
+    # Рисува main dashboard върху текущия екран.
     def _render_main_dashboard(self) -> None:
         # Специален dashboard renderer за Начало по новия дизайн.
         self.cards_frame.columnconfigure(0, weight=1)
@@ -5030,6 +5287,7 @@ class MainMenuUI:
         self._ensure_auto_install_vars(preview_tasks)
         dashboard_count_var = tk.StringVar(value="Избрани задачи: 0")
 
+        # Обновява dashboard install count след промяна в състоянието.
         def update_dashboard_install_count(*_: object) -> None:
             selected_count = sum(
                 1
@@ -5038,6 +5296,7 @@ class MainMenuUI:
             )
             dashboard_count_var.set(f"Избрани задачи: {selected_count}")
 
+        # Задава dashboard install selection според избраното действие.
         def set_dashboard_install_selection(value: bool) -> None:
             for task in preview_tasks:
                 task_id = task["id"]
@@ -5121,7 +5380,9 @@ class MainMenuUI:
         for idx, action in enumerate(self._dashboard_quick_actions()):
             card = tk.Frame(actions_frame, bg=APP_PANEL_ALT, bd=0, highlightthickness=1, highlightbackground=APP_BORDER)
             card.grid(row=0, column=idx, sticky="nsew", padx=(0 if idx == 0 else 6, 0))
-            if action["action_id"] == "open_console":
+            if "menu" in action:
+                command = lambda menu_key=action["menu"]: self.render_menu(menu_key)
+            elif action["action_id"] == "open_console":
                 command = lambda: messagebox.showinfo("Конзола", "Тази бърза конзола ще бъде вързана в следващата стъпка.", parent=self.root)
             else:
                 command = lambda item={"kind": "action", "action_id": action["action_id"], "label": action["label"]}: self._handle_action(item)
@@ -5166,13 +5427,16 @@ class MainMenuUI:
         self.next_button.config(state="disabled")
         self.back_button.config(state="disabled")
 
+    # Рисува main dashboard v2 върху текущия екран.
     def _render_main_dashboard_v2(self, parent: tk.Widget | None = None) -> None:
         # Нов dashboard за Начало, подреден максимално близо до референтната визия.
         dashboard_parent = parent or self.cards_frame
 
+        # Помощна функция за make panel.
         def make_panel(parent: tk.Widget, *, bg: str = APP_PANEL, border: str = APP_BORDER, radius: int = 18) -> tk.Frame:
             return self._build_soft_panel(parent, panel_bg=bg, border=border, radius=radius, base_bg=APP_BG)
 
+        # Помощна функция за make progress.
         def make_progress(parent: tk.Widget, value: int, accent: str = APP_ACCENT) -> tuple[tk.Frame, tk.Frame]:
             track = tk.Frame(parent, bg="#13201c", height=10)
             track.pack(fill="x", pady=(8, 0))
@@ -5181,6 +5445,7 @@ class MainMenuUI:
             fill.place(x=0, y=0)
             return track, fill
 
+        # Помощна функция за icon or text.
         def icon_or_text(parent: tk.Widget, icon_name: str, fallback: str, *, bg: str, fg: str, side: str = "left") -> None:
             icon_image = self.dashboard_icons.get(icon_name)
             if icon_image is not None:
@@ -5389,6 +5654,7 @@ class MainMenuUI:
         self._bind_dashboard_info_mousewheel(info_viewport, info_canvas)
         info_window = info_canvas.create_window((0, 0), window=info_viewport, anchor="nw")
 
+        # Помощна функция за refresh info scroll.
         def refresh_info_scroll(_: object | None = None) -> None:
             if not info_canvas.winfo_exists():
                 return
@@ -5475,6 +5741,7 @@ class MainMenuUI:
         installer_viewport = tk.Frame(installer_canvas, bg=APP_PANEL_ALT)
         installer_window = installer_canvas.create_window((0, 0), window=installer_viewport, anchor="nw")
 
+        # Помощна функция за refresh installer scroll.
         def refresh_installer_scroll(_: object | None = None) -> None:
             if not installer_canvas.winfo_exists():
                 return
@@ -5491,6 +5758,7 @@ class MainMenuUI:
         self._ensure_auto_install_vars(preview_tasks)
         dashboard_count_var = tk.StringVar(value="Избрани задачи: 0")
 
+        # Обновява dashboard install count след промяна в състоянието.
         def update_dashboard_install_count(*_: object) -> None:
             selected_count = sum(
                 1
@@ -5499,6 +5767,7 @@ class MainMenuUI:
             )
             dashboard_count_var.set(f"Избрани задачи: {selected_count}")
 
+        # Задава dashboard install selection според избраното действие.
         def set_dashboard_install_selection(value: bool) -> None:
             for task in preview_tasks:
                 task_id = task["id"]
@@ -5631,6 +5900,7 @@ class MainMenuUI:
         component_viewport = tk.Frame(component_canvas, bg=APP_PANEL_ALT)
         component_window = component_canvas.create_window((0, 0), window=component_viewport, anchor="nw")
 
+        # Помощна функция за refresh component scroll.
         def refresh_component_scroll(_: object | None = None) -> None:
             if not component_canvas.winfo_exists():
                 return
@@ -5668,7 +5938,9 @@ class MainMenuUI:
         for idx, action in enumerate(self._dashboard_quick_actions()):
             card = tk.Frame(actions_frame, bg=APP_PANEL_ALT, bd=0, highlightthickness=1, highlightbackground=APP_BORDER)
             card.grid(row=0, column=idx, sticky="nsew", padx=(0 if idx == 0 else 6, 0))
-            if action["action_id"] == "open_console":
+            if "menu" in action:
+                command = lambda menu_key=action["menu"]: self.render_menu(menu_key)
+            elif action["action_id"] == "open_console":
                 command = lambda: messagebox.showinfo("Конзола", "Тази бърза конзола ще бъде вързана в следващата стъпка.", parent=self.root)
             else:
                 command = lambda item={"kind": "action", "action_id": action["action_id"], "label": action["label"]}: self._handle_action(item)
@@ -5717,6 +5989,7 @@ class MainMenuUI:
         self.next_button.config(state="disabled")
         self.back_button.config(state="disabled")
 
+    # Помощна функция за card columns.
     def _card_columns(self) -> int:
         current_width = self.root.winfo_width() or self.root.winfo_screenwidth()
         if self.current_menu == "main":
@@ -5729,6 +6002,7 @@ class MainMenuUI:
             return 1
         return 2
 
+    # Подготвя card според избраните настройки.
     def _build_card(self, parent: tk.Widget, item: dict[str, str]) -> tk.Frame:
         accent = self._card_accent(item)
         card_bg = APP_PANEL_SOFT if item["kind"] == "menu" else APP_PANEL_ALT
@@ -5753,9 +6027,9 @@ class MainMenuUI:
         top = tk.Frame(card, bg=card_bg)
         top.pack(fill="x", padx=self._scale_px(14), pady=(self._scale_px(12), self._scale_px(8)))
 
-        icon_image = self.dashboard_icons.get(item.get("icon", ""))
+        icon_image = self._menu_icon_for_item(item, "card")
         if icon_image is not None:
-            icon_box = tk.Frame(top, bg="#112925", bd=0, highlightthickness=1, highlightbackground=accent, width=self._scale_px(38), height=self._scale_px(38))
+            icon_box = tk.Frame(top, bg="#112925", bd=0, highlightthickness=1, highlightbackground=accent, width=self._scale_px(48), height=self._scale_px(48))
             icon_box.pack(side="left")
             icon_box.pack_propagate(False)
             tk.Label(icon_box, image=icon_image, bg="#112925").pack(expand=True)
@@ -5765,7 +6039,7 @@ class MainMenuUI:
             dot.create_oval(self._scale_px(2), self._scale_px(2), dot_size - self._scale_px(2), dot_size - self._scale_px(2), fill=accent, outline="")
             dot.pack(side="left")
 
-        compact_text_menus = {"office_center", "nexus_admin", "office_install_center", "secret_install", "driver_backup"}
+        compact_text_menus = {"office_center", "nexus_admin", "office_install_center", "secret_install", "driver_backup", "language"}
         title_font = self._font(11 if self.current_menu in compact_text_menus else 12, "bold", "Segoe UI Semibold")
         title_wraplength = self.compact_card_title_wrap if self.current_menu in compact_text_menus else self.card_title_wrap
         title = tk.Label(
@@ -5797,7 +6071,7 @@ class MainMenuUI:
         spacer = tk.Frame(card, bg=card_bg)
         spacer.pack(fill="both", expand=True)
 
-        compact_action_menus = {"office_center", "office_install_center", "secret_install", "driver_backup"}
+        compact_action_menus = {"office_center", "office_install_center", "secret_install", "driver_backup", "language", "nexus_admin"}
         action_area_height = CARD_ACTION_DOUBLE_HEIGHT if has_remove_button else CARD_ACTION_HEIGHT
         action_area = tk.Frame(card, bg=card_bg, height=max(self.card_button_height_px + self._scale_px(12), self._scale_px(action_area_height)))
         action_pady = self._scale_px(8 if self.current_menu in compact_action_menus else 16)
@@ -5845,13 +6119,16 @@ class MainMenuUI:
 
         return card
 
+    # Помощна функция за is office install item.
     def _is_office_install_item(self, item: dict[str, str]) -> bool:
         action_id = item.get("action_id", "")
         return action_id.startswith("install_office_") and action_id.endswith("_offline")
 
+    # Помощна функция за is office online item.
     def _is_office_online_item(self, item: dict[str, str]) -> bool:
         return item.get("action_id", "").startswith("online_")
 
+    # Помощна функция за is office maintenance item.
     def _is_office_maintenance_item(self, item: dict[str, str]) -> bool:
         return item.get("action_id", "") in {
             "office_check_activation_status",
@@ -5859,6 +6136,7 @@ class MainMenuUI:
             "office_force_uninstall_all",
         }
 
+    # Помощна функция за is language item.
     def _is_language_item(self, item: dict[str, str]) -> bool:
         return item.get("action_id", "") in {
             "language_refresh",
@@ -5869,6 +6147,7 @@ class MainMenuUI:
             "remove_bulgarian_language",
         }
 
+    # Помощна функция за is driver backup item.
     def _is_driver_backup_item(self, item: dict[str, str]) -> bool:
         return item.get("action_id", "") in {
             "driver_backup_clean",
@@ -5879,6 +6158,7 @@ class MainMenuUI:
             "driver_restore_last",
         }
 
+    # Помощна функция за is nexus admin item.
     def _is_nexus_admin_item(self, item: dict[str, str]) -> bool:
         return item.get("action_id", "") in {
             "nexus_list_users",
@@ -5889,34 +6169,41 @@ class MainMenuUI:
             "nexus_toggle_admin",
         }
 
+    # Помощна функция за office install info.
     def _office_install_info(self, action_id: str) -> object:
         if action_id not in self.office_inventory_cache:
             self.office_inventory_cache[action_id] = detect_installed_office(action_id)
         return self.office_inventory_cache[action_id]
 
+    # Помощна функция за office online status.
     def _office_online_status(self, action_id: str) -> object:
         if action_id not in self.office_online_cache:
             self.office_online_cache[action_id] = check_online_package(action_id)
         return self.office_online_cache[action_id]
 
+    # Помощна функция за office maintenance status.
     def _office_maintenance_status(self, action_id: str) -> object:
         if action_id not in self.office_maintenance_cache:
             self.office_maintenance_cache[action_id] = check_maintenance_action(action_id)
         return self.office_maintenance_cache[action_id]
 
+    # Помощна функция за adobe reader status.
     def _adobe_reader_status(self) -> object:
         if self.adobe_reader_status_cache is None:
             self.adobe_reader_status_cache = check_adobe_reader_status(PROJECT_ROOT)
         return self.adobe_reader_status_cache
 
+    # Помощна функция за language status.
     def _language_status(self) -> object:
         if self.language_status_cache is None:
             self.language_status_cache = get_language_status()
         return self.language_status_cache
 
+    # Помощна функция за reset language status cache.
     def _reset_language_status_cache(self) -> None:
         self.language_status_cache = None
 
+    # Помощна функция за last driver backup dir.
     def _last_driver_backup_dir(self) -> Path | None:
         last_backup = self.settings.get("last_driver_backup_dir", "")
         if last_backup:
@@ -5925,20 +6212,24 @@ class MainMenuUI:
                 return backup_path
         return None
 
+    # Помощна функция за nexus admin status.
     def _nexus_admin_status(self) -> object:
         if self.nexus_admin_status_cache is None:
             self.nexus_admin_status_cache = check_nexus_admin_status()
         return self.nexus_admin_status_cache
 
+    # Събира command output от системата.
     def _collect_command_output(self, result: subprocess.CompletedProcess[str]) -> str:
         # Събира stdout и stderr в един удобен текст.
         return "\n".join(part.strip() for part in (result.stdout, result.stderr) if part and part.strip())
 
+    # Помощна функция за append command output.
     def _append_command_output(self, output_text: str) -> None:
         # Добавя текст от команда в прозореца за прогрес, ако има такъв.
         if output_text.strip():
             self.root.after(0, lambda text=output_text.strip(): self._append_activation_log(text))
 
+    # Помощна функция за is winget package installed.
     def _is_winget_package_installed(self, package_id: str) -> tuple[bool, str]:
         # Проверява дали даден winget пакет вече е инсталиран.
         winget_exe = find_winget_executable()
@@ -5957,16 +6248,19 @@ class MainMenuUI:
             return False, output
         return package_id.lower() in normalized, output
 
+    # Помощна функция за office online install state.
     def _office_online_install_state(self, action_id: str) -> tuple[bool, str, str]:
         # Търси в registry дали този Office пакет вече го има и връща и команда за махане.
         package = get_online_package(action_id)
         installed, details, uninstall_string = self._find_installed_registry_app(package.registry_patterns)
         return installed, details or package.label, uninstall_string
 
+    # Помощна функция за office install architecture.
     def _office_install_architecture(self) -> str:
         # Избира 64-bit при 64-bit Windows, а 32-bit само ако системата е 32-bitова.
         return "64" if os.environ.get("ProgramFiles(x86)") else "32"
 
+    # Изтегля office deployment tool от зададения адрес.
     def _download_office_deployment_tool(self, target_dir: Path) -> Path:
         # Дърпа последния ODT installer от официалната Microsoft страница.
         request = urllib.request.Request(
@@ -5990,6 +6284,7 @@ class MainMenuUI:
             shutil.copyfileobj(response, output_file)
         return output_path
 
+    # Извлича office deployment tool от подадения текст или архив.
     def _extract_office_deployment_tool(self, odt_exe: Path, target_dir: Path) -> Path:
         # Разпакрира ODT и връща setup.exe, което реално пуска online инсталацията.
         command = [str(odt_exe), "/quiet", f"/extract:{target_dir}"]
@@ -6006,6 +6301,7 @@ class MainMenuUI:
         output = self._collect_command_output(result)
         raise RuntimeError(output or "Office Deployment Tool не се разпакрира правилно.")
 
+    # Помощна функция за write office online config.
     def _write_office_online_config(self, config_path: Path, package: object) -> None:
         # Създава временния XML файл за точната online Office инсталация.
         config_text = f"""<Configuration>
@@ -6020,6 +6316,7 @@ class MainMenuUI:
 """
         config_path.write_text(config_text, encoding="utf-8")
 
+    # Стартира office online install core и връща резултата.
     def _run_office_online_install_core(self, action_id: str, remove_existing: bool = False) -> str:
         # Това е общата логика за online Office, за да работи и при един бутон, и при автоматичния installer.
         package = get_online_package(action_id)
@@ -6100,6 +6397,7 @@ class MainMenuUI:
         self.office_inventory_cache.pop(action_id, None)
         return "\n\n".join(output_lines) or f"{package.label} стартира успешно чрез Office Deployment Tool."
 
+    # Стартира office uninstall command и връща резултата.
     def _run_office_uninstall_command(self, action_id: str, display_name: str, uninstall_string: str) -> str:
         # Изпълнява реалната деинсталация на намерен Office пакет.
         result = subprocess.run(
@@ -6116,6 +6414,7 @@ class MainMenuUI:
         self.office_inventory_cache.pop(action_id, None)
         return output or f"{display_name} removal finished."
 
+    # Стартира winget uninstall command и връща резултата.
     def _run_winget_uninstall_command(self, winget_exe: str, package_id: str, label: str) -> str:
         # Премахва winget пакет преди нова инсталация.
         result = subprocess.run(
@@ -6132,6 +6431,7 @@ class MainMenuUI:
             raise RuntimeError(output or f"{label} uninstall returned code {result.returncode}.")
         return output or f"{label} removal finished."
 
+    # Помощна функция за item description.
     def _item_description(self, item: dict[str, str]) -> str:
         description = item.get("description", self._kind_description(item["kind"]))
         if self._is_office_install_item(item):
@@ -6177,7 +6477,7 @@ class MainMenuUI:
             try:
                 language_status = self._language_status()
             except Exception as exc:
-                return "Статусът не може да се провери. Натисни бутона за подробности."
+                return "Статусът не може да се провери."
 
             action_id = item.get("action_id", "")
             if action_id == "language_refresh":
@@ -6190,22 +6490,22 @@ class MainMenuUI:
                         language_status.has_traditional,
                     ]
                 )
-                return f"Проверка на езиковите настройки. Налични: {ready_count}/5."
+                return f"Налични: {ready_count}/5"
             if action_id == "toggle_bulgarian_bds":
                 state = "налична" if language_status.has_bds else "липсва"
-                return f"БДС клавиатурна подредба. Статус: {state}."
+                return f"Статус: {state}"
             if action_id == "toggle_bulgarian_phonetic":
                 state = "налична" if language_status.has_phonetic else "липсва"
-                return f"Стандартна фонетична подредба. Статус: {state}."
+                return f"Статус: {state}"
             if action_id == "toggle_bulgarian_traditional":
                 state = "налична" if language_status.has_traditional else "липсва"
-                return f"Традиционна фонетична подредба. Статус: {state}."
+                return f"Статус: {state}"
             if action_id == "toggle_bulgarian_language_pack":
                 state = "наличен" if language_status.has_language_pack else "липсва"
-                return f"Български езиков пакет. Статус: {state}."
+                return f"Статус: {state}"
             if action_id == "remove_bulgarian_language":
                 state = "bg-BG е наличен" if language_status.has_bulgarian else "bg-BG не е намерен"
-                return f"Премахване на bg-BG от езиковия списък. Статус: {state}."
+                return state
 
         if self._is_driver_backup_item(item):
             action_id = item.get("action_id", "")
@@ -6245,15 +6545,11 @@ class MainMenuUI:
         if self._is_nexus_admin_item(item):
             nexus_status = self._nexus_admin_status()
             marker = "✓" if nexus_status.available else "✗"
-            extra = ""
-            if item.get("action_id") == "nexus_delete_user":
-                extra = "\nHigh impact action. A confirmation prompt will appear."
-            if item.get("action_id") == "nexus_toggle_admin":
-                extra = "\nChanges membership in the local Administrators group."
-            return f"{description}\n\n{marker} {nexus_status.message}{extra}"
+            return f"{marker} {nexus_status.message}"
 
         return description
 
+    # Помощна функция за card accent.
     def _card_accent(self, item: dict[str, str]) -> str:
         if item.get("accent"):
             return item["accent"]
@@ -6265,6 +6561,7 @@ class MainMenuUI:
         }
         return accent_map.get(item["kind"], "#39c25a")
 
+    # Помощна функция за button colors.
     def _button_colors(self, kind: str, accent: str) -> tuple[str, str, str]:
         if kind == "menu":
             return (APP_ACCENT_BLUE, "#f4fbff", "#46a4ff")
@@ -6274,6 +6571,7 @@ class MainMenuUI:
             return ("#263632", "#d8e2db", "#263632")
         return (APP_ACCENT_SOFT, "#f5fff7", "#27a67a")
 
+    # Помощна функция за kind description.
     def _kind_description(self, kind: str) -> str:
         descriptions = {
             "menu": "Open this module and view its available tools.",
@@ -6283,6 +6581,7 @@ class MainMenuUI:
         }
         return descriptions.get(kind, "Module item")
 
+    # Помощна функция за button text.
     def _button_text(self, kind: str) -> str:
         labels = {
             "menu": "Enter Menu",
@@ -6292,6 +6591,7 @@ class MainMenuUI:
         }
         return labels.get(kind, "Open")
 
+    # Обработва събитието handle item.
     def handle_item(self, item: dict[str, str]) -> None:
         kind = item["kind"]
         if kind == "menu":
@@ -6307,10 +6607,12 @@ class MainMenuUI:
         elif kind == "exit":
             self.root.destroy()
 
+    # Помощна функция за authorize windows11 menu.
     def _authorize_windows11_menu(self) -> bool:
         # Менюто за Windows 11 вече е без парола и се отваря директно.
         return True
 
+    # Обработва събитието handle action.
     def _handle_action(self, item: dict[str, str]) -> None:
         action_id = item.get("action_id", "")
         if action_id == "add_desktop_icons":
@@ -6415,6 +6717,7 @@ class MainMenuUI:
 
         self.status_var.set(f"Selected action: {item['label']}. This is ready to connect to a real Python or PowerShell task.")
 
+    # Помощна функция за shortcut launch parts.
     def _shortcut_launch_parts(self, menu_key: str | None = None) -> tuple[str, str, str]:
         # Подготвя как да стартира приложението от shortcut според това дали е build или проект.
         if getattr(sys, "frozen", False):
@@ -6432,6 +6735,7 @@ class MainMenuUI:
         working_dir = str(Path(__file__).resolve().parent)
         return target_path, arguments, working_dir
 
+    # Създава windows shortcut и връща резултата към приложението.
     def _create_windows_shortcut(self, shortcut_path: Path, target_path: str, arguments: str, working_dir: str) -> None:
         # Създава .lnk shortcut през PowerShell и WScript.Shell.
         icon_path = str(APP_ICON_FILE.resolve())
@@ -6456,6 +6760,7 @@ class MainMenuUI:
             text=True,
         )
 
+    # Помощна функция за add desktop icons.
     def _add_desktop_icons(self) -> None:
         # Пуска отделен прозорец с прогрес, докато Windows системните икони се включват.
         confirmed = messagebox.askyesno(
@@ -6475,6 +6780,7 @@ class MainMenuUI:
         )
         threading.Thread(target=self._run_add_desktop_icons, daemon=True).start()
 
+    # Стартира add desktop icons и връща резултата.
     def _run_add_desktop_icons(self) -> None:
         # Работи във фонов режим, за да не блокира интерфейса по време на промяната.
         try:
@@ -6493,6 +6799,7 @@ class MainMenuUI:
         self.root.after(0, lambda: self._show_activation_result(True, summary, "Desktop Icons"))
         self.root.after(0, lambda: self.status_var.set("Системните икони на работния плот бяха добавени успешно."))
 
+    # Помощна функция за start auto installer.
     def _start_auto_installer(self) -> None:
         if self.auto_install_running:
             messagebox.showinfo("Автоматичен инсталатор", "Вече има стартирана автоматична инсталация.", parent=self.root)
@@ -6527,6 +6834,7 @@ class MainMenuUI:
         )
         threading.Thread(target=self._run_auto_installer, args=(tasks,), daemon=True).start()
 
+    # Стартира auto installer и връща резултата.
     def _run_auto_installer(self, tasks: list[dict[str, str]]) -> None:
         results: list[str] = []
         failures = 0
@@ -6554,6 +6862,7 @@ class MainMenuUI:
         summary = "\n\n".join(results)
         subject = "Автоматичен инсталатор"
 
+        # Помощна функция за finish.
         def finish() -> None:
             self.auto_install_running = False
             self._show_activation_result(success, summary, subject)
@@ -6563,6 +6872,7 @@ class MainMenuUI:
 
         self.root.after(0, finish)
 
+    # Стартира auto language action и връща резултата.
     def _run_auto_language_action(self, action_id: str) -> str:
         status = get_language_status()
         already_ready = {
@@ -6588,6 +6898,7 @@ class MainMenuUI:
         self.language_status_cache = None
         return output or f"{title} завърши успешно."
 
+    # Помощна функция за auto install tasks.
     def _auto_install_tasks(self) -> list[dict[str, str]]:
         if self.program_selector_tasks_cache:
             return [dict(task) for task in self.program_selector_tasks_cache]
@@ -6667,6 +6978,7 @@ class MainMenuUI:
             )
         return tasks
 
+    # Помощна функция за dashboard task install state.
     def _dashboard_task_install_state(self, task: dict[str, str]) -> tuple[bool, str]:
         cached = self.program_selector_status_cache.get(task["id"])
         if cached is not None:
@@ -6674,11 +6986,13 @@ class MainMenuUI:
         self._refresh_program_selector_status_async()
         return False, "Проверява се..."
 
+    # Помощна функция за refresh program selector status async.
     def _refresh_program_selector_status_async(self) -> None:
         if self.program_selector_scan_running:
             return
         self.program_selector_scan_running = True
 
+        # Помощна функция за worker.
         def worker() -> None:
             try:
                 tasks = self._auto_install_tasks()
@@ -6695,6 +7009,7 @@ class MainMenuUI:
 
         threading.Thread(target=worker, daemon=True).start()
 
+    # Помощна функция за apply program selector status cache.
     def _apply_program_selector_status_cache(
         self,
         tasks: list[dict[str, str]],
@@ -6707,6 +7022,7 @@ class MainMenuUI:
         if self.current_menu == "main":
             self._render_cards()
 
+    # Помощна функция за local task spec.
     def _local_task_spec(self, task_id: str) -> dict[str, str] | None:
         # Връща настройките за локален installer, ако задачата е такава.
         for task in PROGRAM_SELECTOR_LOCAL_TASKS:
@@ -6714,10 +7030,12 @@ class MainMenuUI:
                 return dict(task)
         return None
 
+    # Помощна функция за manifest items by id.
     def _manifest_items_by_id(self) -> dict[str, object]:
         # Зарежда manifest елементите в удобен речник по ID.
         return {item.resource_id: item for item in load_resource_manifest(PROJECT_ROOT)}
 
+    # Намира resource local file.
     def _find_resource_local_file(self, resource_id: str) -> Path | None:
         # Намира първия наличен локален файл за даден ресурс.
         item = self._manifest_items_by_id().get(resource_id)
@@ -6730,6 +7048,7 @@ class MainMenuUI:
                 return candidate
         return None
 
+    # Намира installed registry app.
     def _find_installed_registry_app(self, patterns: tuple[str, ...]) -> tuple[bool, str, str]:
         # Търси програма в Windows registry и връща име, версия и команда за махане.
         if not patterns:
@@ -6767,6 +7086,7 @@ class MainMenuUI:
             return False, "", ""
         return True, f"{name} {version}".strip(), uninstall_string
 
+    # Помощна функция за adobe install state.
     def _adobe_install_state(self) -> tuple[bool, str, str]:
         # Събира на едно място проверката за Adobe, за да работи и без winget запис.
         installed, detail, uninstall_string = self._find_installed_registry_app(
@@ -6778,6 +7098,7 @@ class MainMenuUI:
         installed_version = getattr(status, "installed_version", "") or ""
         return bool(installed_version), installed_version or "Adobe Reader", ""
 
+    # Стартира uninstall string command и връща резултата.
     def _run_uninstall_string_command(self, display_name: str, uninstall_string: str) -> str:
         # Стартира намерената команда за деинсталация от registry.
         command_text = uninstall_string.strip()
@@ -6799,6 +7120,7 @@ class MainMenuUI:
             raise RuntimeError(output or f"Премахването на {display_name} върна код {result.returncode}.")
         return output or f"{display_name} беше премахнат успешно."
 
+    # Помощна функция за is winget package installed.
     def _is_winget_package_installed(self, package_id: str) -> tuple[bool, str]:
         # Проверява дали даден winget пакет вече е инсталиран.
         winget_exe = find_winget_executable()
@@ -6825,6 +7147,7 @@ class MainMenuUI:
         ]
         return bool(useful_lines), output
 
+    # Стартира winget uninstall command и връща резултата.
     def _run_winget_uninstall_command(self, winget_exe: str, package_id: str, label: str) -> str:
         # Премахва winget пакет преди нова инсталация.
         result = subprocess.run(
@@ -6851,6 +7174,7 @@ class MainMenuUI:
             raise RuntimeError(output or f"{label} uninstall returned code {result.returncode}.")
         return output or f"{label} removal finished."
 
+    # Помощна функция за ensure auto install vars.
     def _ensure_auto_install_vars(self, tasks: list[dict[str, str]]) -> None:
         # Подготвя променливите за тикчетата в списъка с програми.
         if not self.auto_install_vars:
@@ -6859,6 +7183,7 @@ class MainMenuUI:
             self.auto_install_vars.setdefault(task["id"], tk.BooleanVar(value=False))
             self.auto_remove_vars.setdefault(task["id"], tk.BooleanVar(value=False))
 
+    # Помощна функция за task supports remove.
     def _task_supports_remove(self, task: dict[str, str]) -> bool:
         # Връща дали за тази задача може първо да махнем старата версия.
         if task["type"] in {"office_offline", "office_online", "adobe"}:
@@ -6868,6 +7193,7 @@ class MainMenuUI:
             return False
         return spec.get("detect_mode") in {"winget", "registry"}
 
+    # Помощна функция за task install state.
     def _task_install_state(self, task: dict[str, str]) -> tuple[bool, str]:
         # Проверява дали този софтуер вече е инсталиран.
         task_type = task["type"]
@@ -6904,11 +7230,13 @@ class MainMenuUI:
             return local_file.exists(), str(local_file) if local_file.exists() else "Файлът липсва"
         return False, ""
 
+    # Задава auto install selection според избраното действие.
     def _set_auto_install_selection(self, value: bool) -> None:
         # С едно действие маркира или изчиства всички задачи.
         for var in self.auto_install_vars.values():
             var.set(value)
 
+    # Стартира auto install task и връща резултата.
     def _run_auto_install_task(self, task: dict[str, str]) -> str:
         # Пуска избраната задача от общия списък.
         task_type = task["type"]
@@ -6936,6 +7264,7 @@ class MainMenuUI:
             return self._run_auto_language_action(action_id)
         raise ValueError(f"Непознат тип задача: {task_type}")
 
+    # Стартира auto office offline и връща резултата.
     def _run_auto_office_offline(self, action_id: str, remove_first: bool = False) -> str:
         # Стартира offline Office инсталация и маха старата версия само ако е избрано.
         installer = get_office_offline_installer(action_id)
@@ -6975,6 +7304,7 @@ class MainMenuUI:
             raise RuntimeError(output or f"Office installer върна код {result.returncode}.")
         return output or f"{installer.label} завърши успешно."
 
+    # Стартира auto office online и връща резултата.
     def _run_auto_office_online(self, action_id: str, remove_first: bool = False) -> str:
         return self._run_office_online_install_core(action_id, remove_existing=remove_first)
         # Стартира online Office инсталация и по желание маха старата версия.
@@ -7024,6 +7354,7 @@ class MainMenuUI:
             raise RuntimeError(output or f"Winget върна код {result.returncode}.")
         return output or f"{package.label} е инсталиран успешно."
 
+    # Стартира auto adobe reader и връща резултата.
     def _run_auto_adobe_reader(self, remove_first: bool = False) -> str:
         # Стартира Adobe Reader с по-ясна проверка и по желание маха старата версия.
         winget_exe = find_winget_executable()
@@ -7073,6 +7404,7 @@ class MainMenuUI:
         self.adobe_reader_status_cache = None
         return output or "Adobe Reader е инсталиран/обновен успешно."
 
+    # Стартира auto local installer и връща резултата.
     def _run_auto_local_installer(self, action_id: str, remove_first: bool = False) -> str:
         # Стартира локален installer от Installers папката.
         spec = self._local_task_spec(action_id)
@@ -7118,6 +7450,7 @@ class MainMenuUI:
             raise RuntimeError(output or f"{spec['label']} върна код {result.returncode}.")
         return output or f"{spec['label']} стартира успешно."
 
+    # Стартира generic resource task и връща резултата.
     def _run_generic_resource_task(self, label: str, local_file: Path) -> str:
         # Стартира общ локален .exe/.msi/.bat/.cmd ресурс от Installers папката.
         extension = local_file.suffix.lower()
@@ -7144,6 +7477,7 @@ class MainMenuUI:
             raise RuntimeError(output or f"{label} върна код {result.returncode}.")
         return output or f"{label} стартира успешно."
 
+    # Обработва събитието on program selector mousewheel.
     def _on_program_selector_mousewheel(self, canvas: tk.Canvas, event: tk.Event) -> str:
         # Позволява скрол с мишката в прозореца за избор на програми.
         delta = getattr(event, "delta", 0)
@@ -7156,12 +7490,14 @@ class MainMenuUI:
         canvas.yview_scroll(-1 if delta > 0 else 1, "units")
         return "break"
 
+    # Помощна функция за bind program selector mousewheel.
     def _bind_program_selector_mousewheel(self, widget: tk.Widget, canvas: tk.Canvas) -> None:
         # Връзва колелцето на мишката към дадения списък.
         widget.bind("<MouseWheel>", lambda event: self._on_program_selector_mousewheel(canvas, event))
         widget.bind("<Button-4>", lambda event: self._on_program_selector_mousewheel(canvas, event))
         widget.bind("<Button-5>", lambda event: self._on_program_selector_mousewheel(canvas, event))
 
+    # Рисува program selector loading върху текущия екран.
     def _render_program_selector_loading(
         self,
         parent: tk.Widget,
@@ -7205,6 +7541,7 @@ class MainMenuUI:
             wraplength=loading_wrap,
         ).pack(anchor="center", pady=(4, 0))
 
+    # Зарежда program selector async от файл или конфигурация.
     def _load_program_selector_async(
         self,
         parent: tk.Widget,
@@ -7237,6 +7574,7 @@ class MainMenuUI:
             detail_var=detail_var,
         )
 
+        # Показва error в интерфейса.
         def show_error(message: str) -> None:
             # Ако проверката се счупи, показваме явна грешка вместо празно меню.
             self.program_selector_scan_running = False
@@ -7265,6 +7603,7 @@ class MainMenuUI:
                 wraplength=wraplength,
             ).pack(anchor="center", pady=(4, 0))
 
+        # Помощна функция за worker.
         def worker() -> None:
             self.program_selector_scan_running = True
             try:
@@ -7283,6 +7622,7 @@ class MainMenuUI:
                         ),
                     )
 
+                # Помощна функция за finish.
                 def finish() -> None:
                     self.program_selector_scan_running = False
                     self.program_selector_tasks_cache = tasks
@@ -7305,6 +7645,7 @@ class MainMenuUI:
 
         threading.Thread(target=worker, daemon=True).start()
 
+    # Подготвя program selector content според избраните настройки.
     def _build_program_selector_content(
         self,
         parent: tk.Widget,
@@ -7506,12 +7847,14 @@ class MainMenuUI:
         start_button.pack(side="right")
         self._bind_program_selector_mousewheel(start_button, canvas)
 
+    # Помощна функция за close program selector window.
     def _close_program_selector_window(self) -> None:
         # Затваря отделния прозорец за избор на програми.
         if self.program_selector_window and self.program_selector_window.winfo_exists():
             self.program_selector_window.destroy()
         self.program_selector_window = None
 
+    # Помощна функция за safe task install state.
     def _safe_task_install_state(self, task: dict[str, str]) -> tuple[bool, str]:
         # Ako nqkoq proverka grymne na nov komputar, spisykyt pak ostava viden.
         cached = self.program_selector_status_cache.get(task["id"])
@@ -7522,6 +7865,7 @@ class MainMenuUI:
         except Exception as exc:
             return False, f"Статусът не може да се прочете: {exc}"
 
+    # Отваря program selector window или съответния прозорец.
     def _open_program_selector_window(self) -> None:
         # Отваря нов прозорец с пълния избор от програми за инсталиране.
         if self.program_selector_window and self.program_selector_window.winfo_exists():
@@ -7575,6 +7919,7 @@ class MainMenuUI:
             show_close_button=True,
         )
 
+    # Рисува auto installer върху текущия екран.
     def _render_auto_installer(self) -> None:
         # Това е обновената версия на страницата за автоматичен инсталатор.
         for index in range(12):
@@ -7628,6 +7973,7 @@ class MainMenuUI:
         self.next_button.config(state="disabled")
         self.back_button.config(state="normal" if self.history else "disabled")
 
+    # Помощна функция за center window.
     def _center_window(self, window: tk.Toplevel, width: int, height: int) -> None:
         screen_width = window.winfo_screenwidth()
         screen_height = window.winfo_screenheight()
@@ -7635,10 +7981,12 @@ class MainMenuUI:
         safe_height = min(height, max(260, screen_height - 60))
         center_geometry(window, safe_width, safe_height)
 
+    # Помощна функция за scale px.
     def _scale_px(self, value: int | float) -> int:
         # Preobrazuva pixel stoinosti според tekushtiq UI scale.
         return max(1, int(round(float(value) * self.ui_scale)))
 
+    # Помощна функция за font.
     def _font(self, size: int, weight: str = "", family: str = "Segoe UI") -> tuple[str, int] | tuple[str, int, str]:
         # Vrushta ednakvo skaliiран font za celiq glaven ekran.
         scaled_size = max(8, int(round(size * self.ui_scale)))
@@ -7646,6 +7994,7 @@ class MainMenuUI:
             return (family, scaled_size, weight)
         return (family, scaled_size)
 
+    # Обновява layout metrics след промяна в състоянието.
     def _update_layout_metrics(self) -> None:
         # Smята osnovnite layout meri според DPI, rezolyuciqta i tekushtata shirina na prozoreca.
         screen_width = self.root.winfo_screenwidth()
@@ -7697,6 +8046,7 @@ class MainMenuUI:
             for key, value in MENU_CARD_MIN_HEIGHT.items()
         }
 
+    # Помощна функция за apply responsive theme.
     def _apply_responsive_theme(self) -> None:
         # Obnovqva osnovnite widget-Рё sled premervane, za da stoqt dobre na razlichni monitori.
         self.header.configure(height=self.header_height_px)
@@ -7722,14 +8072,14 @@ class MainMenuUI:
         self.left_panel.configure(width=self.sidebar_width)
         self.menu_title.configure(font=self._font(15, "bold", "Segoe UI Semibold"))
         self.menu_path.configure(font=self._font(10), wraplength=self.system_info_wrap)
-        self.sidebar_section_label.configure(font=self._font(9, "bold", "Segoe UI Semibold"))
-        self.sidebar_toggle_label.configure(font=self._font(18, "normal", "Segoe UI Symbol"))
+        self.sidebar_section_label.configure(font=self._font(8, "bold", "Segoe UI Semibold"))
+        self.sidebar_toggle_label.configure(font=self._font(15, "normal", "Segoe UI Symbol"))
         self.sidebar_clock_card.winfo_children()[0].configure(font=self._font(16, "bold", "Segoe UI Semibold"))
         self.sidebar_clock_card.winfo_children()[1].configure(font=self._font(9))
         for parts in self.sidebar_nav_buttons.values():
-            parts["title"].configure(font=self._font(10, "bold", "Segoe UI Semibold"))
-            parts["subtitle"].configure(font=self._font(8), wraplength=max(145, self.sidebar_width - 120))
-            parts["arrow"].configure(font=self._font(14, "bold", "Segoe UI Semibold"))
+            parts["title"].configure(font=self._font(9, "bold", "Segoe UI Semibold"))
+            parts["subtitle"].configure(font=self._font(7), wraplength=max(150, self.sidebar_width - 110))
+            parts["arrow"].configure(font=self._font(12, "bold", "Segoe UI Semibold"))
         self.system_info.configure(font=("Consolas", max(8, self.body_text_size)), wraplength=self.system_info_wrap)
         self.hint_label.configure(font=self._font(9), wraplength=self.system_info_wrap)
         self.health_title.configure(font=self._font(14, "bold", "Segoe UI Semibold"))
@@ -7763,6 +8113,7 @@ class MainMenuUI:
                             widget.configure(font=self._font(9))
         self.content.pack_configure(padx=self.content_pad_x, pady=self.content_pad_y)
 
+    # Обработва събитието on root resize.
     def _on_root_resize(self, event: tk.Event[tk.Misc]) -> None:
         # Pri smqna na razmera preizchislyava kolonite samo sled kratko izchakvane, za da ne primigva.
         if event.widget is not self.root:
@@ -7779,11 +8130,13 @@ class MainMenuUI:
             self.root.after_cancel(self.resize_render_job)
         self.resize_render_job = self.root.after(120, self._rerender_after_resize)
 
+    # Помощна функция за rerender after resize.
     def _rerender_after_resize(self) -> None:
         # Osvejava kartite sled resize, za da se vidi po-dobre tekstut na razlichni monitori.
         self.resize_render_job = None
         self._render_cards()
 
+    # Помощна функция за choose office version.
     def _choose_office_version(self, title: str) -> str | None:
         dialog = tk.Toplevel(self.root)
         dialog.title(title)
@@ -7816,6 +8169,7 @@ class MainMenuUI:
             justify="left",
         ).pack(anchor="w", pady=(0, 14))
 
+        # Помощна функция за choose.
         def choose(action_id: str) -> None:
             selected_version.set(action_id)
             dialog.destroy()
@@ -7856,6 +8210,7 @@ class MainMenuUI:
         self.root.wait_window(dialog)
         return selected_version.get() or None
 
+    # Записва windows product key за следващо използване.
     def _save_windows_product_key(self, version_label: str, store_key: str) -> None:
         # Записва ключ за избраната версия на Windows.
         existing_key = self.secure_store.get(store_key, "")
@@ -7889,12 +8244,15 @@ class MainMenuUI:
             parent=self.root,
         )
 
+    # Записва windows10 key за следващо използване.
     def _save_windows10_key(self) -> None:
         self._save_windows_product_key("Windows 10", "windows10_product_key")
 
+    # Записва windows11 key за следващо използване.
     def _save_windows11_key(self) -> None:
         self._save_windows_product_key("Windows 11", "windows11_product_key")
 
+    # Показва windows product key в интерфейса.
     def _show_windows_product_key(self, version_label: str, store_key: str) -> None:
         # Показва записания ключ за избраната версия на Windows.
         saved_key = self.secure_store.get(store_key, "").strip()
@@ -7906,12 +8264,15 @@ class MainMenuUI:
         messagebox.showinfo(f"Saved {version_label} Key", saved_key, parent=self.root)
         self.status_var.set(f"Displayed the saved {version_label} product key.")
 
+    # Показва windows10 key в интерфейса.
     def _show_windows10_key(self) -> None:
         self._show_windows_product_key("Windows 10", "windows10_product_key")
 
+    # Показва windows11 key в интерфейса.
     def _show_windows11_key(self) -> None:
         self._show_windows_product_key("Windows 11", "windows11_product_key")
 
+    # Помощна функция за clear windows product key.
     def _clear_windows_product_key(self, version_label: str, store_key: str) -> None:
         # Изтрива записания ключ за избраната версия на Windows.
         if store_key not in self.secure_store:
@@ -7940,12 +8301,15 @@ class MainMenuUI:
             return
         self.status_var.set(f"Saved {version_label} product key removed.")
 
+    # Помощна функция за clear windows10 key.
     def _clear_windows10_key(self) -> None:
         self._clear_windows_product_key("Windows 10", "windows10_product_key")
 
+    # Помощна функция за clear windows11 key.
     def _clear_windows11_key(self) -> None:
         self._clear_windows_product_key("Windows 11", "windows11_product_key")
 
+    # Записва office key за следващо използване.
     def _save_office_key(self) -> None:
         selected_action = self._choose_office_version("Save Office Key")
         if not selected_action:
@@ -7990,6 +8354,7 @@ class MainMenuUI:
             parent=self.root,
         )
 
+    # Показва office key в интерфейса.
     def _show_office_key(self) -> None:
         selected_action = self._choose_office_version("Show Office Key")
         if not selected_action:
@@ -8006,6 +8371,7 @@ class MainMenuUI:
         messagebox.showinfo(f"Saved {version_label} Key", saved_key, parent=self.root)
         self.status_var.set(f"Displayed the saved {version_label} product key.")
 
+    # Помощна функция за clear office key.
     def _clear_office_key(self) -> None:
         selected_action = self._choose_office_version("Clear Office Key")
         if not selected_action:
@@ -8041,6 +8407,7 @@ class MainMenuUI:
 
         self.status_var.set(f"Saved {version_label} product key removed.")
 
+    # Помощна функция за activate office version.
     def _activate_office_version(self, action_id: str) -> None:
         version_label = get_office_version_label(action_id)
         saved_key = self.secure_store.get(f"{action_id}_product_key", "").strip()
@@ -8074,6 +8441,7 @@ class MainMenuUI:
             daemon=True,
         ).start()
 
+    # Помощна функция за activate windows version.
     def _activate_windows_version(self, version_label: str, store_key: str) -> None:
         # Стартира активация за избраната версия на Windows с вече записания ключ.
         saved_key = self.secure_store.get(store_key, "").strip()
@@ -8103,12 +8471,15 @@ class MainMenuUI:
         )
         threading.Thread(target=self._run_windows_activation, args=(version_label, saved_key), daemon=True).start()
 
+    # Помощна функция за activate windows10.
     def _activate_windows10(self) -> None:
         self._activate_windows_version("Windows 10", "windows10_product_key")
 
+    # Помощна функция за activate windows11.
     def _activate_windows11(self) -> None:
         self._activate_windows_version("Windows 11", "windows11_product_key")
 
+    # Намира onedrive executable.
     def _find_onedrive_executable(self) -> str | None:
         candidates = [
             Path(os.environ.get("LOCALAPPDATA", "")) / "Microsoft" / "OneDrive" / "OneDrive.exe",
@@ -8122,6 +8493,7 @@ class MainMenuUI:
         path_candidate = shutil.which("OneDrive.exe")
         return path_candidate
 
+    # Помощна функция за reset onedrive.
     def _reset_onedrive(self, action_id: str) -> None:
         onedrive_exe = self._find_onedrive_executable()
         if not onedrive_exe:
@@ -8161,6 +8533,7 @@ class MainMenuUI:
             daemon=True,
         ).start()
 
+    # Стартира onedrive reset и връща резултата.
     def _run_onedrive_reset(self, action_id: str, onedrive_exe: str) -> None:
         local_onedrive_dir = str(Path(os.environ.get("LOCALAPPDATA", "")) / "Microsoft" / "OneDrive")
         method_steps: dict[str, list[tuple[int, str, str]]] = {
@@ -8218,6 +8591,7 @@ class MainMenuUI:
         final_message = output_lines[-1] if output_lines else "Операцията за Reset OneDrive завърши успешно."
         self.root.after(0, lambda: self._show_activation_result(True, final_message, "OneDrive"))
 
+    # Обработва събитието handle language action.
     def _handle_language_action(self, action_id: str, label: str) -> None:
         if action_id == "language_refresh":
             self._refresh_language_status(show_dialog=True)
@@ -8252,6 +8626,7 @@ class MainMenuUI:
             daemon=True,
         ).start()
 
+    # Помощна функция за refresh language status.
     def _refresh_language_status(self, show_dialog: bool = False) -> None:
         self.status_var.set("Refreshing language status...")
         self._reset_language_status_cache()
@@ -8281,6 +8656,7 @@ class MainMenuUI:
             )
             messagebox.showinfo("Language Status", summary, parent=self.root)
 
+    # Стартира language action и връща резултата.
     def _run_language_action(self, action_title: str, script: str) -> None:
         output_lines: list[str] = []
         try:
@@ -8330,6 +8706,7 @@ class MainMenuUI:
         except Exception as exc:
             self.root.after(0, lambda: self._finish_language_action(action_title, False, str(exc)))
 
+    # Помощна функция за finish language action.
     def _finish_language_action(self, subject: str, success: bool, details: str) -> None:
         self._reset_language_status_cache()
         self._show_activation_result(success, details, subject)
@@ -8337,6 +8714,7 @@ class MainMenuUI:
         if self.current_menu == "language":
             self._render_cards()
 
+    # Обработва събитието handle driver backup action.
     def _handle_driver_backup_action(self, action_id: str) -> None:
         if action_id == "driver_backup_clean":
             self._start_driver_backup(mode="clean", base_dir=desktop_path(), subject="Driver Backup (Clean)", zip_mode="keep")
@@ -8357,6 +8735,7 @@ class MainMenuUI:
             self._restore_drivers_from_last_backup()
             return
 
+    # Помощна функция за start driver backup.
     def _start_driver_backup(self, mode: str, base_dir: Path, subject: str, zip_mode: str) -> None:
         confirmed = messagebox.askyesno(
             "Driver Backup",
@@ -8379,6 +8758,7 @@ class MainMenuUI:
             daemon=True,
         ).start()
 
+    # Стартира driver backup и връща резултата.
     def _run_driver_backup(self, mode: str, base_dir: Path, subject: str, zip_mode: str) -> None:
         try:
             backup_dir = create_backup_folder(base_dir)
@@ -8423,6 +8803,7 @@ class MainMenuUI:
         except Exception as exc:
             self.root.after(0, lambda: self._finish_driver_workflow(subject, False, str(exc)))
 
+    # Създава driver recovery usb и връща резултата към приложението.
     def _create_driver_recovery_usb(self) -> None:
         last_backup_dir = self._last_driver_backup_dir()
         if not last_backup_dir:
@@ -8454,6 +8835,7 @@ class MainMenuUI:
         )
         threading.Thread(target=self._run_create_recovery_usb, args=(last_backup_dir, usb_root), daemon=True).start()
 
+    # Стартира create recovery usb и връща резултата.
     def _run_create_recovery_usb(self, backup_dir: Path, usb_root: Path) -> None:
         try:
             self.root.after(0, lambda: self._update_activation_progress(25, "Detecting USB destination...", str(usb_root)))
@@ -8465,6 +8847,7 @@ class MainMenuUI:
         except Exception as exc:
             self.root.after(0, lambda: self._finish_driver_workflow("Recovery USB", False, str(exc)))
 
+    # Помощна функция за generate driver pc report.
     def _generate_driver_pc_report(self) -> None:
         confirmed = messagebox.askyesno(
             "Generate PC Report",
@@ -8483,6 +8866,7 @@ class MainMenuUI:
         )
         threading.Thread(target=self._run_generate_pc_report, daemon=True).start()
 
+    # Стартира generate pc report и връща резултата.
     def _run_generate_pc_report(self) -> None:
         try:
             destination = create_backup_folder(desktop_path())
@@ -8494,6 +8878,7 @@ class MainMenuUI:
         except Exception as exc:
             self.root.after(0, lambda: self._finish_driver_workflow("PC Report", False, str(exc)))
 
+    # Стартира driver backup advanced и връща резултата.
     def _run_driver_backup_advanced(self) -> None:
         base_dir = self._choose_driver_destination()
         if not base_dir:
@@ -8513,6 +8898,7 @@ class MainMenuUI:
         subject = f"Driver Backup Tool ({backup_mode.title()})"
         self._start_driver_backup(mode=backup_mode, base_dir=base_dir, subject=subject, zip_mode=zip_mode)
 
+    # Възстановява drivers from last backup от подготвен backup.
     def _restore_drivers_from_last_backup(self) -> None:
         last_backup_dir = self._last_driver_backup_dir()
         if not last_backup_dir:
@@ -8537,6 +8923,7 @@ class MainMenuUI:
         )
         threading.Thread(target=self._run_restore_drivers_from_last_backup, args=(last_backup_dir,), daemon=True).start()
 
+    # Стартира restore drivers from last backup и връща резултата.
     def _run_restore_drivers_from_last_backup(self, backup_dir: Path) -> None:
         try:
             self.root.after(0, lambda: self._update_activation_progress(35, "Installing drivers from backup...", str(backup_dir)))
@@ -8548,11 +8935,13 @@ class MainMenuUI:
         except Exception as exc:
             self.root.after(0, lambda: self._finish_driver_workflow("Driver Restore", False, str(exc)))
 
+    # Помощна функция за finish driver workflow.
     def _finish_driver_workflow(self, subject: str, success: bool, details: str) -> None:
         self._show_activation_result(success, details, subject)
         if self.current_menu == "driver_backup":
             self._render_cards()
 
+    # Помощна функция за choose driver destination.
     def _choose_driver_destination(self) -> Path | None:
         dialog = tk.Toplevel(self.root)
         dialog.title("Driver Backup Destination")
@@ -8569,6 +8958,7 @@ class MainMenuUI:
         tk.Label(wrapper, text="Choose Backup Destination", font=("Segoe UI Semibold", 16), fg="#d9ffe0", bg="#0b1d0f").pack(anchor="w", pady=(0, 6))
         tk.Label(wrapper, text="Matches the advanced batch tool: Desktop, USB, OneDrive or NAS path.", font=("Segoe UI", 10), fg="#9dc7a4", bg="#0b1d0f", wraplength=420, justify="left").pack(anchor="w", pady=(0, 14))
 
+        # Помощна функция за choose.
         def choose(path: Path) -> None:
             selected_path.set(str(path))
             dialog.destroy()
@@ -8583,6 +8973,7 @@ class MainMenuUI:
         if one_drive:
             tk.Button(wrapper, text=f"OneDrive\n{one_drive}", command=lambda: choose(one_drive), font=("Segoe UI Semibold", 10), bg="#174327", fg="#eefef1", activebackground="#236039", activeforeground="#ffffff", bd=0, padx=16, pady=10, cursor="hand2").pack(fill="x", pady=5)
 
+        # Помощна функция за choose nas.
         def choose_nas() -> None:
             nas_path = simpledialog.askstring("NAS Path", r"Enter NAS or network path, for example \\NAS\Backups", parent=dialog)
             if nas_path:
@@ -8596,6 +8987,7 @@ class MainMenuUI:
         selected = selected_path.get().strip()
         return Path(selected) if selected else None
 
+    # Помощна функция за choose driver backup type.
     def _choose_driver_backup_type(self) -> str | None:
         dialog = tk.Toplevel(self.root)
         dialog.title("Driver Backup Type")
@@ -8617,6 +9009,7 @@ class MainMenuUI:
         self.root.wait_window(dialog)
         return selected.get() or None
 
+    # Помощна функция за choose driver zip mode.
     def _choose_driver_zip_mode(self) -> str | None:
         dialog = tk.Toplevel(self.root)
         dialog.title("ZIP Compression")
@@ -8639,6 +9032,7 @@ class MainMenuUI:
         self.root.wait_window(dialog)
         return selected.get() or None
 
+    # Обработва събитието handle nexus admin action.
     def _handle_nexus_admin_action(self, action_id: str) -> None:
         status = self._nexus_admin_status()
         if not status.available:
@@ -8719,6 +9113,7 @@ class MainMenuUI:
                 subject=f"{username.strip()} admin rights",
             )
 
+    # Стартира nexus background и връща резултата.
     def _run_nexus_background(self, title: str, runner: object, subject: str | None = None) -> None:
         self.status_var.set(f"Running {title}...")
         self._open_activation_window(
@@ -8732,6 +9127,7 @@ class MainMenuUI:
             daemon=True,
         ).start()
 
+    # Стартира nexus command и връща резултата.
     def _run_nexus_command(self, title: str, runner: object, subject: str) -> None:
         try:
             self.root.after(0, lambda: self._update_activation_progress(25, f"Starting {title}...", subject))
@@ -8758,6 +9154,7 @@ class MainMenuUI:
         except Exception as exc:
             self.root.after(0, lambda: self._show_activation_result(False, str(exc), subject))
 
+    # Стартира инсталационната логика за office offline.
     def _install_office_offline(self, action_id: str) -> None:
         self._refresh_resource_panel()
         installer = get_office_offline_installer(action_id)
@@ -8815,6 +9212,7 @@ class MainMenuUI:
             daemon=True,
         ).start()
 
+    # Стартира инсталационната логика за office online.
     def _install_office_online(self, action_id: str) -> None:
         package = get_online_package(action_id)
         status = self._office_online_status(action_id)
@@ -8860,6 +9258,7 @@ class MainMenuUI:
             daemon=True,
         ).start()
 
+    # Стартира инсталационната логика за local installer.
     def _install_local_installer(self, action_id: str) -> None:
         # Пуска локален installer от списъка с програми.
         spec = self._local_task_spec(action_id)
@@ -8906,6 +9305,7 @@ class MainMenuUI:
             daemon=True,
         ).start()
 
+    # Стартира инсталационната логика за adobe reader.
     def _install_adobe_reader(self) -> None:
         self.adobe_reader_status_cache = None
         status = self._adobe_reader_status()
@@ -8968,6 +9368,7 @@ class MainMenuUI:
             daemon=True,
         ).start()
 
+    # Стартира local installer installation и връща резултата.
     def _run_local_installer_installation(
         self,
         action_id: str,
@@ -9029,6 +9430,7 @@ class MainMenuUI:
         except Exception as exc:
             self.root.after(0, lambda: self._show_activation_result(False, str(exc), spec["label"]))
 
+    # Стартира adobe reader installation и връща резултата.
     def _run_adobe_reader_installation(
         self,
         winget_exe: str,
@@ -9104,6 +9506,7 @@ class MainMenuUI:
         except Exception as exc:
             self.root.after(0, lambda: self._show_activation_result(False, str(exc), "Adobe Reader"))
 
+    # Стартира office offline installation и връща резултата.
     def _run_office_offline_installation(
         self,
         installer: object,
@@ -9171,6 +9574,7 @@ class MainMenuUI:
         except Exception as exc:
             self.root.after(0, lambda: self._finish_office_installation(installer.action_id, installer.label, False, str(exc)))
 
+    # Стартира office online installation и връща резултата.
     def _run_office_online_installation(
         self,
         action_id: str,
@@ -9245,6 +9649,7 @@ class MainMenuUI:
         except Exception as exc:
             self.root.after(0, lambda: self._show_activation_result(False, str(exc), label))
 
+    # Проверява office activation status и връща резултат за интерфейса.
     def _check_office_activation_status(self) -> None:
         status = self._office_maintenance_status("office_check_activation_status")
         if not status.available:
@@ -9260,6 +9665,7 @@ class MainMenuUI:
         )
         threading.Thread(target=self._run_office_activation_status, daemon=True).start()
 
+    # Стартира office activation status и връща резултата.
     def _run_office_activation_status(self) -> None:
         ospp_vbs = find_ospp_vbs()
         if not ospp_vbs:
@@ -9306,6 +9712,7 @@ class MainMenuUI:
         except Exception as exc:
             self.root.after(0, lambda: self._show_activation_result(False, str(exc), "Office"))
 
+    # Помощна функция за quick repair office.
     def _quick_repair_office(self) -> None:
         status = self._office_maintenance_status("office_quick_repair")
         if not status.available:
@@ -9330,6 +9737,7 @@ class MainMenuUI:
         )
         threading.Thread(target=self._run_office_quick_repair, daemon=True).start()
 
+    # Стартира office quick repair и връща резултата.
     def _run_office_quick_repair(self) -> None:
         click_to_run = find_click_to_run_executable()
         if not click_to_run:
@@ -9383,6 +9791,7 @@ class MainMenuUI:
         except Exception as exc:
             self.root.after(0, lambda: self._show_activation_result(False, str(exc), "Office"))
 
+    # Помощна функция за force uninstall all office.
     def _force_uninstall_all_office(self) -> None:
         status = self._office_maintenance_status("office_force_uninstall_all")
         if not status.available:
@@ -9407,6 +9816,7 @@ class MainMenuUI:
         )
         threading.Thread(target=self._run_force_uninstall_all_office, daemon=True).start()
 
+    # Стартира force uninstall all office и връща резултата.
     def _run_force_uninstall_all_office(self) -> None:
         winget_exe = find_winget_executable()
         if not winget_exe:
@@ -9463,12 +9873,14 @@ class MainMenuUI:
         except Exception as exc:
             self.root.after(0, lambda: self._show_activation_result(False, str(exc), "Office"))
 
+    # Помощна функция за finish office installation.
     def _finish_office_installation(self, action_id: str, subject: str, success: bool, details: str) -> None:
         self.office_inventory_cache.pop(action_id, None)
         self._show_activation_result(success, details, subject)
         if self.current_menu == "office_install_center":
             self._render_cards()
 
+    # Помощна функция за remove office installation.
     def _remove_office_installation(self, action_id: str) -> None:
         office_info = self._office_install_info(action_id)
         if not office_info.installed or not office_info.uninstall_string:
@@ -9498,6 +9910,7 @@ class MainMenuUI:
             daemon=True,
         ).start()
 
+    # Стартира office removal и връща резултата.
     def _run_office_removal(self, action_id: str, display_name: str, uninstall_string: str) -> None:
         output_lines: list[str] = []
         try:
@@ -9539,12 +9952,14 @@ class MainMenuUI:
         except Exception as exc:
             self.root.after(0, lambda: self._finish_office_removal(action_id, display_name, False, str(exc)))
 
+    # Помощна функция за finish office removal.
     def _finish_office_removal(self, action_id: str, subject: str, success: bool, details: str) -> None:
         self.office_inventory_cache.pop(action_id, None)
         self._show_activation_result(success, details, subject)
         if self.current_menu == "office_install_center":
             self._render_cards()
 
+    # Стартира office activation и връща резултата.
     def _run_office_activation(self, version_label: str, product_key: str) -> None:
         output_lines: list[str] = []
         try:
@@ -9589,6 +10004,7 @@ class MainMenuUI:
         final_output = "\n\n".join(output_lines) or f"{version_label} activation completed successfully."
         self.root.after(0, lambda: self._show_activation_result(True, final_output, version_label))
 
+    # Стартира windows activation и връща резултата.
     def _run_windows_activation(self, version_label: str, product_key: str) -> None:
         slmgr_path = Path(os.environ.get("WINDIR", r"C:\Windows")) / "System32" / "slmgr.vbs"
         commands = [
@@ -9631,6 +10047,7 @@ class MainMenuUI:
         final_output = "\n\n".join(output_lines) or f"{version_label} activation completed successfully."
         self.root.after(0, lambda: self._show_activation_result(True, final_output, version_label))
 
+    # Показва activation result в интерфейса.
     def _show_activation_result(self, success: bool, details: str, subject: str) -> None:
         if success:
             self.status_var.set(f"{subject} activation completed.")
@@ -9640,6 +10057,7 @@ class MainMenuUI:
         self.status_var.set(f"{subject} activation failed.")
         self._update_activation_progress(100, "Activation failed.", details, finished=True, success=False)
 
+    # Отваря activation window или съответния прозорец.
     def _open_activation_window(self, title: str, heading: str, intro: str) -> None:
         if self.activation_window is not None and self.activation_window.winfo_exists():
             self.activation_window.destroy()
@@ -9720,6 +10138,7 @@ class MainMenuUI:
         )
         self.activation_close_button.pack(anchor="e", pady=(14, 0))
 
+    # Помощна функция за append activation log.
     def _append_activation_log(self, text: str) -> None:
         if self.activation_log_widget is None or not self.activation_log_widget.winfo_exists():
             return
@@ -9728,6 +10147,7 @@ class MainMenuUI:
         self.activation_log_widget.see("end")
         self.activation_log_widget.config(state="disabled")
 
+    # Обновява activation progress след промяна в състоянието.
     def _update_activation_progress(
         self,
         value: int,
@@ -9746,6 +10166,7 @@ class MainMenuUI:
         if finished and self.activation_close_button is not None:
             self.activation_close_button.config(state="normal", bg="#1d5a28" if success else "#7a1f1f")
 
+    # Помощна функция за go back.
     def go_back(self) -> None:
         if not self.history:
             return
@@ -9757,6 +10178,7 @@ class MainMenuUI:
         self.render_menu(target)
         self.status_var.set(f"Returned to {MENU_TREE[target]['title']}.")
 
+    # Помощна функция за go home.
     def go_home(self) -> None:
         self._stop_dashboard_info_scroll()
         if self.dashboard_render_job is not None:
@@ -9767,9 +10189,11 @@ class MainMenuUI:
             self.dashboard_render_job = None
         self._show_dashboard_direct(reset_history=True)
 
+    # Помощна функция за go dashboard.
     def go_dashboard(self) -> None:
         self.go_home()
 
+    # Помощна функция за next page.
     def next_page(self) -> None:
         items = MENU_TREE[self.current_menu]["items"]
         page_size = MENU_PAGE_SIZE.get(self.current_menu, CARDS_PER_PAGE)
@@ -9778,12 +10202,14 @@ class MainMenuUI:
             self.current_page += 1
             self._render_cards()
 
+    # Помощна функция за previous page.
     def previous_page(self) -> None:
         if self.current_page > 0:
             self.current_page -= 1
             self._render_cards()
 
 
+# Помощна функция за main.
 def main() -> None:
     configure_windows_dpi_awareness()
     # Главна входна точка: иска admin права и после стартира UI.

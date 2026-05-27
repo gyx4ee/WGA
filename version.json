@@ -1,10 +1,11 @@
 {
-  "version": "0.2.42",
+  "version": "0.2.43",
   "version_info_url": "https://raw.githubusercontent.com/gyx4ee/WGA/refs/heads/main/version.json",
   "download_url": "https://github.com/gyx4ee/WGA/releases/latest",
   "package_url": "https://raw.githubusercontent.com/gyx4ee/WGA/refs/heads/main/WGA-portable.zip",
-  "notes": "Restored the missing download button in the Install Software compact resources card, centered it without shifting the resource and work-mode information, and kept its enabled state synchronized with missing installer packages.",
+  "notes": "Added a full local icon refresh with dedicated card and dashboard icons, made the Language menu visible from the main navigation and dashboard quick actions, compacted the sidebar so all menus fit, and cleaned the Language and Nexus Admin cards for a simpler layout.",
   "changelog": [
+    "v0.2.43 - Added a full local icon refresh with dedicated card and dashboard icons, made the Language menu visible from the main navigation and dashboard quick actions, compacted the sidebar so all menus fit, and cleaned the Language and Nexus Admin cards for a simpler layout.",
     "v0.2.42 - Restored the missing download button in the Install Software compact resources card, centered it without shifting the resource and work-mode information, and kept its enabled state synchronized with missing installer packages.",
     "v0.2.41 - Updated the USB installer package with a drive-relative Start WGA.cmd and start.bat launcher that searches the installed USB flash/HDD/SSD for WGA.exe, kept the setup package clean without bundling the Installers folder, and refined the top update-history button plus Automatic Installer centering.",
     "v0.2.40 - Fixed the Dashboard return flow so every Dashboard button forces a clean redraw, added diagnostics for blank dashboard states, stabilized dashboard rendering against background refresh races, restored Bulgarian text encoding, cleaned and compacted Activation, Install Software, Office Install Center, Office Online God Mode, Archive, and Automatic Installer menus, centered the Automatic Installer, and updated the build package to include all visual assets.",

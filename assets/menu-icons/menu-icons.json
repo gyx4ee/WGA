@@ -1,0 +1,656 @@
+{
+  "main": {
+    "title": "Main Menu",
+    "file": "assets/menu-icons/menu-main.png",
+    "size": "512x512"
+  },
+  "auto_installer": {
+    "title": "Automatic Installer",
+    "file": "assets/menu-icons/menu-auto_installer.png",
+    "size": "512x512"
+  },
+  "activation": {
+    "title": "Activation Menu",
+    "file": "assets/menu-icons/menu-activation.png",
+    "size": "512x512"
+  },
+  "windows10_activation": {
+    "title": "Windows 10 Key",
+    "file": "assets/menu-icons/menu-windows10_activation.png",
+    "size": "512x512"
+  },
+  "windows11_activation": {
+    "title": "Windows 11 Key",
+    "file": "assets/menu-icons/menu-windows11_activation.png",
+    "size": "512x512"
+  },
+  "office_activation": {
+    "title": "Office Activation",
+    "file": "assets/menu-icons/menu-office_activation.png",
+    "size": "512x512"
+  },
+  "reset_onedrive": {
+    "title": "Reset OneDrive",
+    "file": "assets/menu-icons/menu-reset_onedrive.png",
+    "size": "512x512"
+  },
+  "install_software": {
+    "title": "Install Software",
+    "file": "assets/menu-icons/menu-install_software.png",
+    "size": "512x512"
+  },
+  "office_install_center": {
+    "title": "Office Install",
+    "file": "assets/menu-icons/menu-office_install_center.png",
+    "size": "512x512"
+  },
+  "secret_install": {
+    "title": "Secret Install",
+    "file": "assets/menu-icons/menu-secret_install.png",
+    "size": "512x512"
+  },
+  "office_center": {
+    "title": "Office Deployment",
+    "file": "assets/menu-icons/menu-office_center.png",
+    "size": "512x512"
+  },
+  "language": {
+    "title": "Language Manager",
+    "file": "assets/menu-icons/menu-language.png",
+    "size": "512x512"
+  },
+  "driver_backup": {
+    "title": "Driver Backup",
+    "file": "assets/menu-icons/menu-driver_backup.png",
+    "size": "512x512"
+  },
+  "nexus_admin": {
+    "title": "Nexus Admin",
+    "file": "assets/menu-icons/menu-nexus_admin.png",
+    "size": "512x512"
+  },
+  "action_add_desktop_icons": {
+    "title": "Add Desktop Icons",
+    "file": "assets/menu-icons/action_add_desktop_icons.png",
+    "size": "512x512",
+    "glyph": "PC",
+    "accent": "#56d6ff",
+    "scope": "card"
+  },
+  "card_main_reset_console": {
+    "title": "Reset Console",
+    "file": "assets/menu-icons/card_main_reset_console.png",
+    "size": "512x512",
+    "glyph": "CMD",
+    "accent": "#94f28a",
+    "scope": "card"
+  },
+  "card_main_exit": {
+    "title": "Exit",
+    "file": "assets/menu-icons/card_main_exit.png",
+    "size": "512x512",
+    "glyph": "X",
+    "accent": "#ff6b6b",
+    "scope": "card"
+  },
+  "action_activate_windows10": {
+    "title": "Run Windows 10 Activation",
+    "file": "assets/menu-icons/action_activate_windows10.png",
+    "size": "512x512",
+    "glyph": "10",
+    "accent": "#2f8fff",
+    "scope": "card"
+  },
+  "action_save_windows10_key": {
+    "title": "Save or Replace Product Key",
+    "file": "assets/menu-icons/action_save_windows10_key.png",
+    "size": "512x512",
+    "glyph": "10",
+    "accent": "#2f8fff",
+    "scope": "card"
+  },
+  "action_show_windows10_key": {
+    "title": "Show Saved Product Key",
+    "file": "assets/menu-icons/action_show_windows10_key.png",
+    "size": "512x512",
+    "glyph": "10",
+    "accent": "#2f8fff",
+    "scope": "card"
+  },
+  "action_clear_windows10_key": {
+    "title": "Clear Saved Product Key",
+    "file": "assets/menu-icons/action_clear_windows10_key.png",
+    "size": "512x512",
+    "glyph": "10",
+    "accent": "#2f8fff",
+    "scope": "card"
+  },
+  "action_activate_windows11": {
+    "title": "Run Windows 11 Activation",
+    "file": "assets/menu-icons/action_activate_windows11.png",
+    "size": "512x512",
+    "glyph": "11",
+    "accent": "#37e39a",
+    "scope": "card"
+  },
+  "action_save_windows11_key": {
+    "title": "Save or Replace Product Key",
+    "file": "assets/menu-icons/action_save_windows11_key.png",
+    "size": "512x512",
+    "glyph": "11",
+    "accent": "#37e39a",
+    "scope": "card"
+  },
+  "action_show_windows11_key": {
+    "title": "Show Saved Product Key",
+    "file": "assets/menu-icons/action_show_windows11_key.png",
+    "size": "512x512",
+    "glyph": "11",
+    "accent": "#37e39a",
+    "scope": "card"
+  },
+  "action_clear_windows11_key": {
+    "title": "Clear Saved Product Key",
+    "file": "assets/menu-icons/action_clear_windows11_key.png",
+    "size": "512x512",
+    "glyph": "11",
+    "accent": "#37e39a",
+    "scope": "card"
+  },
+  "action_save_office_key": {
+    "title": "Save or Replace Office Key",
+    "file": "assets/menu-icons/action_save_office_key.png",
+    "size": "512x512",
+    "glyph": "SAVE",
+    "accent": "#37e39a",
+    "scope": "card"
+  },
+  "action_show_office_key": {
+    "title": "Show Saved Office Key",
+    "file": "assets/menu-icons/action_show_office_key.png",
+    "size": "512x512",
+    "glyph": "SAVE",
+    "accent": "#37e39a",
+    "scope": "card"
+  },
+  "action_clear_office_key": {
+    "title": "Clear Saved Office Key",
+    "file": "assets/menu-icons/action_clear_office_key.png",
+    "size": "512x512",
+    "glyph": "SAVE",
+    "accent": "#37e39a",
+    "scope": "card"
+  },
+  "action_office_2016_activation": {
+    "title": "Office 2016",
+    "file": "assets/menu-icons/action_office_2016_activation.png",
+    "size": "512x512",
+    "glyph": "16",
+    "accent": "#d0a94a",
+    "scope": "card"
+  },
+  "action_office_2019_activation": {
+    "title": "Office 2019",
+    "file": "assets/menu-icons/action_office_2019_activation.png",
+    "size": "512x512",
+    "glyph": "19",
+    "accent": "#d0a94a",
+    "scope": "card"
+  },
+  "action_office_2021_activation": {
+    "title": "Office 2021",
+    "file": "assets/menu-icons/action_office_2021_activation.png",
+    "size": "512x512",
+    "glyph": "21",
+    "accent": "#d0a94a",
+    "scope": "card"
+  },
+  "action_reset_onedrive_1": {
+    "title": "Reset OneDrive (Method 1)",
+    "file": "assets/menu-icons/action_reset_onedrive_1.png",
+    "size": "512x512",
+    "glyph": "1D",
+    "accent": "#55aaff",
+    "scope": "card"
+  },
+  "action_reset_onedrive_2": {
+    "title": "Reset OneDrive (Method 2)",
+    "file": "assets/menu-icons/action_reset_onedrive_2.png",
+    "size": "512x512",
+    "glyph": "1D",
+    "accent": "#55aaff",
+    "scope": "card"
+  },
+  "action_reset_onedrive_3": {
+    "title": "Reset OneDrive (Method 3)",
+    "file": "assets/menu-icons/action_reset_onedrive_3.png",
+    "size": "512x512",
+    "glyph": "1D",
+    "accent": "#55aaff",
+    "scope": "card"
+  },
+  "action_install_ninite": {
+    "title": "Install Ninite",
+    "file": "assets/menu-icons/action_install_ninite.png",
+    "size": "512x512",
+    "glyph": "N",
+    "accent": "#65d66e",
+    "scope": "card"
+  },
+  "action_install_adobe_reader": {
+    "title": "Install Adobe Reader",
+    "file": "assets/menu-icons/action_install_adobe_reader.png",
+    "size": "512x512",
+    "glyph": "PDF",
+    "accent": "#ff5a5f",
+    "scope": "card"
+  },
+  "action_install_office_2016_offline": {
+    "title": "Office 2016 Offline",
+    "file": "assets/menu-icons/action_install_office_2016_offline.png",
+    "size": "512x512",
+    "glyph": "16",
+    "accent": "#d0a94a",
+    "scope": "card"
+  },
+  "action_install_office_2019_offline": {
+    "title": "Office 2019 Offline",
+    "file": "assets/menu-icons/action_install_office_2019_offline.png",
+    "size": "512x512",
+    "glyph": "19",
+    "accent": "#d0a94a",
+    "scope": "card"
+  },
+  "action_install_office_2021_offline": {
+    "title": "Office 2021 Offline",
+    "file": "assets/menu-icons/action_install_office_2021_offline.png",
+    "size": "512x512",
+    "glyph": "21",
+    "accent": "#d0a94a",
+    "scope": "card"
+  },
+  "action_install_office_2021_new_offline": {
+    "title": "Office Professional 2021 Offline",
+    "file": "assets/menu-icons/action_install_office_2021_new_offline.png",
+    "size": "512x512",
+    "glyph": "21",
+    "accent": "#d0a94a",
+    "scope": "card"
+  },
+  "action_install_office_2024_prof_offline": {
+    "title": "Office Professional 2024 Offline",
+    "file": "assets/menu-icons/action_install_office_2024_prof_offline.png",
+    "size": "512x512",
+    "glyph": "24",
+    "accent": "#d0a94a",
+    "scope": "card"
+  },
+  "action_install_office_2024_standard_offline": {
+    "title": "Office Standard 2024 Offline",
+    "file": "assets/menu-icons/action_install_office_2024_standard_offline.png",
+    "size": "512x512",
+    "glyph": "24",
+    "accent": "#d0a94a",
+    "scope": "card"
+  },
+  "action_install_office_2021_standard_offline": {
+    "title": "Office Standard 2021 Offline",
+    "file": "assets/menu-icons/action_install_office_2021_standard_offline.png",
+    "size": "512x512",
+    "glyph": "21",
+    "accent": "#d0a94a",
+    "scope": "card"
+  },
+  "card_secret_install_system_runtimes": {
+    "title": "System Runtimes",
+    "file": "assets/menu-icons/card_secret_install_system_runtimes.png",
+    "size": "512x512",
+    "glyph": "RT",
+    "accent": "#b48cff",
+    "scope": "card"
+  },
+  "card_secret_install_browsers_and_comms": {
+    "title": "Browsers & Comms",
+    "file": "assets/menu-icons/card_secret_install_browsers_and_comms.png",
+    "size": "512x512",
+    "glyph": "WEB",
+    "accent": "#4da3ff",
+    "scope": "card"
+  },
+  "card_secret_install_development": {
+    "title": "Development",
+    "file": "assets/menu-icons/card_secret_install_development.png",
+    "size": "512x512",
+    "glyph": "DEV",
+    "accent": "#37e39a",
+    "scope": "card"
+  },
+  "card_secret_install_languages_and_db": {
+    "title": "Languages & DB",
+    "file": "assets/menu-icons/card_secret_install_languages_and_db.png",
+    "size": "512x512",
+    "glyph": "BG",
+    "accent": "#37e39a",
+    "scope": "card"
+  },
+  "card_secret_install_cybersecurity_and_net": {
+    "title": "Cybersecurity & Net",
+    "file": "assets/menu-icons/card_secret_install_cybersecurity_and_net.png",
+    "size": "512x512",
+    "glyph": "SEC",
+    "accent": "#ffcc66",
+    "scope": "card"
+  },
+  "card_secret_install_virtualization": {
+    "title": "Virtualization",
+    "file": "assets/menu-icons/card_secret_install_virtualization.png",
+    "size": "512x512",
+    "glyph": "VM",
+    "accent": "#65d6ff",
+    "scope": "card"
+  },
+  "card_secret_install_multimedia_and_design": {
+    "title": "Multimedia & Design",
+    "file": "assets/menu-icons/card_secret_install_multimedia_and_design.png",
+    "size": "512x512",
+    "glyph": "ART",
+    "accent": "#ff8ad6",
+    "scope": "card"
+  },
+  "card_secret_install_gaming_and_tools": {
+    "title": "Gaming & Tools",
+    "file": "assets/menu-icons/card_secret_install_gaming_and_tools.png",
+    "size": "512x512",
+    "glyph": "GAME",
+    "accent": "#b48cff",
+    "scope": "card"
+  },
+  "card_secret_install_utilities_and_office": {
+    "title": "Utilities & Office",
+    "file": "assets/menu-icons/card_secret_install_utilities_and_office.png",
+    "size": "512x512",
+    "glyph": "UTIL",
+    "accent": "#37e39a",
+    "scope": "card"
+  },
+  "card_secret_install_advanced_tools": {
+    "title": "Advanced Tools",
+    "file": "assets/menu-icons/card_secret_install_advanced_tools.png",
+    "size": "512x512",
+    "glyph": "ADV",
+    "accent": "#ffcc66",
+    "scope": "card"
+  },
+  "card_secret_install_update_all_apps": {
+    "title": "Update All Apps",
+    "file": "assets/menu-icons/card_secret_install_update_all_apps.png",
+    "size": "512x512",
+    "glyph": "UPD",
+    "accent": "#56d6ff",
+    "scope": "card"
+  },
+  "action_online_office_2024_proplus": {
+    "title": "Office Professional Plus 2024",
+    "file": "assets/menu-icons/action_online_office_2024_proplus.png",
+    "size": "512x512",
+    "glyph": "24",
+    "accent": "#d0a94a",
+    "scope": "card"
+  },
+  "action_online_office_2024_home_business": {
+    "title": "Office Home & Business 2024",
+    "file": "assets/menu-icons/action_online_office_2024_home_business.png",
+    "size": "512x512",
+    "glyph": "24",
+    "accent": "#d0a94a",
+    "scope": "card"
+  },
+  "action_online_office_2021_proplus": {
+    "title": "Office Professional Plus 2021",
+    "file": "assets/menu-icons/action_online_office_2021_proplus.png",
+    "size": "512x512",
+    "glyph": "21",
+    "accent": "#d0a94a",
+    "scope": "card"
+  },
+  "action_online_office_2021_home_student": {
+    "title": "Office Home & Student 2021",
+    "file": "assets/menu-icons/action_online_office_2021_home_student.png",
+    "size": "512x512",
+    "glyph": "21",
+    "accent": "#d0a94a",
+    "scope": "card"
+  },
+  "action_online_microsoft_365": {
+    "title": "Microsoft 365",
+    "file": "assets/menu-icons/action_online_microsoft_365.png",
+    "size": "512x512",
+    "glyph": "365",
+    "accent": "#3aa7ff",
+    "scope": "card"
+  },
+  "action_online_office_2019_proplus": {
+    "title": "Office Professional Plus 2019",
+    "file": "assets/menu-icons/action_online_office_2019_proplus.png",
+    "size": "512x512",
+    "glyph": "19",
+    "accent": "#d0a94a",
+    "scope": "card"
+  },
+  "action_online_office_2016_proplus": {
+    "title": "Office Professional Plus 2016",
+    "file": "assets/menu-icons/action_online_office_2016_proplus.png",
+    "size": "512x512",
+    "glyph": "16",
+    "accent": "#d0a94a",
+    "scope": "card"
+  },
+  "action_online_office_2013_proplus": {
+    "title": "Office Professional Plus 2013",
+    "file": "assets/menu-icons/action_online_office_2013_proplus.png",
+    "size": "512x512",
+    "glyph": "APP",
+    "accent": "#37e39a",
+    "scope": "card"
+  },
+  "action_online_visio_2024_pro": {
+    "title": "Visio Professional 2024",
+    "file": "assets/menu-icons/action_online_visio_2024_pro.png",
+    "size": "512x512",
+    "glyph": "24",
+    "accent": "#d0a94a",
+    "scope": "card"
+  },
+  "action_online_project_2024_pro": {
+    "title": "Project Professional 2024",
+    "file": "assets/menu-icons/action_online_project_2024_pro.png",
+    "size": "512x512",
+    "glyph": "24",
+    "accent": "#d0a94a",
+    "scope": "card"
+  },
+  "action_online_visio_2021_pro": {
+    "title": "Visio Professional 2021",
+    "file": "assets/menu-icons/action_online_visio_2021_pro.png",
+    "size": "512x512",
+    "glyph": "21",
+    "accent": "#d0a94a",
+    "scope": "card"
+  },
+  "action_online_project_2021_pro": {
+    "title": "Project Professional 2021",
+    "file": "assets/menu-icons/action_online_project_2021_pro.png",
+    "size": "512x512",
+    "glyph": "21",
+    "accent": "#d0a94a",
+    "scope": "card"
+  },
+  "action_office_check_activation_status": {
+    "title": "Check Activation Status",
+    "file": "assets/menu-icons/action_office_check_activation_status.png",
+    "size": "512x512",
+    "glyph": "KEY",
+    "accent": "#d0a94a",
+    "scope": "card"
+  },
+  "action_office_quick_repair": {
+    "title": "Quick Repair Office",
+    "file": "assets/menu-icons/action_office_quick_repair.png",
+    "size": "512x512",
+    "glyph": "FIX",
+    "accent": "#37e39a",
+    "scope": "card"
+  },
+  "action_office_force_uninstall_all": {
+    "title": "Force Uninstall All Office Versions",
+    "file": "assets/menu-icons/action_office_force_uninstall_all.png",
+    "size": "512x512",
+    "glyph": "DEL",
+    "accent": "#ff6b6b",
+    "scope": "card"
+  },
+  "action_language_refresh": {
+    "title": "Refresh Language Status",
+    "file": "assets/menu-icons/action_language_refresh.png",
+    "size": "512x512",
+    "glyph": "BG",
+    "accent": "#37e39a",
+    "scope": "card"
+  },
+  "action_toggle_bulgarian_bds": {
+    "title": "Bulgarian BDS (Typewriter)",
+    "file": "assets/menu-icons/action_toggle_bulgarian_bds.png",
+    "size": "512x512",
+    "glyph": "BG",
+    "accent": "#37e39a",
+    "scope": "card"
+  },
+  "action_toggle_bulgarian_phonetic": {
+    "title": "Bulgarian Phonetic (Standard)",
+    "file": "assets/menu-icons/action_toggle_bulgarian_phonetic.png",
+    "size": "512x512",
+    "glyph": "BG",
+    "accent": "#37e39a",
+    "scope": "card"
+  },
+  "action_toggle_bulgarian_traditional": {
+    "title": "Bulgarian Traditional Phonetic",
+    "file": "assets/menu-icons/action_toggle_bulgarian_traditional.png",
+    "size": "512x512",
+    "glyph": "BG",
+    "accent": "#37e39a",
+    "scope": "card"
+  },
+  "action_toggle_bulgarian_language_pack": {
+    "title": "Bulgarian Language Pack",
+    "file": "assets/menu-icons/action_toggle_bulgarian_language_pack.png",
+    "size": "512x512",
+    "glyph": "BG",
+    "accent": "#37e39a",
+    "scope": "card"
+  },
+  "action_remove_bulgarian_language": {
+    "title": "Remove Bulgarian Language Entry",
+    "file": "assets/menu-icons/action_remove_bulgarian_language.png",
+    "size": "512x512",
+    "glyph": "DEL",
+    "accent": "#ff6b6b",
+    "scope": "card"
+  },
+  "action_driver_backup_clean": {
+    "title": "Backup Drivers (Clean)",
+    "file": "assets/menu-icons/action_driver_backup_clean.png",
+    "size": "512x512",
+    "glyph": "DRV",
+    "accent": "#56d6ff",
+    "scope": "card"
+  },
+  "action_driver_backup_full": {
+    "title": "Backup Drivers (Full)",
+    "file": "assets/menu-icons/action_driver_backup_full.png",
+    "size": "512x512",
+    "glyph": "DRV",
+    "accent": "#56d6ff",
+    "scope": "card"
+  },
+  "action_driver_recovery_usb": {
+    "title": "Create Recovery USB + RESTORE.bat",
+    "file": "assets/menu-icons/action_driver_recovery_usb.png",
+    "size": "512x512",
+    "glyph": "USB",
+    "accent": "#56d6ff",
+    "scope": "card"
+  },
+  "action_driver_pc_report": {
+    "title": "Generate PC Report",
+    "file": "assets/menu-icons/action_driver_pc_report.png",
+    "size": "512x512",
+    "glyph": "REP",
+    "accent": "#d0a94a",
+    "scope": "card"
+  },
+  "action_driver_backup_advanced": {
+    "title": "Driver Backup Tool v0.1",
+    "file": "assets/menu-icons/action_driver_backup_advanced.png",
+    "size": "512x512",
+    "glyph": "ADV",
+    "accent": "#ffcc66",
+    "scope": "card"
+  },
+  "action_driver_restore_last": {
+    "title": "Restore Drivers From Last Backup",
+    "file": "assets/menu-icons/action_driver_restore_last.png",
+    "size": "512x512",
+    "glyph": "RST",
+    "accent": "#37e39a",
+    "scope": "card"
+  },
+  "action_nexus_list_users": {
+    "title": "List All Users",
+    "file": "assets/menu-icons/action_nexus_list_users.png",
+    "size": "512x512",
+    "glyph": "USR",
+    "accent": "#56d6ff",
+    "scope": "card"
+  },
+  "action_nexus_change_password": {
+    "title": "Change Password",
+    "file": "assets/menu-icons/action_nexus_change_password.png",
+    "size": "512x512",
+    "glyph": "PWD",
+    "accent": "#d0a94a",
+    "scope": "card"
+  },
+  "action_nexus_create_user": {
+    "title": "Create New User",
+    "file": "assets/menu-icons/action_nexus_create_user.png",
+    "size": "512x512",
+    "glyph": "U+",
+    "accent": "#37e39a",
+    "scope": "card"
+  },
+  "action_nexus_delete_user": {
+    "title": "Delete User",
+    "file": "assets/menu-icons/action_nexus_delete_user.png",
+    "size": "512x512",
+    "glyph": "DEL",
+    "accent": "#ff6b6b",
+    "scope": "card"
+  },
+  "action_nexus_user_details": {
+    "title": "User Details",
+    "file": "assets/menu-icons/action_nexus_user_details.png",
+    "size": "512x512",
+    "glyph": "INFO",
+    "accent": "#56d6ff",
+    "scope": "card"
+  },
+  "action_nexus_toggle_admin": {
+    "title": "Toggle Administrator Rights",
+    "file": "assets/menu-icons/action_nexus_toggle_admin.png",
+    "size": "512x512",
+    "glyph": "ADM",
+    "accent": "#ffcc66",
+    "scope": "card"
+  }
+}

@@ -1,0 +1,114 @@
+﻿{
+    "shield":  {
+                   "title":  "Protection",
+                   "file":  "assets/dashboard-icons/dashboard-shield.png",
+                   "size":  "512x512",
+                   "glyph":  "SH",
+                   "accent":  "#37e39a"
+               },
+    "home":  {
+                 "title":  "Dashboard Home",
+                 "file":  "assets/dashboard-icons/dashboard-home.png",
+                 "size":  "512x512",
+                 "glyph":  "HM",
+                 "accent":  "#56d6ff"
+             },
+    "key":  {
+                "title":  "Activation Key",
+                "file":  "assets/dashboard-icons/dashboard-key.png",
+                "size":  "512x512",
+                "glyph":  "KEY",
+                "accent":  "#d0a94a"
+            },
+    "download":  {
+                     "title":  "Download Resources",
+                     "file":  "assets/dashboard-icons/dashboard-download.png",
+                     "size":  "512x512",
+                     "glyph":  "DL",
+                     "accent":  "#5bd98f"
+                 },
+    "robot":  {
+                  "title":  "Auto Installer",
+                  "file":  "assets/dashboard-icons/dashboard-robot.png",
+                  "size":  "512x512",
+                  "glyph":  "AI",
+                  "accent":  "#b48cff"
+              },
+    "globe":  {
+                  "title":  "Language Online",
+                  "file":  "assets/dashboard-icons/dashboard-globe.png",
+                  "size":  "512x512",
+                  "glyph":  "GL",
+                  "accent":  "#56d6ff"
+              },
+    "drive":  {
+                  "title":  "Drive Archive",
+                  "file":  "assets/dashboard-icons/dashboard-drive.png",
+                  "size":  "512x512",
+                  "glyph":  "DRV",
+                  "accent":  "#4da3ff"
+              },
+    "admin":  {
+                  "title":  "Admin Mode",
+                  "file":  "assets/dashboard-icons/dashboard-admin.png",
+                  "size":  "512x512",
+                  "glyph":  "ADM",
+                  "accent":  "#ffcc66"
+              },
+    "refresh":  {
+                    "title":  "Refresh",
+                    "file":  "assets/dashboard-icons/dashboard-refresh.png",
+                    "size":  "512x512",
+                    "glyph":  "RF",
+                    "accent":  "#37e39a"
+                },
+    "cpu":  {
+                "title":  "CPU",
+                "file":  "assets/dashboard-icons/dashboard-cpu.png",
+                "size":  "512x512",
+                "glyph":  "CPU",
+                "accent":  "#ffcc66"
+            },
+    "bolt":  {
+                 "title":  "Power",
+                 "file":  "assets/dashboard-icons/dashboard-bolt.png",
+                 "size":  "512x512",
+                 "glyph":  "PWR",
+                 "accent":  "#f7d45c"
+             },
+    "ram":  {
+                "title":  "RAM",
+                "file":  "assets/dashboard-icons/dashboard-ram.png",
+                "size":  "512x512",
+                "glyph":  "RAM",
+                "accent":  "#65d6ff"
+            },
+    "disk":  {
+                 "title":  "Disk",
+                 "file":  "assets/dashboard-icons/dashboard-disk.png",
+                 "size":  "512x512",
+                 "glyph":  "SSD",
+                 "accent":  "#4da3ff"
+             },
+    "warning":  {
+                    "title":  "Warning",
+                    "file":  "assets/dashboard-icons/dashboard-warning.png",
+                    "size":  "512x512",
+                    "glyph":  "!",
+                    "accent":  "#ff6b6b"
+                },
+    "monitor":  {
+                    "title":  "System Monitor",
+                    "file":  "assets/dashboard-icons/dashboard-monitor.png",
+                    "size":  "512x512",
+                    "glyph":  "MON",
+                    "accent":  "#56d6ff"
+                },
+    "actions":  {
+                    "title":  "Quick Actions",
+                    "file":  "assets/dashboard-icons/dashboard-actions.png",
+                    "size":  "512x512",
+                    "glyph":  "ACT",
+                    "accent":  "#37e39a"
+                }
+}
