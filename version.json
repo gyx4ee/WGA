@@ -1,10 +1,11 @@
 {
-  "version": "0.2.43",
+  "version": "0.2.44",
   "version_info_url": "https://raw.githubusercontent.com/gyx4ee/WGA/refs/heads/main/version.json",
   "download_url": "https://github.com/gyx4ee/WGA/releases/latest",
   "package_url": "https://raw.githubusercontent.com/gyx4ee/WGA/refs/heads/main/WGA-portable.zip",
-  "notes": "Added a full local icon refresh with dedicated card and dashboard icons, made the Language menu visible from the main navigation and dashboard quick actions, compacted the sidebar so all menus fit, and cleaned the Language and Nexus Admin cards for a simpler layout.",
+  "notes": "Rebuilt the update package from the corrected UTF-8 source so the Automatic Installer and Visual Studio entries show normal Bulgarian text instead of mojibake in the released EXE.",
   "changelog": [
+    "v0.2.44 - Rebuilt the update package from the corrected UTF-8 source so the Automatic Installer and Visual Studio entries show normal Bulgarian text instead of mojibake in the released EXE.",
     "v0.2.43 - Added a full local icon refresh with dedicated card and dashboard icons, made the Language menu visible from the main navigation and dashboard quick actions, compacted the sidebar so all menus fit, and cleaned the Language and Nexus Admin cards for a simpler layout.",
     "v0.2.42 - Restored the missing download button in the Install Software compact resources card, centered it without shifting the resource and work-mode information, and kept its enabled state synchronized with missing installer packages.",
     "v0.2.41 - Updated the USB installer package with a drive-relative Start WGA.cmd and start.bat launcher that searches the installed USB flash/HDD/SSD for WGA.exe, kept the setup package clean without bundling the Installers folder, and refined the top update-history button plus Automatic Installer centering.",
