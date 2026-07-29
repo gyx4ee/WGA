@@ -1,3 +1,4 @@
+# Помощен модул за проверка и управление на Adobe Reader през Windows инструменти.
 from __future__ import annotations
 
 import re
@@ -18,6 +19,7 @@ ADOBE_INSTALLER_PATTERNS = (
 )
 
 
+# Описва данните, които приложението пази за AdobeReaderStatus.
 @dataclass(frozen=True)
 class AdobeReaderStatus:
     # Тук пазим събраната информация за Adobe Reader.
@@ -28,10 +30,12 @@ class AdobeReaderStatus:
     local_installer_version: str
     message: str
 
+    # Помощна функция за has local installer.
     @property
     def has_local_installer(self) -> bool:
         return self.local_installer is not None
 
+    # Помощна функция за local matches latest.
     @property
     def local_matches_latest(self) -> bool:
         return bool(
@@ -41,6 +45,7 @@ class AdobeReaderStatus:
         )
 
 
+# Стартира command и връща резултата.
 def _run_command(command: list[str]) -> subprocess.CompletedProcess[str]:
     # Пускаме системна команда тихо, без черен прозорец.
     return subprocess.run(
@@ -52,6 +57,7 @@ def _run_command(command: list[str]) -> subprocess.CompletedProcess[str]:
     )
 
 
+# Извлича winget field от подадения текст или архив.
 def _extract_winget_field(output: str, field: str) -> str:
     # Взимаме конкретно поле от текста, който winget връща.
     pattern = rf"^{re.escape(field)}\s*:\s*(.+)$"
@@ -62,6 +68,7 @@ def _extract_winget_field(output: str, field: str) -> str:
     return ""
 
 
+# Помощна функция за latest reader version.
 def _latest_reader_version(winget_exe: str | None) -> tuple[str, str]:
     # Проверяваме коя е последната версия според winget.
     if not winget_exe:
@@ -74,6 +81,7 @@ def _latest_reader_version(winget_exe: str | None) -> tuple[str, str]:
     return version, f"Актуална версия според winget: {version or 'неизвестна'}."
 
 
+# Помощна функция за installed reader version.
 def _installed_reader_version(winget_exe: str | None) -> str:
     # Проверяваме дали Adobe Reader вече е инсталиран на този компютър.
     if not winget_exe:
@@ -90,6 +98,7 @@ def _installed_reader_version(winget_exe: str | None) -> str:
     return "Installed"
 
 
+# Помощна функция за file version.
 def _file_version(path: Path) -> str:
     # Четем версията директно от локалния installer файл.
     safe_path = str(path).replace("'", "''")
@@ -107,6 +116,7 @@ def _file_version(path: Path) -> str:
     return ""
 
 
+# Намира local adobe installer.
 def find_local_adobe_installer(program_root: Path) -> Path | None:
     # Търсим локален Adobe installer в Installers папката и под-папките й.
     installers_root = resolve_installers_root(program_root)
@@ -136,6 +146,7 @@ def find_local_adobe_installer(program_root: Path) -> Path | None:
     return max(files, key=lambda path: path.stat().st_mtime)
 
 
+# Проверява adobe reader status и връща резултат за интерфейса.
 def check_adobe_reader_status(program_root: Path) -> AdobeReaderStatus:
     # Събираме на едно място online и local статуса за Adobe Reader.
     winget_exe = find_winget_executable()

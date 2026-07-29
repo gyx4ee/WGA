@@ -1,3 +1,4 @@
+# Описва локалните Office installer пакети и техните configuration файлове.
 from __future__ import annotations
 
 import sys
@@ -7,6 +8,7 @@ from pathlib import Path
 from path_utils import resolve_installers_root
 
 
+# Помощна функция за current project root.
 def current_project_root() -> Path:
     # Връща папката на програмата, независимо дали е .py или .exe билд.
     if getattr(sys, "frozen", False):
@@ -14,6 +16,7 @@ def current_project_root() -> Path:
     return Path(__file__).resolve().parent
 
 
+# Класът OfficeInstaller групира свързана логика и състояние.
 @dataclass(frozen=True)
 class OfficeInstaller:
     # Описва къде са setup и config файловете за дадена Office версия.
@@ -22,16 +25,19 @@ class OfficeInstaller:
     folder: str
     config_name: str
 
+    # Помощна функция за setup path.
     @property
     def setup_path(self) -> Path:
         # Това е setup.exe за избраната версия.
         return self.installers_root / self.folder / "setup.exe"
 
+    # Помощна функция за config path.
     @property
     def config_path(self) -> Path:
         # Това е XML конфигурацията за silent/controlled install.
         return self.installers_root / self.folder / self.config_name
 
+    # Помощна функция за installers root.
     @property
     def installers_root(self) -> Path:
         # Взимаме общата Installers папка за текущото място на програмата.
@@ -84,6 +90,7 @@ OFFICE_OFFLINE_INSTALLERS: dict[str, OfficeInstaller] = {
 }
 
 
+# Връща office offline installer в удобен за останалия код вид.
 def get_office_offline_installer(action_id: str) -> OfficeInstaller:
     # Връща готова конфигурация за избрания Office installer.
     return OFFICE_OFFLINE_INSTALLERS[action_id]

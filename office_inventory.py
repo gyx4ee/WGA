@@ -1,3 +1,4 @@
+# Чете наличните Office инсталации от Windows registry.
 from __future__ import annotations
 
 import winreg
@@ -11,6 +12,7 @@ UNINSTALL_PATHS = [
 ]
 
 
+# Описва данните, които приложението пази за InstalledOfficeInfo.
 @dataclass
 class InstalledOfficeInfo:
     # Пази какво Office открихме в системата.
@@ -30,6 +32,7 @@ OFFICE_MATCH_RULES = {
 }
 
 
+# Помощна функция за iter uninstall entries.
 def _iter_uninstall_entries() -> list[dict[str, str]]:
     # Обхожда uninstall записите в registry, за да търси Office.
     entries: list[dict[str, str]] = []
@@ -57,6 +60,7 @@ def _iter_uninstall_entries() -> list[dict[str, str]]:
     return entries
 
 
+# Помощна функция за query value.
 def _query_value(key: winreg.HKEYType, value_name: str) -> str:
     # Чете безопасно стойност от registry ключ.
     try:
@@ -66,6 +70,7 @@ def _query_value(key: winreg.HKEYType, value_name: str) -> str:
         return ""
 
 
+# Открива инсталираните Office пакети.
 def detect_installed_office(action_id: str) -> InstalledOfficeInfo:
     # Опитва да разпознае дали конкретна Office версия вече е инсталирана.
     match_parts = OFFICE_MATCH_RULES.get(action_id, [])

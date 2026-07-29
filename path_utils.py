@@ -1,3 +1,4 @@
+# Помощен модул за portable пътища, Installers папка и тип на носителя.
 from __future__ import annotations
 
 import ctypes
@@ -9,6 +10,7 @@ DRIVE_REMOVABLE = 2
 DRIVE_FIXED = 3
 
 
+# Описва данните, които приложението пази за RuntimeStorageInfo.
 @dataclass(frozen=True)
 class RuntimeStorageInfo:
     # Описва откъде е стартирана програмата и къде са installer файловете.
@@ -23,12 +25,14 @@ class RuntimeStorageInfo:
     installers_available: bool
 
 
+# Помощна функция за normalize drive.
 def _normalize_drive(path: Path) -> str:
     # Взима само буквата на устройството от даден път.
     drive = path.drive or path.anchor.rstrip("\\")
     return drive or ""
 
 
+# Помощна функция за kernel drive type.
 def _kernel_drive_type(drive_root: str) -> str:
     # Пита Windows дали устройството е USB, SSD/HDD или нещо друго.
     result = ctypes.windll.kernel32.GetDriveTypeW(f"{drive_root}\\")
@@ -39,6 +43,7 @@ def _kernel_drive_type(drive_root: str) -> str:
     return "Unknown"
 
 
+# Разпознава drive type и връща намерената информация.
 def detect_drive_type(path: Path) -> str:
     # Обединява пътя и Windows проверката в една функция.
     drive_root = _normalize_drive(path)
@@ -47,6 +52,7 @@ def detect_drive_type(path: Path) -> str:
     return _kernel_drive_type(drive_root)
 
 
+# Помощна функция за describe drive type.
 def describe_drive_type(drive_type: str) -> str:
     # Прави системния тип по-удобен за показване в интерфейса.
     if drive_type == "Removable":
@@ -56,6 +62,7 @@ def describe_drive_type(drive_type: str) -> str:
     return "Unknown Drive Type"
 
 
+# Помощна функция за resolve installers root.
 def resolve_installers_root(program_root: Path) -> Path:
     drive_root = Path(f"{_normalize_drive(program_root)}\\") if _normalize_drive(program_root) else program_root.anchor
     drive_installers = Path(drive_root) / "Installers" if drive_root else None
@@ -77,6 +84,7 @@ def resolve_installers_root(program_root: Path) -> Path:
     return candidates[0]
 
 
+# Помощна функция за ensure installers root.
 def ensure_installers_root(program_root: Path) -> Path:
     # Ако папката липсва, я създаваме още тук, за да не чакаме първо теглене.
     installers_root = resolve_installers_root(program_root)
@@ -84,6 +92,7 @@ def ensure_installers_root(program_root: Path) -> Path:
     return installers_root
 
 
+# Връща runtime storage info в удобен за останалия код вид.
 def get_runtime_storage_info(program_root: Path) -> RuntimeStorageInfo:
     # Събира пълна информация за текущото място на стартиране.
     drive = _normalize_drive(program_root)

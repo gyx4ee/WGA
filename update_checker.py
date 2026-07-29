@@ -1,3 +1,4 @@
+# Проверява online version metadata и сравнява версиите.
 from __future__ import annotations
 
 import json
@@ -8,6 +9,7 @@ from urllib.parse import parse_qsl, quote, urlencode, urlsplit, urlunsplit
 from urllib.request import urlopen
 
 
+# Описва данните, които приложението пази за UpdateResult.
 @dataclass
 class UpdateResult:
     # Пази резултата от online проверката за нова версия.
@@ -20,6 +22,7 @@ class UpdateResult:
     error: str = ""
 
 
+# Помощна функция за normalize version.
 def _normalize_version(version: str) -> tuple[int, ...]:
     # Превръща версия като 0.2.4 в числа за сравнение.
     parts: list[int] = []
@@ -31,6 +34,7 @@ def _normalize_version(version: str) -> tuple[int, ...]:
     return tuple(parts)
 
 
+# Помощна функция за fetch json.
 def _fetch_json(url: str, timeout: int = 6) -> dict[str, str]:
     # Изтегля JSON файла с информация за последната версия.
     prepared_url = _prepare_url(url)
@@ -41,6 +45,7 @@ def _fetch_json(url: str, timeout: int = 6) -> dict[str, str]:
     return data if isinstance(data, dict) else {}
 
 
+# Помощна функция за prepare url.
 def _prepare_url(url: str) -> str:
     # Проверява дали update адресът е валиден пълен URL.
     stripped_url = url.strip()
@@ -57,6 +62,7 @@ def _prepare_url(url: str) -> str:
     return urlunsplit((parts.scheme, parts.netloc, encoded_path, encoded_query, encoded_fragment))
 
 
+# Помощна функция за with cache buster.
 def _with_cache_buster(url: str) -> str:
     # Добавя време към адреса, за да заобиколим GitHub кеша.
     parts = urlsplit(url)
@@ -65,6 +71,7 @@ def _with_cache_buster(url: str) -> str:
     return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment))
 
 
+# Проверява дали има по-нова версия на приложението.
 def check_for_updates(current_version: str, version_info_url: str) -> UpdateResult:
     # Сравнява локалната версия с online version.json файла.
     if not version_info_url.strip():

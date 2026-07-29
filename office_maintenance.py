@@ -1,3 +1,4 @@
+# Събира проверки за Office repair, uninstall и Click-to-Run инструменти.
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -6,6 +7,7 @@ from pathlib import Path
 from office_online import find_winget_executable
 
 
+# Описва данните, които приложението пази за OfficeMaintenanceStatus.
 @dataclass
 class OfficeMaintenanceStatus:
     # Описва дали даден maintenance инструмент е наличен.
@@ -32,6 +34,7 @@ OFFICE_FORCE_UNINSTALL_IDS = (
 )
 
 
+# Намира ospp vbs.
 def find_ospp_vbs() -> Path | None:
     # Търси OSPP.VBS за проверка на активацията.
     for search_root in OSPP_SEARCH_ROOTS:
@@ -43,6 +46,7 @@ def find_ospp_vbs() -> Path | None:
     return None
 
 
+# Намира click to run executable.
 def find_click_to_run_executable() -> Path | None:
     # Търси Office repair инструмента на стандартните места.
     for candidate in CLICK_TO_RUN_CANDIDATES:
@@ -51,6 +55,7 @@ def find_click_to_run_executable() -> Path | None:
     return None
 
 
+# Проверява maintenance action и връща резултат за интерфейса.
 def check_maintenance_action(action_id: str) -> OfficeMaintenanceStatus:
     # Проверява дали избраната maintenance функция може да се стартира.
     if action_id == "office_check_activation_status":

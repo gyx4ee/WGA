@@ -1,3 +1,4 @@
+# Помощен модул за архивиране, списък и възстановяване на драйвери.
 from __future__ import annotations
 
 import ctypes
@@ -11,6 +12,7 @@ from pathlib import Path
 DRIVE_REMOVABLE = 2
 
 
+# Описва данните, които приложението пази за DriverBackupResult.
 @dataclass
 class DriverBackupResult:
     # Описва какво е създадено след backup на драйверите.
@@ -21,11 +23,13 @@ class DriverBackupResult:
     restore_script_path: Path
 
 
+# Помощна функция за desktop path.
 def desktop_path() -> Path:
     # Връща стандартния Desktop път.
     return Path.home() / "Desktop"
 
 
+# Помощна функция за onedrive path.
 def onedrive_path() -> Path | None:
     # Проверява най-често срещаните OneDrive папки.
     candidates = [
@@ -38,11 +42,13 @@ def onedrive_path() -> Path | None:
     return None
 
 
+# Помощна функция за timestamp string.
 def timestamp_string() -> str:
     # Използваме време в името, за да не се презаписват архивите.
     return datetime.now().strftime("%Y-%m-%d_%H-%M")
 
 
+# Създава нова папка за текущия driver backup.
 def create_backup_folder(base_path: Path) -> Path:
     # Създава нова папка за текущия backup.
     destination = base_path / f"DriversBackup_{timestamp_string()}"
@@ -50,6 +56,7 @@ def create_backup_folder(base_path: Path) -> Path:
     return destination
 
 
+# Стартира command и връща резултата.
 def run_command(command: list[str], cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
     # Обща функция за тихо пускане на системни команди.
     return subprocess.run(
@@ -62,6 +69,7 @@ def run_command(command: list[str], cwd: Path | None = None) -> subprocess.Compl
     )
 
 
+# Експортира драйверите чрез избрания Windows инструмент.
 def export_drivers(destination: Path, mode: str) -> tuple[subprocess.CompletedProcess[str], Path]:
     # Изнася драйверите с pnputil или DISM според избрания режим.
     log_path = destination / "backup_log.txt"
@@ -77,6 +85,7 @@ def export_drivers(destination: Path, mode: str) -> tuple[subprocess.CompletedPr
     return result, log_path
 
 
+# Записва списък с наличните драйвери.
 def create_driver_list(destination: Path) -> Path:
     # Записва текстов списък на намерените драйвери.
     drivers_list_path = destination / "drivers_list.txt"
@@ -86,6 +95,7 @@ def create_driver_list(destination: Path) -> Path:
     return drivers_list_path
 
 
+# Създава готов скрипт за връщане на драйверите.
 def create_restore_script(destination: Path) -> Path:
     # Прави готов .bat файл за по-лесно възстановяване.
     restore_script_path = destination / "RESTORE_DRIVERS.bat"
@@ -103,6 +113,7 @@ def create_restore_script(destination: Path) -> Path:
     return restore_script_path
 
 
+# Компресира backup папката в zip архив.
 def compress_backup(destination: Path, delete_original: bool = False) -> Path:
     # Компресира backup папката в zip архив.
     archive_path = Path(shutil.make_archive(str(destination), "zip", root_dir=destination.parent, base_dir=destination.name))
@@ -111,6 +122,7 @@ def compress_backup(destination: Path, delete_original: bool = False) -> Path:
     return archive_path
 
 
+# Търси включени USB устройства.
 def detect_removable_drives() -> list[Path]:
     # Търси включени USB устройства по буквите на дисковете.
     drives: list[Path] = []
@@ -124,6 +136,7 @@ def detect_removable_drives() -> list[Path]:
     return drives
 
 
+# Създава recovery usb и връща резултата към приложението.
 def create_recovery_usb(last_backup_dir: Path, usb_root: Path) -> tuple[Path, Path]:
     # Копира последния backup на флашка и добавя restore скрипт.
     recovery_dir = usb_root / "DriverRecoveryBackup"
@@ -145,11 +158,13 @@ def create_recovery_usb(last_backup_dir: Path, usb_root: Path) -> tuple[Path, Pa
     return recovery_dir, restore_script
 
 
+# Възстановява драйвери от избрана backup папка.
 def restore_drivers_from_backup(backup_dir: Path) -> subprocess.CompletedProcess[str]:
     # Стартира възстановяване на драйвери от избрана папка.
     return run_command(["pnputil", "/add-driver", str(backup_dir / "*.inf"), "/subdirs", "/install"])
 
 
+# Помощна функция за generate pc report.
 def generate_pc_report(destination: Path) -> Path:
     # Генерира подробен хардуерен отчет с PowerShell.
     report_path = destination / "PC_Report.txt"

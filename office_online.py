@@ -1,3 +1,4 @@
+# Описва online Office Deployment Tool пакетите и проверява нужните условия.
 from __future__ import annotations
 
 import shutil
@@ -9,6 +10,7 @@ WINDOWS_APPS_WINGET = Path.home() / "AppData" / "Local" / "Microsoft" / "Windows
 ODT_CONFIRMATION_URL = "https://www.microsoft.com/en-us/download/confirmation.aspx?id=49117"
 
 
+# Описва данните, които приложението пази за OfficeOnlinePackage.
 @dataclass(frozen=True)
 class OfficeOnlinePackage:
     # Opisva kak tochen Office paket se instalira online prez Microsoft ODT.
@@ -20,12 +22,14 @@ class OfficeOnlinePackage:
     supported: bool = True
     support_note: str = ""
 
+    # Помощна функция за winget id.
     @property
     def winget_id(self) -> str:
         # Zapazva starite mesta v UI, koito vse oshte pokazvat poleto winget_id.
         return self.product_id
 
 
+# Описва данните, които приложението пази за OfficeOnlineStatus.
 @dataclass
 class OfficeOnlineStatus:
     # Pazi rezultata ot proverkata dali online paketat moje da se startira.
@@ -125,11 +129,13 @@ OFFICE_ONLINE_PACKAGES: dict[str, OfficeOnlinePackage] = {
 }
 
 
+# Връща online package в удобен за останалия код вид.
 def get_online_package(action_id: str) -> OfficeOnlinePackage:
     # Vrashta dannite za konkretniya online Office paket.
     return OFFICE_ONLINE_PACKAGES[action_id]
 
 
+# Намира winget executable.
 def find_winget_executable() -> str | None:
     # Tarsi winget kakto v PATH, taka i v WindowsApps.
     path_candidate = shutil.which("winget")
@@ -143,6 +149,7 @@ def find_winget_executable() -> str | None:
     return None
 
 
+# Проверява дали online Office пакетът има нужните условия.
 def check_online_package(action_id: str) -> OfficeOnlineStatus:
     # Proverkata veche e za ODT poddrzhka, a ne za star nevaliden winget paket.
     package = get_online_package(action_id)

@@ -1,3 +1,4 @@
+# Управлява installer ресурсите, manifest файла, проверките и изтеглянето.
 from __future__ import annotations
 
 import hashlib
@@ -14,6 +15,7 @@ from path_utils import ensure_installers_root, resolve_installers_root
 MANIFEST_FILE_NAME = "installers_manifest.json"
 
 
+# Описва данните, които приложението пази за ResourceItem.
 @dataclass(frozen=True)
 class ResourceItem:
     # Описва един online ресурс: име, файлове, адрес и checksum.
@@ -28,6 +30,7 @@ class ResourceItem:
     sha256: str = ""
 
 
+# Описва данните, които приложението пази за ResourceCheck.
 @dataclass(frozen=True)
 class ResourceCheck:
     # Показва дали даден ресурс е наличен локално.
@@ -36,6 +39,7 @@ class ResourceCheck:
     missing_files: tuple[Path, ...]
 
 
+# Описва данните, които приложението пази за ResourceStatus.
 @dataclass(frozen=True)
 class ResourceStatus:
     # Обобщен статус за ресурсите от manifest файла.
@@ -46,15 +50,18 @@ class ResourceStatus:
     downloadable_missing: int
     checks: tuple[ResourceCheck, ...]
 
+    # Помощна функция за complete.
     @property
     def complete(self) -> bool:
         return self.total > 0 and self.missing == 0
 
+    # Помощна функция за configured.
     @property
     def configured(self) -> bool:
         return self.total > 0
 
 
+# Помощна функция за manifest path.
 def manifest_path(program_root: Path) -> Path:
     # Избира кой manifest да се ползва - portable или bundled.
     portable_manifest = program_root / MANIFEST_FILE_NAME
@@ -69,6 +76,7 @@ def manifest_path(program_root: Path) -> Path:
     return portable_manifest
 
 
+# Помощна функция за manifest has download urls.
 def _manifest_has_download_urls(path: Path) -> bool:
     # Проверява дали manifest файлът наистина има адреси за теглене.
     try:
@@ -79,6 +87,7 @@ def _manifest_has_download_urls(path: Path) -> bool:
     return any(isinstance(item, dict) and str(item.get("url", "")).strip() for item in resources)
 
 
+# Зарежда resource manifest от файл или конфигурация.
 def load_resource_manifest(program_root: Path) -> list[ResourceItem]:
     # Зарежда installers_manifest.json и го превръща в удобни обекти.
     path = manifest_path(program_root)
@@ -118,6 +127,7 @@ def load_resource_manifest(program_root: Path) -> list[ResourceItem]:
     return items
 
 
+# Проверява кои installer ресурси са налични и кои липсват.
 def check_resource_status(program_root: Path) -> ResourceStatus:
     # Проверява кои нужни файлове са налични и кои липсват.
     installers_root = ensure_installers_root(program_root)
@@ -143,6 +153,7 @@ def check_resource_status(program_root: Path) -> ResourceStatus:
     )
 
 
+# Извлича zip with progress от подадения текст или архив.
 def _extract_zip_with_progress(target_path: Path, item: ResourceItem, progress_callback: object | None = None) -> None:
     # Разархивира zip-а по части, за да се вижда реален прогрес и да не изглежда, че е забило.
     extract_dir = target_path.parent
@@ -195,6 +206,7 @@ def _extract_zip_with_progress(target_path: Path, item: ResourceItem, progress_c
             )
 
 
+# Изтегля липсващ ресурс и при нужда го разархивира.
 def download_resource(
     program_root: Path,
     item: ResourceItem,
@@ -244,6 +256,7 @@ def download_resource(
     return target_path
 
 
+# Подготвя текстов отчет за липсващите ресурси.
 def missing_resource_report(status: ResourceStatus) -> str:
     # Прави текстов отчет за липсващите online ресурси.
     if not status.configured:

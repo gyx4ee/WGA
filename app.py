@@ -94,6 +94,7 @@ PROJECT_ROOT = Path(sys.executable).resolve().parent if getattr(sys, "frozen", F
 RESOURCE_ROOT = Path(getattr(sys, "_MEIPASS", PROJECT_ROOT)).resolve()
 SETTINGS_FILE = PROJECT_ROOT / "settings.json"
 SECURE_STORE_FILE = PROJECT_ROOT / ".wga_secure_store.json"
+AGENT_STATUS_FILE = PROJECT_ROOT / "wga_agent_status.json"
 DASHBOARD_ICON_SHEET_RELATIVE = "assets/dashboard-icon-sheet.png"
 DASHBOARD_ICONS_MANIFEST_RELATIVE = "assets/dashboard-icons/dashboard-icons.json"
 APP_LOGO_RELATIVE = "assets/wga-icon.png"
@@ -318,6 +319,7 @@ MENU_TREE = {
         "title": "Main Menu",
         "subtitle": "Central control hub for deployment, activation, language, recovery and admin tools.",
         "items": [
+            {"label": "Hidden Agent Menu", "kind": "menu", "target": "hidden_menu", "description": "Direct access to the hidden agent status menu."},
             {"label": "Activation Menu", "kind": "menu", "target": "activation"},
             {
                 "label": "Add Desktop Icons",
@@ -350,6 +352,7 @@ MENU_TREE = {
                 "target": "nexus_admin",
                 "description": "Local user management and administrator account tools.",
             },
+            {"label": "Hidden Agent Menu", "kind": "menu", "target": "hidden_menu", "description": "Direct access to the hidden agent status menu."},
             {"label": "Reset Console", "kind": "action", "description": "Refresh the current interface state."},
             {"label": "Exit", "kind": "exit", "description": "Close WinSys Guardian Advanced."},
         ],
@@ -520,6 +523,25 @@ MENU_TREE = {
                 "kind": "action",
                 "action_id": "reset_onedrive_3",
                 "description": "Изтрива локалните OneDrive файлове в профила и прави чисто стартиране. Използвай само ако другите методи не помогнат.",
+            },
+            {"label": "Return to Main Menu", "kind": "menu", "target": "main"},
+        ],
+    },
+    "hidden_menu": {
+        "title": "Hidden Menu",
+        "subtitle": "Скрито меню за бърз достъп към специални действия.",
+        "items": [
+            {
+                "label": "Show hidden status",
+                "kind": "action",
+                "action_id": "hidden_show_status",
+                "description": "Показва текущия статус на приложението в прозорец.",
+            },
+            {
+                "label": "Load agent status",
+                "kind": "action",
+                "action_id": "hidden_load_agent_status",
+                "description": "Чете локалния agent статусен файл и показва информация за машината.",
             },
             {"label": "Return to Main Menu", "kind": "menu", "target": "main"},
         ],
@@ -1337,6 +1359,236 @@ def ask_product_key(parent: tk.Misc, title: str, prompt: str, initialvalue: str 
         )
     finally:
         restore_keyboard_layout(previous_layout)
+
+
+# Начален launcher, който избира кой WGA модул да бъде стартиран.
+class ProductLauncher:
+    MODULES: tuple[dict[str, str], ...] = (
+        {
+            "id": "wga",
+            "title": "WGA",
+            "subtitle": "Системна поддръжка, инсталации и администрация",
+            "icon": "assets/wga-icon.png",
+            "accent": "#37e39a",
+        },
+        {
+            "id": "optimization",
+            "title": "ОПТИМИЗАЦИЯ",
+            "subtitle": "Почистване, настройване и ускоряване на Windows",
+            "icon": "assets/dashboard-icons/dashboard-bolt.png",
+            "accent": "#d0a94a",
+        },
+        {
+            "id": "network",
+            "title": "NETWORK MONITORING",
+            "subtitle": "Наблюдение на връзката и мрежовите устройства",
+            "icon": "assets/dashboard-icons/dashboard-monitor.png",
+            "accent": "#2f8fff",
+        },
+    )
+
+    def __init__(self, root: tk.Tk) -> None:
+        self.root = root
+        self.root.title("WinSys Guardian Suite")
+        apply_app_icon(self.root)
+        apply_tk_dpi_scaling(self.root)
+        screen_width = self.root.winfo_screenwidth()
+        screen_height = self.root.winfo_screenheight()
+        width, height = responsive_window_size(screen_width, screen_height, 1040, 690)
+        center_geometry(self.root, width, height)
+        self.root.configure(bg="#071311")
+        self.root.minsize(min(width, 900), min(height, 540))
+        self.root.resizable(False, False)
+        self.root.overrideredirect(True)
+        self.root.protocol("WM_DELETE_WINDOW", self.root.destroy)
+        self.module_icons: list[tk.PhotoImage] = []
+        self.drag_offset_x = 0
+        self.drag_offset_y = 0
+        self._build_interface()
+
+    def _build_interface(self) -> None:
+        shell = tk.Frame(
+            self.root,
+            bg="#071311",
+            highlightbackground="#1f4e46",
+            highlightthickness=1,
+        )
+        shell.pack(fill="both", expand=True, padx=22, pady=22)
+
+        header = tk.Frame(shell, bg="#0a1b18", height=118)
+        header.pack(fill="x")
+        header.pack_propagate(False)
+        header.bind("<ButtonPress-1>", self._start_window_drag)
+        header.bind("<B1-Motion>", self._drag_window)
+
+        title_label = tk.Label(
+            header,
+            text="WinSys Guardian",
+            bg="#0a1b18",
+            fg="#ecfff7",
+            font=("Segoe UI Semibold", 28),
+        )
+        title_label.pack(pady=(22, 0))
+        title_label.bind("<ButtonPress-1>", self._start_window_drag)
+        title_label.bind("<B1-Motion>", self._drag_window)
+        subtitle_label = tk.Label(
+            header,
+            text="ИЗБЕРЕТЕ МОДУЛ",
+            bg="#0a1b18",
+            fg="#37e39a",
+            font=("Segoe UI Semibold", 10),
+        )
+        subtitle_label.pack(pady=(3, 0))
+        subtitle_label.bind("<ButtonPress-1>", self._start_window_drag)
+        subtitle_label.bind("<B1-Motion>", self._drag_window)
+
+        tk.Button(
+            header,
+            text="×",
+            command=self.root.destroy,
+            bg="#0a1b18",
+            activebackground="#c94d58",
+            fg="#7ca394",
+            activeforeground="#ffffff",
+            relief="flat",
+            bd=0,
+            cursor="hand2",
+            font=("Segoe UI Semibold", 17),
+            width=3,
+        ).place(relx=1.0, x=-10, y=8, anchor="ne")
+
+        content = tk.Frame(shell, bg="#071311")
+        content.pack(fill="both", expand=True, padx=26, pady=(32, 22))
+
+        tk.Label(
+            content,
+            text="Център за системно управление",
+            bg="#071311",
+            fg="#ecfff7",
+            font=("Segoe UI Semibold", 18),
+        ).pack()
+        tk.Label(
+            content,
+            text="Изберете инструмент, за да продължите",
+            bg="#071311",
+            fg="#7ca394",
+            font=("Segoe UI", 10),
+        ).pack(pady=(4, 26))
+
+        cards = tk.Frame(content, bg="#071311")
+        cards.pack(fill="both", expand=True)
+        for column in range(len(self.MODULES)):
+            cards.grid_columnconfigure(column, weight=1, uniform="launcher-card")
+        cards.grid_rowconfigure(0, weight=1)
+
+        for column, module in enumerate(self.MODULES):
+            card = tk.Frame(
+                cards,
+                bg="#0d1c1a",
+                highlightbackground=str(module["accent"]),
+                highlightthickness=1,
+                cursor="hand2",
+            )
+            card.grid(row=0, column=column, sticky="nsew", padx=9)
+
+            icon = self._load_module_icon(str(module["icon"]), 78)
+            if icon is not None:
+                self.module_icons.append(icon)
+                tk.Label(card, image=icon, bg="#0d1c1a").pack(pady=(162, 13))
+            else:
+                tk.Label(
+                    card,
+                    text="◆",
+                    bg="#0d1c1a",
+                    fg=str(module["accent"]),
+                    font=("Segoe UI", 42),
+                ).pack(pady=(162, 13))
+
+            tk.Label(
+                card,
+                text=str(module["title"]),
+                bg="#0d1c1a",
+                fg="#ecfff7",
+                font=("Segoe UI Semibold", 14),
+            ).pack()
+
+            action = lambda module_id=str(module["id"]): self._open_module(module_id)
+            button = tk.Button(
+                card,
+                text="СТАРТИРАЙ",
+                command=action,
+                bg=str(module["accent"]),
+                activebackground="#ecfff7",
+                fg="#071311",
+                activeforeground="#071311",
+                relief="flat",
+                bd=0,
+                cursor="hand2",
+                font=("Segoe UI Semibold", 10),
+                padx=24,
+                pady=10,
+            )
+            button.pack(pady=(20, 16))
+
+            description = tk.Label(
+                card,
+                text=str(module["subtitle"]),
+                bg="#0d1c1a",
+                fg="#a6d5c5",
+                justify="center",
+                wraplength=220,
+                font=("Segoe UI", 9),
+            )
+            description.pack(padx=18, pady=(0, 10))
+            for widget in card.winfo_children():
+                if widget is not button:
+                    widget.bind("<Button-1>", lambda _event, callback=action: callback())
+            card.bind("<Button-1>", lambda _event, callback=action: callback())
+
+        tk.Label(
+            shell,
+            text="WinSys Guardian Advanced • Administrative Toolkit",
+            bg="#071311",
+            fg="#557b70",
+            font=("Segoe UI", 9),
+        ).pack(pady=(0, 14))
+
+    def _load_module_icon(self, relative_path: str, target_size: int) -> tk.PhotoImage | None:
+        icon_path = runtime_file(relative_path)
+        if not icon_path.exists():
+            return None
+        try:
+            image = tk.PhotoImage(file=str(icon_path))
+            largest_side = max(image.width(), image.height())
+            factor = max(1, math.ceil(largest_side / target_size))
+            return image.subsample(factor, factor)
+        except tk.TclError:
+            return None
+
+    def _start_window_drag(self, event: tk.Event) -> None:
+        self.drag_offset_x = event.x_root - self.root.winfo_x()
+        self.drag_offset_y = event.y_root - self.root.winfo_y()
+
+    def _drag_window(self, event: tk.Event) -> None:
+        self.root.geometry(
+            f"+{event.x_root - self.drag_offset_x}+{event.y_root - self.drag_offset_y}"
+        )
+
+    def _open_module(self, module_id: str) -> None:
+        if module_id == "wga":
+            for widget in self.root.winfo_children():
+                widget.destroy()
+            self.root.resizable(False, False)
+            SplashScreen(self.root)
+            return
+
+        module_name = "ОПТИМИЗАЦИЯ" if module_id == "optimization" else "NETWORK MONITORING"
+        messagebox.showinfo(
+            module_name,
+            f"Модулът „{module_name}“ е добавен към началния launcher.\n\n"
+            "Функционалният му екран ще бъде изграден в следващата актуализация.",
+            parent=self.root,
+        )
 
 
 # Началният loading екран на приложението.
@@ -2517,6 +2769,62 @@ class MainMenuUI:
         self._update_sidebar_clock()
         self.render_menu(self.startup_menu, reset_history=True)
         self.root.bind("<Configure>", self._on_root_resize, add="+")
+        self.root.bind_all("<Control-Shift-2>", self._show_hidden_menu, add="+")
+        self.root.bind_all("<Control-KeyPress-2>", self._show_hidden_menu, add="+")
+        self.root.bind_all("<Control-Shift-KeyPress-2>", self._show_hidden_menu, add="+")
+        self.root.bind_all("<Control-Shift-KeyPress-@>", self._show_hidden_menu, add="+")
+        self.root.bind_all("<Control-Shift-KeyPress-quotedbl>", self._show_hidden_menu, add="+")
+        self.root.bind_all("<Control-Shift-KeyPress>", self._handle_ctrl_shift_keypress, add="+")
+
+    # Показва скритото меню при клавишна команда.
+    def _show_hidden_menu(self, event: tk.Event | None = None) -> None:
+        if self.current_menu == "hidden_menu":
+            return
+        self.status_var.set("Скритото меню е активирано.")
+        self.render_menu("hidden_menu", reset_history=True)
+
+    def _handle_ctrl_shift_keypress(self, event: tk.Event) -> None:
+        if event.state & 0x4 and event.state & 0x1:  # Ctrl and Shift pressed
+            if event.keysym in {"2", "@", "quotedbl", "at", "numbersign", "sterling"}:
+                self._show_hidden_menu(event)
+
+    # Показва agent статуса от локален JSON файл.
+    def _show_agent_status(self) -> None:
+        if not AGENT_STATUS_FILE.exists():
+            self.status_var.set("Agent status file не е намерен.")
+            messagebox.showwarning(
+                "Agent Status Missing",
+                f"Файлът {AGENT_STATUS_FILE.name} не е намерен. Изпълнете wga_agent.py на машината и опитайте отново.",
+                parent=self.root,
+            )
+            return
+
+        try:
+            agent_data = json.loads(AGENT_STATUS_FILE.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            self.status_var.set("Неуспешно четене на agent статусния файл.")
+            messagebox.showerror(
+                "Agent Status Error",
+                "Файлът с агентния статус не може да бъде прочетен или е повреден.",
+                parent=self.root,
+            )
+            return
+
+        summary_lines = [
+            f"Hostname: {agent_data.get('hostname', 'N/A')}",
+            f"Platform: {agent_data.get('platform', 'N/A')} {agent_data.get('platform_release', '')}",
+            f"Processor: {agent_data.get('processor', 'N/A')}",
+            f"Python: {agent_data.get('python_version', 'N/A')}",
+            f"Online: {'Yes' if agent_data.get('online') else 'No'}",
+            f"Local IPs: {', '.join(agent_data.get('local_ips', [])) or 'N/A'}",
+            f"Timestamp: {agent_data.get('timestamp', 'N/A')}",
+        ]
+        self.status_var.set("Agent статусът е зареден.")
+        messagebox.showinfo(
+            "Agent Status",
+            "\n".join(summary_lines),
+            parent=self.root,
+        )
 
     # Подготвя system summary според избраните настройки.
     def _build_system_summary(self) -> str:
@@ -6714,6 +7022,16 @@ class MainMenuUI:
         if action_id.startswith("online_"):
             self._install_office_online(action_id)
             return
+        if action_id == "hidden_show_status":
+            messagebox.showinfo(
+                "Hidden Menu",
+                "Скритото меню работи и приложението е готово за нови действия.",
+                parent=self.root,
+            )
+            return
+        if action_id == "hidden_load_agent_status":
+            self._show_agent_status()
+            return
 
         self.status_var.set(f"Selected action: {item['label']}. This is ready to connect to a real Python or PowerShell task.")
 
@@ -10228,7 +10546,7 @@ def main() -> None:
 
     root = tk.Tk()
     apply_app_icon(root)
-    SplashScreen(root)
+    ProductLauncher(root)
     root.mainloop()
 
 

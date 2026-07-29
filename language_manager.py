@@ -1,3 +1,4 @@
+# Помощен модул за проверка и настройване на български език и клавиатурни подредби.
 from __future__ import annotations
 
 import json
@@ -10,6 +11,7 @@ PHONETIC_TIP = "0402:00020402"
 TRADITIONAL_TIP = "0402:00040402"
 
 
+# Описва данните, които приложението пази за LanguageStatus.
 @dataclass
 class LanguageStatus:
     # Пази текущото състояние на българския език и клавиатурите.
@@ -22,6 +24,7 @@ class LanguageStatus:
     summary: str
 
 
+# Стартира powershell и връща резултата.
 def _run_powershell(script: str) -> subprocess.CompletedProcess[str]:
     # Пуска PowerShell команда тихо и връща резултата.
     return subprocess.run(
@@ -33,6 +36,7 @@ def _run_powershell(script: str) -> subprocess.CompletedProcess[str]:
     )
 
 
+# Проверява текущото състояние на езика и клавиатурите.
 def get_language_status() -> LanguageStatus:
     # Проверява дали има bg-BG език, езиков пакет и подредби.
     script = r"""
@@ -90,6 +94,7 @@ if ($bg) { $tips = @($bg.InputMethodTips) }
     )
 
 
+# Подготвя PowerShell команда за избраното езиково действие.
 def build_language_action(action_id: str, status: LanguageStatus) -> tuple[str, str]:
     # Връща име на действие и готов PowerShell код за него.
     if action_id == "language_refresh":

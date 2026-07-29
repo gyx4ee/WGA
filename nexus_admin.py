@@ -1,3 +1,4 @@
+# Помощен модул за локални потребители, пароли и administrator права.
 from __future__ import annotations
 
 import shutil
@@ -5,6 +6,7 @@ import subprocess
 from dataclasses import dataclass
 
 
+# Описва данните, които приложението пази за NexusToolStatus.
 @dataclass
 class NexusToolStatus:
     # Показва дали admin инструментите са налични.
@@ -12,6 +14,7 @@ class NexusToolStatus:
     message: str
 
 
+# Помощна функция за run.
 def _run(command: list[str]) -> subprocess.CompletedProcess[str]:
     # Обща тиха команда за net и powershell.
     return subprocess.run(
@@ -23,6 +26,7 @@ def _run(command: list[str]) -> subprocess.CompletedProcess[str]:
     )
 
 
+# Проверява дали локалните user команди са достъпни.
 def check_nexus_admin_status() -> NexusToolStatus:
     # Проверява дали нужните системни инструменти съществуват.
     net_exe = shutil.which("net")
@@ -34,6 +38,7 @@ def check_nexus_admin_status() -> NexusToolStatus:
     return NexusToolStatus(True, f"Admin tools ready: {net_exe} and {powershell_exe}")
 
 
+# Връща списък с локалните потребители.
 def list_users() -> subprocess.CompletedProcess[str]:
     # Връща списък с локалните потребители.
     script = (
@@ -44,11 +49,13 @@ def list_users() -> subprocess.CompletedProcess[str]:
     return _run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script])
 
 
+# Помощна функция за user details.
 def user_details(username: str) -> subprocess.CompletedProcess[str]:
     # Показва детайли за конкретен потребител.
     return _run(["net", "user", username])
 
 
+# Създава локален потребител.
 def create_user(username: str, password: str | None, make_admin: bool) -> list[subprocess.CompletedProcess[str]]:
     # Създава нов локален акаунт и по желание му дава admin права.
     results: list[subprocess.CompletedProcess[str]] = []
@@ -63,16 +70,19 @@ def create_user(username: str, password: str | None, make_admin: bool) -> list[s
     return results
 
 
+# Помощна функция за change password.
 def change_password(username: str, password: str) -> subprocess.CompletedProcess[str]:
     # Сменя паролата на съществуващ потребител.
     return _run(["net", "user", username, password])
 
 
+# Изтрива избран локален потребител.
 def delete_user(username: str) -> subprocess.CompletedProcess[str]:
     # Изтрива локален потребител.
     return _run(["net", "user", username.strip(), "/delete"])
 
 
+# Добавя или премахва administrator права.
 def set_admin_rights(username: str, make_admin: bool) -> subprocess.CompletedProcess[str]:
     # Добавя или маха потребителя от Administrators групата.
     if make_admin:

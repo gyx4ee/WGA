@@ -1,3 +1,4 @@
+# Подготвя self-update процеса, без работещото приложение да презаписва себе си.
 from __future__ import annotations
 
 import os
@@ -25,6 +26,7 @@ SKIPPED_DIRS = {
 }
 
 
+# Помощна функция за prepare url.
 def _prepare_url(url: str) -> str:
     # Подготвя и валидира адреса за update пакета.
     stripped_url = url.strip()
@@ -41,6 +43,7 @@ def _prepare_url(url: str) -> str:
     return urlunsplit((parts.scheme, parts.netloc, encoded_path, encoded_query, encoded_fragment))
 
 
+# Изтегля update package от зададения адрес.
 def download_update_package(url: str, destination: Path, progress_callback=None) -> Path:
     # Изтегля zip пакета за update във временна папка.
     destination.mkdir(parents=True, exist_ok=True)
@@ -71,6 +74,7 @@ def download_update_package(url: str, destination: Path, progress_callback=None)
     return package_path
 
 
+# Извлича update package от подадения текст или архив.
 def extract_update_package(package_path: Path, destination: Path, progress_callback=None) -> Path:
     # Разархивира update пакета и връща реалната начална папка.
     extract_dir = destination / "extracted"
@@ -89,11 +93,13 @@ def extract_update_package(package_path: Path, destination: Path, progress_callb
     return source_root
 
 
+# Помощна функция за cmd quote.
 def _cmd_quote(value: str) -> str:
     # Пази cmd параметрите от счупване при интервали и кавички.
     return '"' + value.replace('"', '""') + '"'
 
 
+# Помощна функция за restart line.
 def _restart_line(restart_command: list[str]) -> str:
     # Подготвя командата, с която приложението ще се стартира отново.
     if not restart_command:
@@ -103,6 +109,7 @@ def _restart_line(restart_command: list[str]) -> str:
     return f'start "" {executable} {args}'.rstrip()
 
 
+# Създава update helper и връща резултата към приложението.
 def create_update_helper(
     *,
     source_root: Path,
@@ -146,6 +153,7 @@ exit /b 0
     return helper_path
 
 
+# Помощна функция за prepare update install.
 def prepare_update_install(
     *,
     package_url: str,
@@ -174,6 +182,7 @@ def prepare_update_install(
     return helper_path
 
 
+# Помощна функция за launch helper and exit.
 def launch_helper_and_exit(helper_path: Path) -> None:
     # Стартира helper файла отвън, за да може текущото приложение да се затвори.
     os.startfile(str(helper_path))

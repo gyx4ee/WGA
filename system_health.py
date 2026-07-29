@@ -1,3 +1,4 @@
+# Събира системна информация за dashboard екрана.
 from __future__ import annotations
 
 import ctypes
@@ -31,6 +32,7 @@ MEMORY_TYPE_MAP = {
 }
 
 
+# Описва данните, които приложението пази за HealthItem.
 @dataclass
 class HealthItem:
     # Един ред от системната информация - име, стойност и дали е ок.
@@ -39,6 +41,7 @@ class HealthItem:
     ok: bool
 
 
+# Класът MemoryStatusEx групира свързана логика и състояние.
 class MemoryStatusEx(ctypes.Structure):
     # Това е Windows структура за четене на RAM статуса.
     _fields_ = [
@@ -54,6 +57,7 @@ class MemoryStatusEx(ctypes.Structure):
     ]
 
 
+# Стартира powershell json и връща резултата.
 def _run_powershell_json(command: str) -> list[dict[str, object]]:
     # Пуска PowerShell и връща резултата като JSON масив.
     result = subprocess.run(
@@ -78,11 +82,13 @@ def _run_powershell_json(command: str) -> list[dict[str, object]]:
     return []
 
 
+# Помощна функция за bytes to gb.
 def _bytes_to_gb(value: int) -> float:
     # Превръща байтове в гигабайти за по-лесно показване.
     return value / (1024 ** 3)
 
 
+# Помощна функция за memory snapshot.
 def _memory_snapshot() -> tuple[float, float, int]:
     # Чете общата, използваната RAM и процента натоварване.
     status = MemoryStatusEx()
@@ -94,6 +100,7 @@ def _memory_snapshot() -> tuple[float, float, int]:
     return total, used, int(status.dwMemoryLoad)
 
 
+# Помощна функция за cpu name.
 def _cpu_name() -> str:
     # Взима името на процесора.
     rows = _run_powershell_json("Get-CimInstance Win32_Processor | Select-Object -First 1 Name")
@@ -102,6 +109,7 @@ def _cpu_name() -> str:
     return platform.processor() or "Unknown CPU"
 
 
+# Помощна функция за cpu load.
 def _cpu_load() -> tuple[str, bool]:
     # Взима текущото натоварване на процесора в проценти.
     rows = _run_powershell_json(
@@ -113,6 +121,7 @@ def _cpu_load() -> tuple[str, bool]:
     return "Unknown", False
 
 
+# Помощна функция за single cim value.
 def _single_cim_value(command: str, key: str) -> str:
     # Малка помощна функция за четене на единична CIM стойност.
     rows = _run_powershell_json(command)
@@ -121,6 +130,7 @@ def _single_cim_value(command: str, key: str) -> str:
     return "Unknown"
 
 
+# Помощна функция за os details.
 def _os_details() -> str:
     # Събира кратка информация за Windows версията и build-а.
     caption = _single_cim_value(
@@ -139,6 +149,7 @@ def _os_details() -> str:
     return f"{caption} / build {build} / {arch}"
 
 
+# Помощна функция за computer identity.
 def _computer_identity() -> str:
     # Показва името на компютъра и активния потребител.
     computer = os.environ.get("COMPUTERNAME") or socket.gethostname() or "Unknown PC"
@@ -148,6 +159,7 @@ def _computer_identity() -> str:
     return identity
 
 
+# Помощна функция за primary ip.
 def _primary_ip() -> str:
     # Опитва да намери основния локален IP адрес.
     try:
@@ -161,6 +173,7 @@ def _primary_ip() -> str:
             return "Unavailable"
 
 
+# Помощна функция за uptime.
 def _uptime() -> str:
     # Изчислява от колко време машината не е рестартирана.
     ticks = ctypes.windll.kernel32.GetTickCount64()
@@ -173,6 +186,7 @@ def _uptime() -> str:
     return f"{hours}h {minutes}m"
 
 
+# Помощна функция за bios version.
 def _bios_version() -> str:
     # Чете производителя и версията на BIOS.
     manufacturer = _single_cim_value(
@@ -186,6 +200,7 @@ def _bios_version() -> str:
     return f"{manufacturer} {version}".strip()
 
 
+# Помощна функция за motherboard.
 def _motherboard() -> str:
     # Чете основна информация за дънната платка.
     rows = _run_powershell_json(
@@ -198,6 +213,7 @@ def _motherboard() -> str:
     return f"{manufacturer} {product}".strip() or "Unknown"
 
 
+# Помощна функция за gpu summary.
 def _gpu_summary() -> str:
     # Събира кратко описание на видеокартите.
     rows = _run_powershell_json(
@@ -216,6 +232,7 @@ def _gpu_summary() -> str:
     return " / ".join(values)
 
 
+# Помощна функция за battery status.
 def _battery_status() -> tuple[str, bool]:
     # Показва батерията, ако устройството има такава.
     rows = _run_powershell_json(
@@ -231,6 +248,7 @@ def _battery_status() -> tuple[str, bool]:
     return "Battery detected / status unknown", False
 
 
+# Помощна функция за secure boot status.
 def _secure_boot_status() -> tuple[str, bool]:
     # Проверява дали Secure Boot е включен.
     result = subprocess.run(
@@ -248,6 +266,7 @@ def _secure_boot_status() -> tuple[str, bool]:
     return "Unavailable", False
 
 
+# Помощна функция за ram type.
 def _ram_type() -> str:
     # Опитва да определи модела, типа и скоростта на RAM паметта.
     rows = _run_powershell_json(
@@ -285,6 +304,7 @@ def _ram_type() -> str:
     return f"{model_text} / {ram_type} / {speed_text} / {modules_text}"
 
 
+# Помощна функция за cpu voltage.
 def _cpu_voltage() -> tuple[str, bool]:
     # Връща CPU voltage, ако сензорът е достъпен.
     rows = _run_powershell_json("Get-CimInstance Win32_Processor | Select-Object -First 1 CurrentVoltage")
@@ -297,6 +317,7 @@ def _cpu_voltage() -> tuple[str, bool]:
     return f"{voltage:.2f} V", ok
 
 
+# Помощна функция за temperature.
 def _temperature() -> tuple[str, bool]:
     # Връща температурата от наличните ACPI сензори.
     rows = _run_powershell_json(
@@ -317,6 +338,7 @@ def _temperature() -> tuple[str, bool]:
     return f"{highest:.1f} C", highest < 85
 
 
+# Помощна функция за disk items.
 def _disk_items() -> list[HealthItem]:
     # Обхожда всички дискове и изчислява използваното място.
     items: list[HealthItem] = []
@@ -355,6 +377,7 @@ def _disk_items() -> list[HealthItem]:
     return items or [HealthItem(label="Disk:", value="No drives detected", ok=False)]
 
 
+# Събира системна информация за dashboard екрана.
 def collect_health_items() -> list[HealthItem]:
     # Събира всички health редове за показване в главното меню.
     total_ram, used_ram, ram_load = _memory_snapshot()
