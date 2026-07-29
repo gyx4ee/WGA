@@ -1,10 +1,11 @@
 {
-  "version": "0.2.47",
+  "version": "0.2.48",
   "version_info_url": "https://raw.githubusercontent.com/gyx4ee/WGA/refs/heads/main/version.json",
   "download_url": "https://github.com/gyx4ee/WGA/releases/latest",
   "package_url": "https://raw.githubusercontent.com/gyx4ee/WGA/refs/heads/main/WGA-portable.zip",
-  "notes": "Added the Windows 10 low-memory optimization profile with reversible settings, bundled Open-Shell 4.4.198, and included the Windows XP Luna Start menu design.",
+  "notes": "Made the Windows 10 XP optimization controls permanently visible, added separate Apply and Restore buttons, and included a direct Optimization test launcher.",
   "changelog": [
+    "v0.2.48 - Made the Windows 10 XP optimization controls permanently visible, added separate Apply XP Optimization and Restore Settings buttons, removed the clipped card action, and added Test-Optimization-Windows10.bat for direct testing.",
     "v0.2.47 - Added the reversible Windows 10 optimization profile for 2/4 GB RAM, restore-point and settings backup support, bundled Open-Shell 4.4.198 locally, and added the Windows XP Luna Start menu design without a separate download.",
     "v0.2.46 - Moved update checking and history to the Suite start screen, reused the result when WGA launches, and added separate WGA-style Optimization and Network Monitoring interface modules.",
     "v0.2.45 - Added a new WinSys Guardian Suite launcher before the existing WGA loader with dedicated WGA, Optimization, and Network Monitoring module cards.",

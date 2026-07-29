@@ -197,6 +197,9 @@ class OptimizationUI:
             font=("Segoe UI", 10),
         ).pack(anchor="w", padx=18, pady=(0, 14))
 
+        if self.current_page == "windows10":
+            self._build_windows10_profile_controls()
+
         cards = tk.Frame(self.content, bg=BG)
         cards.pack(fill="both", expand=True)
         for column in range(3):
@@ -233,46 +236,146 @@ class OptimizationUI:
                 font=("Segoe UI", 10),
             ).pack(anchor="w", padx=20)
             is_low_ram_profile = self.current_page == "windows10" and column == 0
-            tk.Button(
-                card,
-                text="ОПТИМИЗАЦИЯ ЗА 2 И 4 GB RAM ПАМЕТ" if is_low_ram_profile else "ОТВОРИ",
-                command=self._open_low_ram_profile if is_low_ram_profile else lambda name=card_title: self._not_implemented(name),
-                bg=ACCENT_DARK,
-                activebackground=ACCENT,
-                fg="#fff8df",
-                activeforeground="#071311",
-                relief="flat",
-                bd=0,
-                cursor="hand2",
-                font=("Segoe UI Semibold", 10),
-                padx=22,
-                pady=9,
-                wraplength=210,
-            ).pack(side="bottom", anchor="w", padx=20, pady=24)
+            if not is_low_ram_profile:
+                tk.Button(
+                    card,
+                    text="ОТВОРИ",
+                    command=lambda name=card_title: self._not_implemented(name),
+                    bg=ACCENT_DARK,
+                    activebackground=ACCENT,
+                    fg="#fff8df",
+                    activeforeground="#071311",
+                    relief="flat",
+                    bd=0,
+                    cursor="hand2",
+                    font=("Segoe UI Semibold", 10),
+                    padx=22,
+                    pady=9,
+                    wraplength=210,
+                ).pack(side="bottom", anchor="w", padx=20, pady=24)
 
-    def _open_low_ram_profile(self) -> None:
+    def _build_windows10_profile_controls(self) -> None:
+        controls = tk.Frame(
+            self.content,
+            bg=PANEL_ALT,
+            highlightbackground=ACCENT_DARK,
+            highlightthickness=1,
+        )
+        controls.pack(fill="x", pady=(0, 14))
+
+        text_area = tk.Frame(controls, bg=PANEL_ALT)
+        text_area.pack(side="left", fill="both", expand=True, padx=18, pady=12)
+        tk.Label(
+            text_area,
+            text="WINDOWS 10 — XP ПРОФИЛ ЗА 2/4 GB RAM",
+            bg=PANEL_ALT,
+            fg=ACCENT,
+            font=("Segoe UI Semibold", 11),
+        ).pack(anchor="w")
+        status = (
+            "Профилът е приложен — можете да върнете предишните настройки."
+            if BACKUP_FILE.exists()
+            else "Готов за стартиране — Open-Shell XP Luna и безопасни настройки за производителност."
+        )
+        tk.Label(
+            text_area,
+            text=status,
+            bg=PANEL_ALT,
+            fg=TEXT_SOFT,
+            font=("Segoe UI", 9),
+        ).pack(anchor="w", pady=(2, 0))
+
+        buttons = tk.Frame(controls, bg=PANEL_ALT)
+        buttons.pack(side="right", padx=16, pady=12)
+        tk.Button(
+            buttons,
+            text="ПРИЛОЖИ XP ОПТИМИЗАЦИЯ",
+            command=self._apply_low_ram_profile,
+            bg=ACCENT_DARK,
+            activebackground=ACCENT,
+            fg="#fff8df",
+            activeforeground=BG,
+            relief="flat",
+            bd=0,
+            cursor="hand2",
+            font=("Segoe UI Semibold", 9),
+            padx=16,
+            pady=9,
+        ).pack(side="left", padx=(0, 8))
+        tk.Button(
+            buttons,
+            text="ВЪРНИ НАСТРОЙКИТЕ",
+            command=self._restore_low_ram_profile,
+            bg="#173c36",
+            activebackground=BORDER,
+            fg=TEXT,
+            activeforeground=TEXT,
+            relief="flat",
+            bd=0,
+            cursor="hand2",
+            font=("Segoe UI Semibold", 9),
+            padx=16,
+            pady=9,
+        ).pack(side="left")
+
+    def _profile_prompt(self, action: str) -> str:
         open_shell_status = (
             "Open-Shell е намерен и XP менюто ще бъде приложено."
             if find_open_shell()
             else "Open-Shell не е намерен. Windows оптимизациите могат да се приложат, но XP менюто ще бъде пропуснато."
         )
         details = "\n".join(f"• {item}" for item in profile_descriptions())
-        action = "ВЪРНИ НАСТРОЙКИТЕ" if BACKUP_FILE.exists() else "ПРИЛОЖИ ПРОФИЛА"
-        prompt = (
+        return (
             "ПРОФИЛ WINDOWS 10 ЗА 2/4 GB RAM\n\n"
             f"{open_shell_status}\n\n"
             f"{details}\n\n"
             "Няма да бъдат спирани Windows Update, Defender, Firewall или критични услуги.\n\n"
             f"Изберете „Да“, за да изпълните: {action}."
         )
-        if not messagebox.askyesno("WGA безопасна оптимизация", prompt, parent=self.root):
+
+    def _apply_low_ram_profile(self) -> None:
+        if BACKUP_FILE.exists():
+            messagebox.showinfo(
+                "WGA оптимизация",
+                "XP профилът вече е приложен. Използвайте „ВЪРНИ НАСТРОЙКИТЕ“, преди да го приложите отново.",
+                parent=self.root,
+            )
+            return
+        if not messagebox.askyesno(
+            "WGA безопасна оптимизация",
+            self._profile_prompt("ПРИЛОЖИ XP ОПТИМИЗАЦИЯ"),
+            parent=self.root,
+        ):
             return
         try:
-            messages = restore_profile() if BACKUP_FILE.exists() else apply_profile()
+            messages = apply_profile()
         except Exception as exc:
             messagebox.showerror("WGA оптимизация", str(exc), parent=self.root)
             return
         messagebox.showinfo("WGA оптимизация", "\n\n".join(messages), parent=self.root)
+        self.show_page("windows10")
+
+    def _restore_low_ram_profile(self) -> None:
+        if not BACKUP_FILE.exists():
+            messagebox.showinfo(
+                "WGA оптимизация",
+                "Няма намерен архив. XP профилът още не е прилаган на този компютър.",
+                parent=self.root,
+            )
+            return
+        if not messagebox.askyesno(
+            "Връщане на настройките",
+            "Да бъдат ли възстановени Windows и Open-Shell настройките отпреди оптимизацията?",
+            parent=self.root,
+        ):
+            return
+        try:
+            messages = restore_profile()
+        except Exception as exc:
+            messagebox.showerror("WGA оптимизация", str(exc), parent=self.root)
+            return
+        messagebox.showinfo("WGA оптимизация", "\n\n".join(messages), parent=self.root)
+        self.show_page("windows10")
 
     def _not_implemented(self, feature: str) -> None:
         messagebox.showinfo(
