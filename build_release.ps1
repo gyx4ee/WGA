@@ -24,7 +24,7 @@ Remove-Item -Recurse -Force "$projectRoot\dist" -ErrorAction SilentlyContinue
 Remove-Item -Recurse -Force "$projectRoot\installer-output" -ErrorAction SilentlyContinue
 
 Write-Host "Building WinSys Guardian Advanced executable..." -ForegroundColor Cyan
-cmd /c "$pyInstallerCmd --noconfirm --clean --onedir --windowed --name WGA --icon `"assets\wga-icon.ico`" --add-data `"assets;assets`" --add-data `"installers_manifest.json;.`" --add-data `"version.json;.`" app.py"
+cmd /c "$pyInstallerCmd --noconfirm --clean --onedir --windowed --name WGA --icon `"assets\wga-icon.ico`" --add-data `"assets;assets`" --add-data `"installers_manifest.json;.`" --add-data `"version.json;.`" --add-data `"third_party\open-shell\portable\PFiles\Open-Shell;third_party\open-shell\PFiles\Open-Shell`" --add-data `"third_party\open-shell\LICENSE.txt;third_party\open-shell`" app.py"
 
 Write-Host "Creating portable update package..." -ForegroundColor Cyan
 $portableZip = "$projectRoot\installer-output\WGA-portable.zip"

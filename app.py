@@ -79,6 +79,8 @@ from resource_manager import (
 from self_updater import launch_helper_and_exit, prepare_update_install
 from system_health import HealthItem, collect_health_items
 from update_checker import UpdateResult, check_for_updates
+from optimization_ui import OptimizationUI
+from network_monitoring_ui import NetworkMonitoringUI
 
 
 APP_TITLE = "WinSys Guardian Advanced"
@@ -1404,7 +1406,14 @@ class ProductLauncher:
         self.module_icons: list[tk.PhotoImage] = []
         self.drag_offset_x = 0
         self.drag_offset_y = 0
+        self.version_info = load_version_info()
+        self.update_result: UpdateResult | None = None
+        self.update_check_active = True
+        self.update_status_var = tk.StringVar(
+            value=f"Проверка за актуализация на v{self.version_info['version']}..."
+        )
         self._build_interface()
+        self._check_updates_async()
 
     def _build_interface(self) -> None:
         shell = tk.Frame(
@@ -1545,9 +1554,53 @@ class ProductLauncher:
                     widget.bind("<Button-1>", lambda _event, callback=action: callback())
             card.bind("<Button-1>", lambda _event, callback=action: callback())
 
+        update_bar = tk.Frame(
+            shell,
+            bg="#0d1c1a",
+            highlightbackground="#1f4e46",
+            highlightthickness=1,
+        )
+        update_bar.pack(fill="x", padx=26, pady=(0, 10))
+
+        self.update_status_icon = tk.Label(
+            update_bar,
+            text="↻",
+            bg="#0d1c1a",
+            fg="#37e39a",
+            font=("Segoe UI Semibold", 14),
+            width=3,
+        )
+        self.update_status_icon.pack(side="left", padx=(8, 2), pady=8)
+
+        self.update_status_label = tk.Label(
+            update_bar,
+            textvariable=self.update_status_var,
+            bg="#0d1c1a",
+            fg="#a6d5c5",
+            anchor="w",
+            font=("Segoe UI", 9),
+        )
+        self.update_status_label.pack(side="left", fill="x", expand=True, pady=8)
+
+        tk.Button(
+            update_bar,
+            text="История на актуализациите",
+            command=self._show_update_history,
+            bg="#173c4d",
+            activebackground="#1b5d73",
+            fg="#f3fbff",
+            activeforeground="#ffffff",
+            relief="flat",
+            bd=0,
+            cursor="hand2",
+            font=("Segoe UI Semibold", 9),
+            padx=14,
+            pady=7,
+        ).pack(side="right", padx=8, pady=6)
+
         tk.Label(
             shell,
-            text="WinSys Guardian Advanced • Administrative Toolkit",
+            text=f"WinSys Guardian Advanced v{self.version_info['version']} • Administrative Toolkit",
             bg="#071311",
             fg="#557b70",
             font=("Segoe UI", 9),
@@ -1574,27 +1627,145 @@ class ProductLauncher:
             f"+{event.x_root - self.drag_offset_x}+{event.y_root - self.drag_offset_y}"
         )
 
+    def _check_updates_async(self) -> None:
+        threading.Thread(target=self._perform_update_check, daemon=True).start()
+
+    def _perform_update_check(self) -> None:
+        result = check_for_updates(
+            str(self.version_info["version"]),
+            str(self.version_info.get("version_info_url", "")),
+        )
+        try:
+            self.root.after(0, lambda: self._apply_update_result(result))
+        except tk.TclError:
+            return
+
+    def _apply_update_result(self, result: UpdateResult) -> None:
+        self.update_result = result
+        if not self.update_check_active:
+            return
+        try:
+            if not self.update_status_label.winfo_exists():
+                return
+        except tk.TclError:
+            return
+
+        if result.status == "up_to_date":
+            icon, color = "✓", "#37e39a"
+            message = f"Приложението е актуално — версия v{self.version_info['version']}."
+        elif result.status == "update_available":
+            icon, color = "↑", "#d0a94a"
+            message = f"Налична е версия v{result.latest_version}. {result.notes or ''}".strip()
+        elif result.status in {"not_configured", "raw_unavailable"}:
+            icon, color = "!", "#d0a94a"
+            message = "Онлайн проверката за актуализации не е достъпна."
+        else:
+            icon, color = "×", "#c94d58"
+            message = f"Проверката за актуализация не успя: {result.error or 'неизвестна грешка'}"
+
+        self.update_status_icon.configure(text=icon, fg=color)
+        self.update_status_label.configure(fg=color)
+        self.update_status_var.set(message)
+
+    def _update_history_lines(self) -> list[str]:
+        if self.update_result and self.update_result.changelog:
+            return list(self.update_result.changelog)
+        raw_changelog = self.version_info.get("changelog", [])
+        if isinstance(raw_changelog, list):
+            return [str(item) for item in raw_changelog if str(item).strip()]
+        return []
+
+    def _show_update_history(self) -> None:
+        history_window = tk.Toplevel(self.root)
+        history_window.title("История на актуализациите")
+        history_window.geometry("680x470")
+        history_window.transient(self.root)
+        history_window.configure(bg="#0d1711")
+        apply_app_icon(history_window)
+
+        wrapper = tk.Frame(history_window, bg="#0d1711", padx=20, pady=18)
+        wrapper.pack(fill="both", expand=True)
+        tk.Label(
+            wrapper,
+            text="История на актуализациите",
+            font=("Segoe UI Semibold", 16),
+            bg="#0d1711",
+            fg="#effff2",
+        ).pack(anchor="w")
+        tk.Label(
+            wrapper,
+            text=self.update_status_var.get(),
+            font=("Segoe UI", 10),
+            bg="#0d1711",
+            fg="#aee8b8",
+            wraplength=620,
+            justify="left",
+        ).pack(anchor="w", pady=(5, 14))
+
+        text_box = tk.Text(
+            wrapper,
+            bg="#07100a",
+            fg="#e7ffe9",
+            insertbackground="#e7ffe9",
+            relief="flat",
+            wrap="word",
+            font=("Segoe UI", 10),
+            padx=14,
+            pady=14,
+        )
+        text_box.pack(fill="both", expand=True)
+        lines = self._update_history_lines()
+        text_box.insert(
+            "end",
+            "\n\n".join(lines) if lines else "Все още няма добавена история на актуализациите.",
+        )
+        text_box.configure(state="disabled")
+        tk.Button(
+            wrapper,
+            text="Затвори",
+            command=history_window.destroy,
+            bg="#245634",
+            activebackground="#2f7044",
+            fg="#f3fff5",
+            activeforeground="#ffffff",
+            relief="flat",
+            bd=0,
+            cursor="hand2",
+            font=("Segoe UI Semibold", 10),
+            padx=20,
+            pady=8,
+        ).pack(anchor="e", pady=(12, 0))
+
     def _open_module(self, module_id: str) -> None:
         if module_id == "wga":
+            self.update_check_active = False
             for widget in self.root.winfo_children():
                 widget.destroy()
             self.root.resizable(False, False)
-            SplashScreen(self.root)
+            SplashScreen(self.root, initial_update_result=self.update_result)
             return
 
-        module_name = "ОПТИМИЗАЦИЯ" if module_id == "optimization" else "NETWORK MONITORING"
-        messagebox.showinfo(
-            module_name,
-            f"Модулът „{module_name}“ е добавен към началния launcher.\n\n"
-            "Функционалният му екран ще бъде изграден в следващата актуализация.",
-            parent=self.root,
-        )
+        self.update_check_active = False
+        for widget in self.root.winfo_children():
+            widget.destroy()
+        self.root.overrideredirect(False)
+        self.root.resizable(True, True)
+        if module_id == "optimization":
+            OptimizationUI(self.root, on_back=self._return_to_launcher)
+        elif module_id == "network":
+            NetworkMonitoringUI(self.root, on_back=self._return_to_launcher)
+
+    def _return_to_launcher(self) -> None:
+        for widget in self.root.winfo_children():
+            widget.destroy()
+        self.root.resizable(False, False)
+        ProductLauncher(self.root)
 
 
 # Началният loading екран на приложението.
 class SplashScreen:
     # Помощна функция за init  .
-    def __init__(self, root: tk.Tk) -> None:
+    def __init__(self, root: tk.Tk, initial_update_result: UpdateResult | None = None) -> None:
         # Подготвя splash екрана и стартира анимацията.
         self.root = root
         self.root.title(APP_TITLE)
@@ -1624,6 +1795,8 @@ class SplashScreen:
         self.status_text = tk.StringVar(value="Стартиране на WGA...")
         self.message_queue: queue.Queue[tuple[str, float | str]] = queue.Queue()
         self.preloaded_state: dict[str, object] = {}
+        if isinstance(initial_update_result, UpdateResult):
+            self.preloaded_state["update_result"] = initial_update_result
         self.version_info = load_version_info()
         self.splash_active = True
         self.poll_job: str | None = None
@@ -1807,6 +1980,8 @@ class SplashScreen:
     # Помощна функция за preload update status.
     def _preload_update_status(self) -> None:
         # Прави онлайн проверката предварително, за да няма второ мислене след старта.
+        if isinstance(self.preloaded_state.get("update_result"), UpdateResult):
+            return
         try:
             result = check_for_updates(
                 str(self.version_info["version"]),
@@ -2105,7 +2280,6 @@ class MainMenuUI:
             width=22,
             cursor="hand2",
         )
-        self.header_dashboard_button.place(x=724, y=22)
 
         self.subtitle_label = tk.Label(
             self.header,
@@ -2561,7 +2735,6 @@ class MainMenuUI:
             pady=7,
             cursor="hand2",
         )
-        self.update_history_button.pack(side="right", padx=(0, 0), pady=8)
 
         self.resource_frame = tk.Frame(
             self.right_panel,
@@ -2864,6 +3037,8 @@ class MainMenuUI:
 
         update_result = preloaded_state.get("update_result")
         if isinstance(update_result, UpdateResult):
+            # Стартовият launcher вече е показал update статуса; не отваряме втори popup в WGA.
+            self.update_popup_shown = True
             self._apply_update_result(update_result)
         else:
             self._check_updates_async()
@@ -8381,11 +8556,6 @@ class MainMenuUI:
         self.version_chip.place_configure(x=version_x, y=self._scale_px(22))
         self.header_admin_chip.place_configure(x=admin_x, y=self._scale_px(22))
         self.header.update_idletasks()
-        version_width = max(self.version_chip.winfo_reqwidth(), self._scale_px(54))
-        admin_width = max(self.header_admin_chip.winfo_reqwidth(), self._scale_px(96))
-        header_gap = max(self._scale_px(18), admin_x - (version_x + version_width))
-        history_x = admin_x + admin_width + header_gap
-        self.header_dashboard_button.place_configure(x=history_x, y=self._scale_px(22))
         self.header_device_chip.place_configure(x=26, y=self._scale_px(56))
         self.left_panel.configure(width=self.sidebar_width)
         self.menu_title.configure(font=self._font(15, "bold", "Segoe UI Semibold"))

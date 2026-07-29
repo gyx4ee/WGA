@@ -2,10 +2,10 @@
 
 
 a = Analysis(
-    ['app.py'],
+    ['F:\\codex\\New project\\app.py'],
     pathex=[],
     binaries=[],
-    datas=[('assets', 'assets'), ('installers_manifest.json', '.'), ('version.json', '.')],
+    datas=[('F:\\codex\\New project\\assets', 'assets'), ('F:\\codex\\New project\\installers_manifest.json', '.'), ('F:\\codex\\New project\\version.json', '.'), ('F:\\codex\\New project\\third_party\\open-shell\\portable\\PFiles\\Open-Shell', 'third_party\\open-shell\\PFiles\\Open-Shell'), ('F:\\codex\\New project\\third_party\\open-shell\\LICENSE.txt', 'third_party\\open-shell')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
@@ -32,7 +32,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=['assets\\wga-icon.ico'],
+    icon=['F:\\codex\\New project\\assets\\wga-icon.ico'],
 )
 coll = COLLECT(
     exe,
