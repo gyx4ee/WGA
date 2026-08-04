@@ -1408,6 +1408,10 @@ class ProductLauncher:
         self.drag_offset_y = 0
         self.version_info = load_version_info()
         self.update_result: UpdateResult | None = None
+        self.update_package_url = ""
+        self.update_download_url = ""
+        self.update_installing = False
+        self.update_popup_shown = False
         self.update_check_active = True
         self.update_status_var = tk.StringVar(
             value=f"Проверка за актуализация на v{self.version_info['version']}..."
@@ -1582,6 +1586,25 @@ class ProductLauncher:
         )
         self.update_status_label.pack(side="left", fill="x", expand=True, pady=8)
 
+        self.update_action_button = tk.Button(
+            update_bar,
+            text="Инсталирай",
+            command=self._open_update_download,
+            bg="#8a6a2a",
+            activebackground="#a47e32",
+            fg="#fff8e5",
+            activeforeground="#ffffff",
+            disabledforeground="#6f756f",
+            relief="flat",
+            bd=0,
+            cursor="hand2",
+            font=("Segoe UI Semibold", 9),
+            padx=14,
+            pady=7,
+            state="disabled",
+        )
+        self.update_action_button.pack(side="right", padx=(0, 8), pady=6)
+
         tk.Button(
             update_bar,
             text="История на актуализациите",
@@ -1666,6 +1689,121 @@ class ProductLauncher:
         self.update_status_icon.configure(text=icon, fg=color)
         self.update_status_label.configure(fg=color)
         self.update_status_var.set(message)
+        self.update_package_url = result.package_url.strip()
+        self.update_download_url = (result.download_url or str(self.version_info.get("download_url", ""))).strip()
+        can_update = result.status == "update_available" and bool(
+            self.update_package_url or self.update_download_url
+        )
+        self.update_action_button.configure(state="normal" if can_update else "disabled")
+
+        if can_update and not self.update_popup_shown:
+            self.update_popup_shown = True
+            self.root.after(250, lambda: self._show_update_available_dialog(result))
+
+    def _show_update_available_dialog(self, result: UpdateResult) -> None:
+        if not self.update_check_active:
+            return
+        details = "\n".join(f"• {item}" for item in result.changelog[:5])
+        message = f"Налична е нова версия v{result.latest_version}."
+        if result.notes:
+            message += f"\n\n{result.notes}"
+        if details:
+            message += f"\n\nПромени:\n{details}"
+        if messagebox.askyesno(
+            "Налична актуализация",
+            f"{message}\n\nДа бъде ли инсталирана сега?",
+            parent=self.root,
+        ):
+            self._open_update_download(confirm=False)
+
+    def _open_update_download(self, *, confirm: bool = True) -> None:
+        if self.update_package_url:
+            self._install_update_package(self.update_package_url, confirm=confirm)
+            return
+        if self.update_download_url:
+            webbrowser.open(self.update_download_url)
+            return
+        messagebox.showinfo(
+            "Няма адрес за изтегляне",
+            "За тази актуализация не е зададен пакет или страница за изтегляне.",
+            parent=self.root,
+        )
+
+    def _restart_command(self) -> list[str]:
+        if getattr(sys, "frozen", False):
+            return [sys.executable]
+        return [sys.executable, str(Path(__file__).resolve())]
+
+    def _install_update_package(self, package_url: str, *, confirm: bool = True) -> None:
+        if self.update_installing:
+            return
+        if confirm and not messagebox.askyesno(
+            "Инсталиране на актуализация",
+            "Актуализацията ще бъде изтеглена, приложението ще се затвори и после ще се стартира отново. Продължаване?",
+            parent=self.root,
+        ):
+            return
+
+        self.update_installing = True
+        self.update_action_button.configure(state="disabled")
+        progress_window = tk.Toplevel(self.root)
+        progress_window.title("WGA Update")
+        progress_window.transient(self.root)
+        progress_window.resizable(False, False)
+        apply_app_icon(progress_window)
+        panel = tk.Frame(progress_window, bg="#101820", padx=22, pady=18)
+        panel.pack(fill="both", expand=True)
+        tk.Label(
+            panel,
+            text="Инсталиране на актуализация",
+            font=("Segoe UI Semibold", 13),
+            bg="#101820",
+            fg="#f1fff5",
+        ).pack(anchor="w")
+        status_var = tk.StringVar(value="Изтегляне и подготовка на пакета...")
+        tk.Label(
+            panel,
+            textvariable=status_var,
+            font=("Segoe UI", 10),
+            bg="#101820",
+            fg="#b9d8c3",
+        ).pack(anchor="w", pady=(8, 12))
+        progress_var = tk.IntVar(value=0)
+        ttk.Progressbar(panel, maximum=100, variable=progress_var, length=420).pack(fill="x")
+
+        def update_progress(value: int) -> None:
+            self.root.after(0, lambda: progress_var.set(value))
+
+        def worker() -> None:
+            try:
+                helper_path = prepare_update_install(
+                    package_url=package_url,
+                    target_root=PROJECT_ROOT,
+                    restart_command=self._restart_command(),
+                    progress_callback=update_progress,
+                )
+
+                def finish() -> None:
+                    status_var.set("Готово. Приложението ще се рестартира...")
+                    progress_var.set(100)
+                    launch_helper_and_exit(helper_path)
+                    self.root.after(500, self.root.destroy)
+
+                self.root.after(0, finish)
+            except Exception as exc:
+                def fail() -> None:
+                    self.update_installing = False
+                    self.update_action_button.configure(state="normal")
+                    progress_window.destroy()
+                    messagebox.showerror(
+                        "Грешка при актуализация",
+                        f"Актуализацията не успя:\n{exc}",
+                        parent=self.root,
+                    )
+
+                self.root.after(0, fail)
+
+        threading.Thread(target=worker, daemon=True).start()
 
     def _update_history_lines(self) -> list[str]:
         if self.update_result and self.update_result.changelog:
