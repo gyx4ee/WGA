@@ -1,10 +1,11 @@
 {
-  "version": "0.2.52",
+  "version": "0.2.53",
   "version_info_url": "https://raw.githubusercontent.com/gyx4ee/WGA/refs/heads/main/version.json",
   "download_url": "https://github.com/gyx4ee/WGA/releases/latest",
   "package_url": "https://raw.githubusercontent.com/gyx4ee/WGA/refs/heads/main/WGA-portable.zip",
-  "notes": "Published a test release to verify the repaired main launcher update detection from version 0.2.51.",
+  "notes": "Restored the missing Restore Settings action directly on the Windows 10 and Windows 11 Optimization profile cards.",
   "changelog": [
+    "v0.2.53 - Restored permanent Apply and Restore Settings buttons directly on the first Windows 10 and Windows 11 Optimization cards while retaining the full-size profile controls above the cards.",
     "v0.2.52 - Test release for end-to-end validation of the repaired main launcher update detection, multi-endpoint GitHub metadata lookup, cache bypass, manual Check Again action, download, and installation flow.",
     "v0.2.51 - Fixed the main launcher update detection by checking multiple independent GitHub endpoints, disabling metadata caching, selecting the highest returned version, preventing duplicate checks, and adding a manual Check Again button.",
     "v0.2.50 - Fixed clipped and missing Optimization card buttons, added a live progress window with current action, percentage, detailed log, completion and error states, improved Windows 10 apply/restore reporting, and introduced a safe Windows 11 optimization profile with backup and restore support.",

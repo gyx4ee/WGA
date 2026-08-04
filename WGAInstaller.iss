@@ -1,5 +1,5 @@
 #define MyAppName "WinSys Guardian Advanced"
-#define MyAppVersion "0.2.52"
+#define MyAppVersion "0.2.53"
 #define MyAppPublisher "WGA"
 #define MyAppExeName "WGA.exe"
 #define MySourceRoot SourcePath
@@ -17,7 +17,7 @@ DisableProgramGroupPage=yes
 DisableDirPage=no
 UsePreviousAppDir=no
 OutputDir={#MySourceRoot}\installer-output
-OutputBaseFilename=WGA-Setup-USB-0.2.52
+OutputBaseFilename=WGA-Setup-USB-0.2.53
 SetupIconFile={#MySourceRoot}\assets\wga-installer-icon.ico
 Compression=lzma2/normal
 SolidCompression=no

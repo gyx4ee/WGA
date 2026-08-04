@@ -246,26 +246,57 @@ class OptimizationUI:
             ).pack(anchor="w", padx=16)
             if column == 0:
                 action = self._apply_low_ram_profile if self.current_page == "windows10" else self._apply_windows11_profile
-                button_text = "ПРИЛОЖИ ОПТИМИЗАЦИЯ"
+                restore_action = self._restore_low_ram_profile if self.current_page == "windows10" else self._restore_windows11_profile
+                action_row = tk.Frame(card, bg=PANEL)
+                action_row.pack(side="bottom", fill="x", padx=16, pady=12)
+                tk.Button(
+                    action_row,
+                    text="ПРИЛОЖИ",
+                    command=action,
+                    bg=ACCENT_DARK,
+                    activebackground=ACCENT,
+                    fg="#fff8df",
+                    activeforeground="#071311",
+                    relief="flat",
+                    bd=0,
+                    cursor="hand2",
+                    font=("Segoe UI Semibold", 8),
+                    padx=10,
+                    pady=7,
+                ).pack(side="left", padx=(0, 6))
+                tk.Button(
+                    action_row,
+                    text="ВЪРНИ НАСТРОЙКИТЕ",
+                    command=restore_action,
+                    bg="#173c36",
+                    activebackground=BORDER,
+                    fg=TEXT,
+                    activeforeground=TEXT,
+                    relief="flat",
+                    bd=0,
+                    cursor="hand2",
+                    font=("Segoe UI Semibold", 8),
+                    padx=9,
+                    pady=7,
+                ).pack(side="left")
             else:
                 action = lambda name=card_title: self._not_implemented(name)
-                button_text = "ОТВОРИ"
-            tk.Button(
-                card,
-                text=button_text,
-                command=action,
-                bg=ACCENT_DARK,
-                activebackground=ACCENT,
-                fg="#fff8df",
-                activeforeground="#071311",
-                relief="flat",
-                bd=0,
-                cursor="hand2",
-                font=("Segoe UI Semibold", 9),
-                padx=16,
-                pady=7,
-                wraplength=210,
-            ).pack(side="bottom", anchor="w", padx=16, pady=12)
+                tk.Button(
+                    card,
+                    text="ОТВОРИ",
+                    command=action,
+                    bg=ACCENT_DARK,
+                    activebackground=ACCENT,
+                    fg="#fff8df",
+                    activeforeground="#071311",
+                    relief="flat",
+                    bd=0,
+                    cursor="hand2",
+                    font=("Segoe UI Semibold", 9),
+                    padx=16,
+                    pady=7,
+                    wraplength=210,
+                ).pack(side="bottom", anchor="w", padx=16, pady=12)
 
     def _build_windows10_profile_controls(self) -> None:
         controls = tk.Frame(
