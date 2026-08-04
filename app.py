@@ -1412,6 +1412,7 @@ class ProductLauncher:
         self.update_download_url = ""
         self.update_installing = False
         self.update_popup_shown = False
+        self.update_check_running = False
         self.update_check_active = True
         self.update_status_var = tk.StringVar(
             value=f"Проверка за актуализация на v{self.version_info['version']}..."
@@ -1605,6 +1606,24 @@ class ProductLauncher:
         )
         self.update_action_button.pack(side="right", padx=(0, 8), pady=6)
 
+        self.update_recheck_button = tk.Button(
+            update_bar,
+            text="Провери отново",
+            command=self._check_updates_async,
+            bg="#173c36",
+            activebackground="#1f554c",
+            fg="#d9fff1",
+            activeforeground="#ffffff",
+            disabledforeground="#6f756f",
+            relief="flat",
+            bd=0,
+            cursor="hand2",
+            font=("Segoe UI Semibold", 9),
+            padx=12,
+            pady=7,
+        )
+        self.update_recheck_button.pack(side="right", padx=(0, 8), pady=6)
+
         tk.Button(
             update_bar,
             text="История на актуализациите",
@@ -1651,6 +1670,13 @@ class ProductLauncher:
         )
 
     def _check_updates_async(self) -> None:
+        if self.update_check_running:
+            return
+        self.update_check_running = True
+        self.update_status_icon.configure(text="↻", fg="#37e39a")
+        self.update_status_label.configure(fg="#a6d5c5")
+        self.update_status_var.set(f"Проверка за актуализация на v{self.version_info['version']}...")
+        self.update_recheck_button.configure(state="disabled")
         threading.Thread(target=self._perform_update_check, daemon=True).start()
 
     def _perform_update_check(self) -> None:
@@ -1664,6 +1690,7 @@ class ProductLauncher:
             return
 
     def _apply_update_result(self, result: UpdateResult) -> None:
+        self.update_check_running = False
         self.update_result = result
         if not self.update_check_active:
             return
@@ -1689,6 +1716,7 @@ class ProductLauncher:
         self.update_status_icon.configure(text=icon, fg=color)
         self.update_status_label.configure(fg=color)
         self.update_status_var.set(message)
+        self.update_recheck_button.configure(state="normal")
         self.update_package_url = result.package_url.strip()
         self.update_download_url = (result.download_url or str(self.version_info.get("download_url", ""))).strip()
         can_update = result.status == "update_available" and bool(

@@ -6,7 +6,7 @@ import time
 from dataclasses import dataclass
 from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qsl, quote, urlencode, urlsplit, urlunsplit
-from urllib.request import urlopen
+from urllib.request import Request, urlopen
 
 
 # Описва данните, които приложението пази за UpdateResult.
@@ -39,10 +39,59 @@ def _fetch_json(url: str, timeout: int = 6) -> dict[str, str]:
     # Изтегля JSON файла с информация за последната версия.
     prepared_url = _prepare_url(url)
     prepared_url = _with_cache_buster(prepared_url)
-    with urlopen(prepared_url, timeout=timeout) as response:
+    request = Request(
+        prepared_url,
+        headers={
+            "User-Agent": "WinSys-Guardian-Advanced-Updater",
+            "Accept": "application/json, application/vnd.github.raw+json",
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+        },
+    )
+    with urlopen(request, timeout=timeout) as response:
         raw = response.read().decode("utf-8")
     data = json.loads(raw)
     return data if isinstance(data, dict) else {}
+
+
+def _candidate_urls(version_info_url: str) -> tuple[str, ...]:
+    """Build independent GitHub endpoints so one stale CDN response cannot hide an update."""
+    primary = version_info_url.strip()
+    candidates = [primary]
+    parts = urlsplit(primary)
+    if parts.netloc.lower() == "raw.githubusercontent.com":
+        path_parts = [item for item in parts.path.split("/") if item]
+        if len(path_parts) >= 4:
+            owner, repository = path_parts[0], path_parts[1]
+            if path_parts[2:5] == ["refs", "heads", "main"]:
+                file_parts = path_parts[5:]
+            else:
+                file_parts = path_parts[3:]
+            file_path = "/".join(file_parts) or "version.json"
+            candidates.extend(
+                (
+                    f"https://raw.githubusercontent.com/{owner}/{repository}/main/{file_path}",
+                    f"https://api.github.com/repos/{owner}/{repository}/contents/{file_path}?ref=main",
+                )
+            )
+    return tuple(dict.fromkeys(candidates))
+
+
+def _fetch_latest_json(version_info_url: str) -> dict[str, object]:
+    responses: list[dict[str, object]] = []
+    errors: list[Exception] = []
+    for candidate in _candidate_urls(version_info_url):
+        try:
+            data = _fetch_json(candidate)
+            if str(data.get("version", "")).strip():
+                responses.append(data)
+        except (HTTPError, URLError, json.JSONDecodeError, TimeoutError, ValueError) as exc:
+            errors.append(exc)
+    if responses:
+        return max(responses, key=lambda item: _normalize_version(str(item.get("version", ""))))
+    if errors:
+        raise errors[-1]
+    return {}
 
 
 # Помощна функция за prepare url.
@@ -78,7 +127,7 @@ def check_for_updates(current_version: str, version_info_url: str) -> UpdateResu
         return UpdateResult(status="not_configured")
 
     try:
-        remote_info = _fetch_json(version_info_url.strip())
+        remote_info = _fetch_latest_json(version_info_url.strip())
     except HTTPError as exc:
         if exc.code == 404:
             return UpdateResult(
