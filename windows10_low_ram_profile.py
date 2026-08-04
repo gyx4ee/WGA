@@ -11,6 +11,7 @@ import winreg
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from collections.abc import Callable
 
 
 PROFILE_DIR = Path(os.environ.get("LOCALAPPDATA", tempfile.gettempdir())) / "WGA" / "optimization"
@@ -138,37 +139,55 @@ def _apply_open_shell(executable: Path) -> str:
     return "Open-Shell е настроен с двуколонно класическо XP оформление."
 
 
-def apply_profile() -> list[str]:
+ProgressCallback = Callable[[int, int, str], None]
+
+
+def _report(callback: ProgressCallback | None, step: int, total: int, message: str) -> None:
+    if callback:
+        callback(step, total, message)
+
+
+def apply_profile(progress_callback: ProgressCallback | None = None) -> list[str]:
     if not is_windows_10():
         raise RuntimeError("Този профил може да се приложи само на Windows 10.")
     if BACKUP_FILE.exists():
         raise RuntimeError("Профилът вече е прилаган. Първо използвайте „Върни настройките“.")
 
+    total_steps = len(CHANGES) + 5
+    _report(progress_callback, 1, total_steps, "Създаване на архив на текущите настройки...")
     _create_backup()
+    _report(progress_callback, 2, total_steps, "Създаване на Windows Restore Point...")
     messages = [_create_restore_point()]
     try:
-        for change in CHANGES:
+        for index, change in enumerate(CHANGES, start=3):
+            _report(progress_callback, index, total_steps, change.description)
             with winreg.CreateKeyEx(change.root, change.path, 0, winreg.KEY_SET_VALUE) as key:
                 winreg.SetValueEx(key, change.name, 0, change.value_type, change.value)
+        _report(progress_callback, len(CHANGES) + 3, total_steps, "Настройване на Open-Shell XP менюто...")
         open_shell = find_open_shell()
         if open_shell:
             messages.append(_apply_open_shell(open_shell))
         else:
             messages.append("Open-Shell не е инсталиран. Оптимизациите са приложени, но XP менюто е пропуснато.")
+        _report(progress_callback, len(CHANGES) + 4, total_steps, "Прилагане на промените в Windows Explorer...")
         ctypes.windll.user32.SendMessageTimeoutW(0xFFFF, 0x001A, 0, "Environment", 0x0002, 5000, None)
         messages.append("Профилът за 2/4 GB RAM е приложен. Излезте и влезте отново в Windows за всички визуални промени.")
+        _report(progress_callback, total_steps, total_steps, "Windows 10 оптимизацията приключи успешно.")
         return messages
     except Exception:
         restore_profile()
         raise
 
 
-def restore_profile() -> list[str]:
+def restore_profile(progress_callback: ProgressCallback | None = None) -> list[str]:
     if not BACKUP_FILE.exists():
         raise RuntimeError("Няма намерен архив от приложен профил.")
+    total_steps = len(CHANGES) + 3
+    _report(progress_callback, 1, total_steps, "Зареждане на архива с предишните настройки...")
     backup = json.loads(BACKUP_FILE.read_text(encoding="utf-8"))
     registry_backup = backup.get("registry", {})
-    for change in CHANGES:
+    for index, change in enumerate(CHANGES, start=2):
+        _report(progress_callback, index, total_steps, f"Възстановяване: {change.description}")
         saved = registry_backup.get(f"{change.root_name}\\{change.path}|{change.name}", {"exists": False})
         with winreg.CreateKeyEx(change.root, change.path, 0, winreg.KEY_SET_VALUE) as key:
             if saved.get("exists"):
@@ -178,6 +197,7 @@ def restore_profile() -> list[str]:
                     winreg.DeleteValue(key, change.name)
                 except FileNotFoundError:
                     pass
+    _report(progress_callback, len(CHANGES) + 2, total_steps, "Възстановяване на Open-Shell и обновяване на Explorer...")
     if OPEN_SHELL_BACKUP.exists():
         _run(["reg.exe", "import", str(OPEN_SHELL_BACKUP)])
         executable = find_open_shell()
@@ -185,4 +205,5 @@ def restore_profile() -> list[str]:
             _run([str(executable), "-reloadsettings"])
     BACKUP_FILE.unlink(missing_ok=True)
     ctypes.windll.user32.SendMessageTimeoutW(0xFFFF, 0x001A, 0, "Environment", 0x0002, 5000, None)
+    _report(progress_callback, total_steps, total_steps, "Предишните Windows 10 настройки са възстановени.")
     return ["Предишните Windows и Open-Shell настройки са възстановени.", "Излезте и влезте отново в Windows, за да се обнови целият интерфейс."]

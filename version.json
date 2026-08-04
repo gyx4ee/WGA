@@ -1,10 +1,11 @@
 {
-  "version": "0.2.49",
+  "version": "0.2.50",
   "version_info_url": "https://raw.githubusercontent.com/gyx4ee/WGA/refs/heads/main/version.json",
   "download_url": "https://github.com/gyx4ee/WGA/releases/latest",
   "package_url": "https://raw.githubusercontent.com/gyx4ee/WGA/refs/heads/main/WGA-portable.zip",
-  "notes": "Fixed the new Suite launcher so available updates can be downloaded and installed instead of only being announced.",
+  "notes": "Fixed the Optimization module card buttons and added live progress windows plus safe apply/restore profiles for both Windows 10 and Windows 11.",
   "changelog": [
+    "v0.2.50 - Fixed clipped and missing Optimization card buttons, added a live progress window with current action, percentage, detailed log, completion and error states, improved Windows 10 apply/restore reporting, and introduced a safe Windows 11 optimization profile with backup and restore support.",
     "v0.2.49 - Restored automatic updating in the new Suite launcher with an Install button, confirmation dialog, download progress, safe file replacement, restart, download-page fallback, and visible error handling.",
     "v0.2.48 - Made the Windows 10 XP optimization controls permanently visible, added separate Apply XP Optimization and Restore Settings buttons, removed the clipped card action, and added Test-Optimization-Windows10.bat for direct testing.",
     "v0.2.47 - Added the reversible Windows 10 optimization profile for 2/4 GB RAM, restore-point and settings backup support, bundled Open-Shell 4.4.198 locally, and added the Windows XP Luna Start menu design without a separate download.",

@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import tkinter as tk
+import threading
 from collections.abc import Callable
-from tkinter import messagebox
+from tkinter import messagebox, ttk
 
 from windows10_low_ram_profile import (
     BACKUP_FILE,
@@ -10,6 +11,12 @@ from windows10_low_ram_profile import (
     find_open_shell,
     profile_descriptions,
     restore_profile,
+)
+from windows11_safe_profile import (
+    BACKUP_FILE as WINDOWS11_BACKUP_FILE,
+    apply_profile as apply_windows11_profile,
+    profile_descriptions as windows11_profile_descriptions,
+    restore_profile as restore_windows11_profile,
 )
 
 
@@ -169,11 +176,11 @@ class OptimizationUI:
         ).pack(anchor="w")
         tk.Label(
             self.content,
-            text="Модулът е подготвен за добавяне на реални проверки и контролирани действия.",
+            text="Безопасни профили с архив, текущ статус и възможност за връщане на настройките.",
             bg=BG,
             fg=TEXT_MUTED,
             font=("Segoe UI", 10),
-        ).pack(anchor="w", pady=(3, 22))
+        ).pack(anchor="w", pady=(3, 12))
 
         banner = tk.Frame(
             self.content,
@@ -181,24 +188,26 @@ class OptimizationUI:
             highlightbackground=ACCENT_DARK,
             highlightthickness=1,
         )
-        banner.pack(fill="x", pady=(0, 22))
+        banner.pack(fill="x", pady=(0, 12))
         tk.Label(
             banner,
             text="БЕЗОПАСЕН РЕЖИМ",
             bg="#2b2514",
             fg=ACCENT,
             font=("Segoe UI Semibold", 11),
-        ).pack(anchor="w", padx=18, pady=(14, 2))
+        ).pack(anchor="w", padx=18, pady=(9, 1))
         tk.Label(
             banner,
             text="Няма да се изпълняват промени без предварителен преглед и потвърждение.",
             bg="#2b2514",
             fg="#e8dba8",
             font=("Segoe UI", 10),
-        ).pack(anchor="w", padx=18, pady=(0, 14))
+        ).pack(anchor="w", padx=18, pady=(0, 9))
 
         if self.current_page == "windows10":
             self._build_windows10_profile_controls()
+        else:
+            self._build_windows11_profile_controls()
 
         cards = tk.Frame(self.content, bg=BG)
         cards.pack(fill="both", expand=True)
@@ -224,8 +233,8 @@ class OptimizationUI:
                 fg=TEXT,
                 wraplength=220,
                 justify="left",
-                font=("Segoe UI Semibold", 15),
-            ).pack(anchor="w", padx=20, pady=(28, 12))
+                font=("Segoe UI Semibold", 12),
+            ).pack(anchor="w", padx=16, pady=(15, 7))
             tk.Label(
                 card,
                 text=description,
@@ -233,26 +242,30 @@ class OptimizationUI:
                 fg=TEXT_SOFT,
                 wraplength=220,
                 justify="left",
-                font=("Segoe UI", 10),
-            ).pack(anchor="w", padx=20)
-            is_low_ram_profile = self.current_page == "windows10" and column == 0
-            if not is_low_ram_profile:
-                tk.Button(
-                    card,
-                    text="ОТВОРИ",
-                    command=lambda name=card_title: self._not_implemented(name),
-                    bg=ACCENT_DARK,
-                    activebackground=ACCENT,
-                    fg="#fff8df",
-                    activeforeground="#071311",
-                    relief="flat",
-                    bd=0,
-                    cursor="hand2",
-                    font=("Segoe UI Semibold", 10),
-                    padx=22,
-                    pady=9,
-                    wraplength=210,
-                ).pack(side="bottom", anchor="w", padx=20, pady=24)
+                font=("Segoe UI", 9),
+            ).pack(anchor="w", padx=16)
+            if column == 0:
+                action = self._apply_low_ram_profile if self.current_page == "windows10" else self._apply_windows11_profile
+                button_text = "ПРИЛОЖИ ОПТИМИЗАЦИЯ"
+            else:
+                action = lambda name=card_title: self._not_implemented(name)
+                button_text = "ОТВОРИ"
+            tk.Button(
+                card,
+                text=button_text,
+                command=action,
+                bg=ACCENT_DARK,
+                activebackground=ACCENT,
+                fg="#fff8df",
+                activeforeground="#071311",
+                relief="flat",
+                bd=0,
+                cursor="hand2",
+                font=("Segoe UI Semibold", 9),
+                padx=16,
+                pady=7,
+                wraplength=210,
+            ).pack(side="bottom", anchor="w", padx=16, pady=12)
 
     def _build_windows10_profile_controls(self) -> None:
         controls = tk.Frame(
@@ -318,6 +331,57 @@ class OptimizationUI:
             pady=9,
         ).pack(side="left")
 
+    def _build_windows11_profile_controls(self) -> None:
+        controls = tk.Frame(self.content, bg=PANEL_ALT, highlightbackground=ACCENT_DARK, highlightthickness=1)
+        controls.pack(fill="x", pady=(0, 10))
+        text_area = tk.Frame(controls, bg=PANEL_ALT)
+        text_area.pack(side="left", fill="both", expand=True, padx=18, pady=10)
+        tk.Label(
+            text_area,
+            text="WINDOWS 11 — БЕЗОПАСЕН ПРОФИЛ",
+            bg=PANEL_ALT,
+            fg=ACCENT,
+            font=("Segoe UI Semibold", 11),
+        ).pack(anchor="w")
+        status = (
+            "Профилът е приложен — можете да върнете предишните настройки."
+            if WINDOWS11_BACKUP_FILE.exists()
+            else "Готов за стартиране — безопасни настройки за по-малко фоново натоварване."
+        )
+        tk.Label(text_area, text=status, bg=PANEL_ALT, fg=TEXT_SOFT, font=("Segoe UI", 9)).pack(anchor="w", pady=(2, 0))
+        buttons = tk.Frame(controls, bg=PANEL_ALT)
+        buttons.pack(side="right", padx=16, pady=10)
+        tk.Button(
+            buttons,
+            text="ПРИЛОЖИ ОПТИМИЗАЦИЯ",
+            command=self._apply_windows11_profile,
+            bg=ACCENT_DARK,
+            activebackground=ACCENT,
+            fg="#fff8df",
+            activeforeground=BG,
+            relief="flat",
+            bd=0,
+            cursor="hand2",
+            font=("Segoe UI Semibold", 9),
+            padx=14,
+            pady=8,
+        ).pack(side="left", padx=(0, 8))
+        tk.Button(
+            buttons,
+            text="ВЪРНИ НАСТРОЙКИТЕ",
+            command=self._restore_windows11_profile,
+            bg="#173c36",
+            activebackground=BORDER,
+            fg=TEXT,
+            activeforeground=TEXT,
+            relief="flat",
+            bd=0,
+            cursor="hand2",
+            font=("Segoe UI Semibold", 9),
+            padx=14,
+            pady=8,
+        ).pack(side="left")
+
     def _profile_prompt(self, action: str) -> str:
         open_shell_status = (
             "Open-Shell е намерен и XP менюто ще бъде приложено."
@@ -347,13 +411,11 @@ class OptimizationUI:
             parent=self.root,
         ):
             return
-        try:
-            messages = apply_profile()
-        except Exception as exc:
-            messagebox.showerror("WGA оптимизация", str(exc), parent=self.root)
-            return
-        messagebox.showinfo("WGA оптимизация", "\n\n".join(messages), parent=self.root)
-        self.show_page("windows10")
+        self._run_profile_action(
+            title="Windows 10 оптимизация",
+            worker=lambda progress: apply_profile(progress),
+            page_id="windows10",
+        )
 
     def _restore_low_ram_profile(self) -> None:
         if not BACKUP_FILE.exists():
@@ -369,13 +431,167 @@ class OptimizationUI:
             parent=self.root,
         ):
             return
-        try:
-            messages = restore_profile()
-        except Exception as exc:
-            messagebox.showerror("WGA оптимизация", str(exc), parent=self.root)
+        self._run_profile_action(
+            title="Възстановяване на Windows 10",
+            worker=lambda progress: restore_profile(progress),
+            page_id="windows10",
+        )
+
+    def _windows11_prompt(self, action: str) -> str:
+        details = "\n".join(f"• {item}" for item in windows11_profile_descriptions())
+        return (
+            "БЕЗОПАСЕН ПРОФИЛ ЗА WINDOWS 11\n\n"
+            f"{details}\n\n"
+            "Windows Update, Defender, Firewall и критичните услуги няма да бъдат спирани.\n\n"
+            f"Изберете „Да“, за да изпълните: {action}."
+        )
+
+    def _apply_windows11_profile(self) -> None:
+        if WINDOWS11_BACKUP_FILE.exists():
+            messagebox.showinfo(
+                "WGA оптимизация",
+                "Windows 11 профилът вече е приложен. Първо използвайте „ВЪРНИ НАСТРОЙКИТЕ“.",
+                parent=self.root,
+            )
             return
-        messagebox.showinfo("WGA оптимизация", "\n\n".join(messages), parent=self.root)
-        self.show_page("windows10")
+        if not messagebox.askyesno(
+            "WGA безопасна оптимизация",
+            self._windows11_prompt("ПРИЛОЖИ ОПТИМИЗАЦИЯ"),
+            parent=self.root,
+        ):
+            return
+        self._run_profile_action(
+            title="Windows 11 оптимизация",
+            worker=lambda progress: apply_windows11_profile(progress),
+            page_id="windows11",
+        )
+
+    def _restore_windows11_profile(self) -> None:
+        if not WINDOWS11_BACKUP_FILE.exists():
+            messagebox.showinfo(
+                "WGA оптимизация",
+                "Няма архив от приложен Windows 11 профил.",
+                parent=self.root,
+            )
+            return
+        if not messagebox.askyesno(
+            "Връщане на настройките",
+            "Да бъдат ли възстановени Windows 11 настройките отпреди оптимизацията?",
+            parent=self.root,
+        ):
+            return
+        self._run_profile_action(
+            title="Възстановяване на Windows 11",
+            worker=lambda progress: restore_windows11_profile(progress),
+            page_id="windows11",
+        )
+
+    def _run_profile_action(
+        self,
+        *,
+        title: str,
+        worker: Callable[[Callable[[int, int, str], None]], list[str]],
+        page_id: str,
+    ) -> None:
+        progress_window = tk.Toplevel(self.root)
+        progress_window.title(title)
+        progress_window.transient(self.root)
+        progress_window.resizable(False, False)
+        progress_window.protocol("WM_DELETE_WINDOW", lambda: None)
+        panel = tk.Frame(progress_window, bg=PANEL, padx=22, pady=18)
+        panel.pack(fill="both", expand=True)
+        tk.Label(panel, text=title, bg=PANEL, fg=TEXT, font=("Segoe UI Semibold", 15)).pack(anchor="w")
+        status_var = tk.StringVar(value="Подготовка...")
+        tk.Label(
+            panel,
+            textvariable=status_var,
+            bg=PANEL,
+            fg=TEXT_SOFT,
+            font=("Segoe UI", 10),
+            wraplength=500,
+            justify="left",
+        ).pack(anchor="w", pady=(7, 10))
+        progress_var = tk.IntVar(value=0)
+        ttk.Progressbar(panel, maximum=100, variable=progress_var, length=500).pack(fill="x")
+        log = tk.Text(
+            panel,
+            width=66,
+            height=11,
+            bg=BG,
+            fg=TEXT_SOFT,
+            insertbackground=TEXT,
+            relief="flat",
+            wrap="word",
+            font=("Segoe UI", 9),
+            padx=10,
+            pady=10,
+            state="disabled",
+        )
+        log.pack(fill="both", pady=(12, 10))
+        close_button = tk.Button(
+            panel,
+            text="ЗАТВОРИ",
+            command=progress_window.destroy,
+            bg=ACCENT_DARK,
+            activebackground=ACCENT,
+            fg="#fff8df",
+            relief="flat",
+            bd=0,
+            padx=20,
+            pady=8,
+            state="disabled",
+        )
+        close_button.pack(anchor="e")
+        progress_window.update_idletasks()
+        x = self.root.winfo_rootx() + max(0, (self.root.winfo_width() - progress_window.winfo_width()) // 2)
+        y = self.root.winfo_rooty() + max(0, (self.root.winfo_height() - progress_window.winfo_height()) // 2)
+        progress_window.geometry(f"+{x}+{y}")
+
+        def append_log(message: str) -> None:
+            if not progress_window.winfo_exists():
+                return
+            log.configure(state="normal")
+            log.insert("end", f"• {message}\n")
+            log.see("end")
+            log.configure(state="disabled")
+
+        def report(step: int, total: int, message: str) -> None:
+            percent = min(100, int(step * 100 / max(1, total)))
+
+            def update() -> None:
+                if progress_window.winfo_exists():
+                    status_var.set(message)
+                    progress_var.set(percent)
+                    append_log(message)
+
+            self.root.after(0, update)
+
+        def run() -> None:
+            try:
+                messages = worker(report)
+
+                def finish() -> None:
+                    status_var.set("Операцията приключи успешно.")
+                    progress_var.set(100)
+                    for message in messages:
+                        append_log(message)
+                    close_button.configure(state="normal")
+                    progress_window.protocol("WM_DELETE_WINDOW", progress_window.destroy)
+                    self.show_page(page_id)
+
+                self.root.after(0, finish)
+            except Exception as exc:
+                error_message = str(exc)
+
+                def fail() -> None:
+                    status_var.set("Операцията не успя.")
+                    append_log(f"ГРЕШКА: {error_message}")
+                    close_button.configure(state="normal", bg="#7b2d2d")
+                    progress_window.protocol("WM_DELETE_WINDOW", progress_window.destroy)
+
+                self.root.after(0, fail)
+
+        threading.Thread(target=run, daemon=True).start()
 
     def _not_implemented(self, feature: str) -> None:
         messagebox.showinfo(
