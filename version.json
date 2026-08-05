@@ -1,10 +1,11 @@
 {
-  "version": "0.2.53",
+  "version": "0.2.54",
   "version_info_url": "https://raw.githubusercontent.com/gyx4ee/WGA/refs/heads/main/version.json",
   "download_url": "https://github.com/gyx4ee/WGA/releases/latest",
   "package_url": "https://raw.githubusercontent.com/gyx4ee/WGA/refs/heads/main/WGA-portable.zip",
-  "notes": "Restored the missing Restore Settings action directly on the Windows 10 and Windows 11 Optimization profile cards.",
+  "notes": "Fixed portable product-key persistence, Windows 10/11 key normalization and activation handling, and Adobe Reader installation through WinGet.",
   "changelog": [
+    "v0.2.54 - Made the encrypted product-key store independent of USB drive letters and folder names with automatic legacy migration, atomic writes and backup; fixed broken Windows/Office key normalization and validated separate Windows 10/11 activation mappings; improved WinGet discovery for elevated sessions; and repaired Adobe Reader installation with exact package lookup, machine-scope installation, automatic scope fallback, preflight diagnostics and timeouts.",
     "v0.2.53 - Restored permanent Apply and Restore Settings buttons directly on the first Windows 10 and Windows 11 Optimization cards while retaining the full-size profile controls above the cards.",
     "v0.2.52 - Test release for end-to-end validation of the repaired main launcher update detection, multi-endpoint GitHub metadata lookup, cache bypass, manual Check Again action, download, and installation flow.",
     "v0.2.51 - Fixed the main launcher update detection by checking multiple independent GitHub endpoints, disabling metadata caching, selecting the highest returned version, preventing duplicate checks, and adding a manual Check Again button.",

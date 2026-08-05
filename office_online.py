@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import shutil
+import os
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -137,15 +139,43 @@ def get_online_package(action_id: str) -> OfficeOnlinePackage:
 
 # Намира winget executable.
 def find_winget_executable() -> str | None:
-    # Tarsi winget kakto v PATH, taka i v WindowsApps.
+    # Търси winget и когато WGA е стартиран elevated и App Execution Alias липсва от PATH.
     path_candidate = shutil.which("winget")
     if path_candidate:
         return path_candidate
+
+    local_app_data = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local"))
+    candidates = [WINDOWS_APPS_WINGET, local_app_data / "Microsoft" / "WindowsApps" / "winget.exe"]
+    for candidate in candidates:
+        try:
+            if candidate.is_file():
+                return str(candidate)
+        except OSError:
+            continue
+
+    # Последен надежден вариант: намира реалния DesktopAppInstaller package чрез PowerShell.
+    command = [
+        "powershell.exe",
+        "-NoProfile",
+        "-Command",
+        "(Get-AppxPackage Microsoft.DesktopAppInstaller | Sort-Object Version -Descending | Select-Object -First 1).InstallLocation",
+    ]
     try:
-        if WINDOWS_APPS_WINGET.exists():
-            return str(WINDOWS_APPS_WINGET)
-    except OSError:
-        return None
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=15,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+        install_location = result.stdout.strip()
+        if result.returncode == 0 and install_location:
+            package_winget = Path(install_location) / "winget.exe"
+            if package_winget.is_file():
+                return str(package_winget)
+    except (OSError, subprocess.SubprocessError):
+        pass
     return None
 
 

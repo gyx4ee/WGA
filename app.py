@@ -970,6 +970,7 @@ MENU_TREE = _localize_menu_tree(MENU_TREE)
 
 FILE_ATTRIBUTE_HIDDEN = 0x02
 FILE_ATTRIBUTE_NORMAL = 0x80
+SECURE_STORE_FORMAT_VERSION = 2
 
 
 # Зарежда settings от файл или конфигурация.
@@ -1059,9 +1060,21 @@ def format_duration(seconds: int) -> str:
 
 # Помощна функция за portable secret key.
 def _portable_secret_key() -> bytes:
-    # Прави локален ключ за леко скриване на чувствителните данни.
+    # Стабилен portable ключ: не зависи от буквата, името или папката на USB устройството.
+    secret_seed = f"{APP_TITLE}|WGA-Portable-Store|format-v{SECURE_STORE_FORMAT_VERSION}"
+    return hashlib.sha256(secret_seed.encode("utf-8")).digest()
+
+
+def _legacy_portable_secret_key() -> bytes:
+    # Позволява еднократна миграция на store файловете от стария path-dependent формат.
     secret_seed = f"{APP_TITLE}|WGA-Portable-Store|{PROJECT_ROOT.name}"
     return hashlib.sha256(secret_seed.encode("utf-8")).digest()
+
+
+def _xor_decrypt(encoded_text: str, key: bytes) -> str:
+    encrypted = base64.b64decode(encoded_text.encode("ascii"))
+    decrypted = bytes(byte ^ key[index % len(key)] for index, byte in enumerate(encrypted))
+    return decrypted.decode("utf-8")
 
 
 # Помощна функция за encrypt for current user.
@@ -1076,10 +1089,7 @@ def encrypt_for_current_user(text: str) -> str:
 # Помощна функция за decrypt for current user.
 def decrypt_for_current_user(encoded_text: str) -> str:
     # Декодира текста, записан в защитения файл.
-    encrypted = base64.b64decode(encoded_text.encode("ascii"))
-    key = _portable_secret_key()
-    decrypted = bytes(byte ^ key[index % len(key)] for index, byte in enumerate(encrypted))
-    return decrypted.decode("utf-8")
+    return _xor_decrypt(encoded_text, _portable_secret_key())
 
 
 # Помощна функция за hash secret.
@@ -1148,12 +1158,17 @@ def load_secure_store() -> dict[str, str]:
         save_secure_store(store)
         return store
 
+    encrypted_payload: dict[str, object] = {}
     try:
         encrypted_payload = json.loads(SECURE_STORE_FILE.read_text(encoding="utf-8"))
         encrypted_data = encrypted_payload.get("data", "")
         if not encrypted_data:
             raise ValueError("Missing encrypted data.")
-        decrypted = decrypt_for_current_user(encrypted_data)
+        store_version = int(encrypted_payload.get("format_version", 1))
+        if store_version >= SECURE_STORE_FORMAT_VERSION:
+            decrypted = decrypt_for_current_user(encrypted_data)
+        else:
+            decrypted = _xor_decrypt(encrypted_data, _legacy_portable_secret_key())
         data = json.loads(decrypted)
     except (OSError, ValueError, json.JSONDecodeError):
         data = {"admin_menu_password_hash": hash_secret(DEFAULT_WINDOWS11_MENU_PASSWORD)}
@@ -1169,7 +1184,11 @@ def load_secure_store() -> dict[str, str]:
             pass
         save_secure_store(data)
 
-    return data if isinstance(data, dict) else {"admin_menu_password_hash": hash_secret(DEFAULT_WINDOWS11_MENU_PASSWORD)}
+    if isinstance(data, dict):
+        if int(encrypted_payload.get("format_version", 1)) < SECURE_STORE_FORMAT_VERSION:
+            save_secure_store(data)
+        return data
+    return {"admin_menu_password_hash": hash_secret(DEFAULT_WINDOWS11_MENU_PASSWORD)}
 
 
 # Записва secure store за следващо използване.
@@ -1177,9 +1196,18 @@ def save_secure_store(store: dict[str, str]) -> None:
     # Записва защитените данни обратно в скрития файл.
     serialized = json.dumps(store, indent=2)
     encrypted = encrypt_for_current_user(serialized)
-    payload = {"data": encrypted}
+    payload = {"format_version": SECURE_STORE_FORMAT_VERSION, "data": encrypted}
     ensure_normal_file(SECURE_STORE_FILE)
-    SECURE_STORE_FILE.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    temp_file = SECURE_STORE_FILE.with_suffix(".json.tmp")
+    backup_file = SECURE_STORE_FILE.with_suffix(".json.bak")
+    with temp_file.open("w", encoding="utf-8") as handle:
+        handle.write(json.dumps(payload, indent=2))
+        handle.flush()
+        os.fsync(handle.fileno())
+    if SECURE_STORE_FILE.exists():
+        ensure_normal_file(backup_file)
+        shutil.copy2(SECURE_STORE_FILE, backup_file)
+    os.replace(temp_file, SECURE_STORE_FILE)
     ensure_hidden_file(SECURE_STORE_FILE)
 
 
@@ -1313,39 +1341,39 @@ def normalize_product_key_input(raw_value: str) -> str:
     bg_to_latin = str.maketrans(
         {
             "А": "A",
-            "Р’": "B",
+            "В": "B",
             "С": "C",
-            "Р•": "E",
+            "Е": "E",
             "Н": "H",
             "К": "K",
             "М": "M",
             "О": "O",
-            "Р ": "P",
+            "Р": "P",
             "Т": "T",
             "Х": "X",
             "У": "Y",
-            "Р°": "A",
+            "І": "I",
+            "а": "A",
             "в": "B",
             "с": "C",
-            "Рµ": "E",
+            "е": "E",
             "н": "H",
             "к": "K",
             "м": "M",
             "о": "O",
             "р": "P",
-            "С‚": "T",
-            "С…": "X",
+            "т": "T",
+            "х": "X",
             "у": "Y",
-            "Р¬": "B",
-            "ь": "B",
-            "Р†": "I",
-            "С–": "I",
+            "і": "I",
         }
     )
     normalized = raw_value.strip().translate(bg_to_latin).upper()
-    allowed_chars = set("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-")
-    normalized = "".join(char for char in normalized if char in allowed_chars)
-    return normalized
+    allowed_chars = set("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+    compact = "".join(char for char in normalized if char in allowed_chars)
+    if len(compact) != 25:
+        return ""
+    return "-".join(compact[index:index + 5] for index in range(0, 25, 5))
 
 
 # Помощна функция за ask product key.
@@ -8041,8 +8069,11 @@ class MainMenuUI:
             "install",
             "--id",
             ADOBE_READER_WINGET_ID,
+            "--exact",
             "--source",
             "winget",
+            "--scope",
+            "machine",
             "--silent",
             "--disable-interactivity",
             "--accept-package-agreements",
@@ -10097,8 +10128,11 @@ class MainMenuUI:
             "install",
             "--id",
             ADOBE_READER_WINGET_ID,
+            "--exact",
             "--source",
             "winget",
+            "--scope",
+            "machine",
             "--silent",
             "--disable-interactivity",
             "--accept-package-agreements",
@@ -10114,6 +10148,33 @@ class MainMenuUI:
                     f"Package ID: {ADOBE_READER_WINGET_ID}",
                 ),
             )
+            package_check = subprocess.run(
+                [
+                    winget_exe,
+                    "show",
+                    "--id",
+                    ADOBE_READER_WINGET_ID,
+                    "--exact",
+                    "--source",
+                    "winget",
+                    "--accept-source-agreements",
+                    "--disable-interactivity",
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=60,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+            )
+            package_output = self._collect_command_output(package_check)
+            if package_output:
+                output_lines.append(package_output)
+                self.root.after(0, lambda text=package_output: self._append_activation_log(text))
+            if package_check.returncode != 0:
+                raise RuntimeError(
+                    package_output
+                    or "WinGet не откри точния Adobe Reader пакет. Проверете App Installer и източника winget."
+                )
             if remove_existing:
                 self.root.after(
                     0,
@@ -10142,6 +10203,7 @@ class MainMenuUI:
                 capture_output=True,
                 text=True,
                 check=False,
+                timeout=900,
                 creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
             )
             if result.stdout.strip():
@@ -10151,14 +10213,44 @@ class MainMenuUI:
                 output_lines.append(result.stderr.strip())
                 self.root.after(0, lambda text=result.stderr.strip(): self._append_activation_log(text))
             if result.returncode != 0:
-                raise RuntimeError("\n\n".join(output_lines) or f"Adobe Reader installer returned code {result.returncode}.")
+                # Някои Adobe manifests не обявяват machine scope. Повтаряме без scope,
+                # вместо WinGet да приключи с "no applicable installer".
+                fallback_command = [item for index, item in enumerate(command) if index not in {
+                    command.index("--scope"), command.index("--scope") + 1
+                }]
+                self.root.after(
+                    0,
+                    lambda: self._update_activation_progress(
+                        75,
+                        "Повторен опит с автоматичен WinGet scope...",
+                        f"Running: {' '.join(fallback_command)}",
+                    ),
+                )
+                fallback_result = subprocess.run(
+                    fallback_command,
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                    timeout=900,
+                    creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+                )
+                fallback_output = self._collect_command_output(fallback_result)
+                if fallback_output:
+                    output_lines.append(fallback_output)
+                    self.root.after(0, lambda text=fallback_output: self._append_activation_log(text))
+                if fallback_result.returncode != 0:
+                    raise RuntimeError(
+                        "\n\n".join(output_lines)
+                        or f"Adobe Reader installer returned code {fallback_result.returncode}."
+                    )
 
             self.adobe_reader_status_cache = None
             final_message = "\n\n".join(output_lines) or "Adobe Reader беше инсталиран/обновен успешно."
             self.root.after(0, lambda: self._show_activation_result(True, final_message, "Adobe Reader"))
             self.root.after(0, self._render_cards)
         except Exception as exc:
-            self.root.after(0, lambda: self._show_activation_result(False, str(exc), "Adobe Reader"))
+            error_message = str(exc)
+            self.root.after(0, lambda: self._show_activation_result(False, error_message, "Adobe Reader"))
 
     # Стартира office offline installation и връща резултата.
     def _run_office_offline_installation(
@@ -10652,7 +10744,8 @@ class MainMenuUI:
                 if result.returncode != 0:
                     raise RuntimeError("\n\n".join(output_lines) or f"{version_label} activation command failed.")
         except Exception as exc:
-            self.root.after(0, lambda: self._show_activation_result(False, str(exc), version_label))
+            error_message = str(exc)
+            self.root.after(0, lambda: self._show_activation_result(False, error_message, version_label))
             return
 
         final_output = "\n\n".join(output_lines) or f"{version_label} activation completed successfully."
@@ -10695,7 +10788,8 @@ class MainMenuUI:
                 if result.returncode != 0:
                     raise RuntimeError("\n\n".join(output_lines) or "Activation command failed.")
         except Exception as exc:
-            self.root.after(0, lambda: self._show_activation_result(False, str(exc), version_label))
+            error_message = str(exc)
+            self.root.after(0, lambda: self._show_activation_result(False, error_message, version_label))
             return
 
         final_output = "\n\n".join(output_lines) or f"{version_label} activation completed successfully."

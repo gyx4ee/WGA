@@ -46,13 +46,14 @@ class AdobeReaderStatus:
 
 
 # Стартира command и връща резултата.
-def _run_command(command: list[str]) -> subprocess.CompletedProcess[str]:
+def _run_command(command: list[str], timeout: int = 60) -> subprocess.CompletedProcess[str]:
     # Пускаме системна команда тихо, без черен прозорец.
     return subprocess.run(
         command,
         capture_output=True,
         text=True,
         check=False,
+        timeout=timeout,
         creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
     )
 
@@ -73,7 +74,10 @@ def _latest_reader_version(winget_exe: str | None) -> tuple[str, str]:
     # Проверяваме коя е последната версия според winget.
     if not winget_exe:
         return "", "Winget не е открит. Онлайн проверката за актуална версия не е налична."
-    result = _run_command([winget_exe, "show", "--id", ADOBE_READER_WINGET_ID, "--source", "winget"])
+    result = _run_command([
+        winget_exe, "show", "--id", ADOBE_READER_WINGET_ID, "--exact", "--source", "winget",
+        "--accept-source-agreements", "--disable-interactivity",
+    ])
     output = f"{result.stdout}\n{result.stderr}".strip()
     if result.returncode != 0:
         return "", output or "Winget не успя да провери Adobe Reader."
@@ -86,7 +90,10 @@ def _installed_reader_version(winget_exe: str | None) -> str:
     # Проверяваме дали Adobe Reader вече е инсталиран на този компютър.
     if not winget_exe:
         return ""
-    result = _run_command([winget_exe, "list", "--id", ADOBE_READER_WINGET_ID, "--source", "winget"])
+    result = _run_command([
+        winget_exe, "list", "--id", ADOBE_READER_WINGET_ID, "--exact", "--source", "winget",
+        "--accept-source-agreements", "--disable-interactivity",
+    ])
     output = f"{result.stdout}\n{result.stderr}".strip()
     if result.returncode != 0 or ADOBE_READER_WINGET_ID.lower() not in output.lower():
         return ""
