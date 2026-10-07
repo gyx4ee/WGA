@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 from pathlib import Path
 
 
@@ -32,24 +33,47 @@ def locate_ospp_script(version_label: str) -> Path:
         if candidate.exists():
             return candidate
 
+    for search_root in candidate_roots:
+        parent_root = search_root.parent
+        if not parent_root.exists():
+            continue
+        for candidate in parent_root.rglob("*"):
+            if candidate.is_file() and candidate.name.lower() == "ospp.vbs":
+                return candidate
+
     raise FileNotFoundError(
         f"{version_label} activation script was not found. Expected ospp.vbs under Microsoft Office\\{office_folder}."
     )
+
+
+# Намира cscript.exe по начин, устойчив при 32-bit build върху 64-bit Windows.
+def locate_cscript_executable() -> str:
+    windir = Path(os.environ.get("WINDIR", r"C:\Windows"))
+    candidates = [
+        windir / "Sysnative" / "cscript.exe",
+        windir / "System32" / "cscript.exe",
+        windir / "SysWOW64" / "cscript.exe",
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            return str(candidate)
+    return shutil.which("cscript.exe") or "cscript"
 
 
 # Подготвя office activation commands според избраните настройки.
 def build_office_activation_commands(version_label: str, product_key: str) -> list[tuple[int, str, list[str]]]:
     # Подготвя стъпките за въвеждане на ключ и после активация.
     ospp_script = locate_ospp_script(version_label)
+    cscript_exe = locate_cscript_executable()
     return [
         (
             45,
             f"Installing {version_label} product key...",
-            ["cscript", "//nologo", str(ospp_script), f"/inpkey:{product_key}"],
+            [cscript_exe, "//nologo", str(ospp_script), f"/inpkey:{product_key}"],
         ),
         (
             90,
             f"Requesting {version_label} activation...",
-            ["cscript", "//nologo", str(ospp_script), "/act"],
+            [cscript_exe, "//nologo", str(ospp_script), "/act"],
         ),
     ]

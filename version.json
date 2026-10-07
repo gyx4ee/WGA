@@ -1,10 +1,11 @@
 {
-  "version": "0.2.54",
+  "version": "0.2.55",
   "version_info_url": "https://raw.githubusercontent.com/gyx4ee/WGA/refs/heads/main/version.json",
   "download_url": "https://github.com/gyx4ee/WGA/releases/latest",
   "package_url": "https://raw.githubusercontent.com/gyx4ee/WGA/refs/heads/main/WGA-portable.zip",
-  "notes": "Fixed portable product-key persistence, Windows 10/11 key normalization and activation handling, and Adobe Reader installation through WinGet.",
+  "notes": "Fixed Windows 11 26H2 and Office activation by using resilient system script paths, Sysnative-aware cscript/slmgr lookup, and recursive OSPP.VBS detection.",
   "changelog": [
+    "v0.2.55 - Fixed Windows 11 26H2 and Office activation workflows by resolving cscript.exe and slmgr.vbs through Sysnative/System32/SysWOW64, searching Office installations recursively for OSPP.VBS, and aligning Office status checks with the same activation-script detection.",
     "v0.2.54 - Made the encrypted product-key store independent of USB drive letters and folder names with automatic legacy migration, atomic writes and backup; fixed broken Windows/Office key normalization and validated separate Windows 10/11 activation mappings; improved WinGet discovery for elevated sessions; and repaired Adobe Reader installation with exact package lookup, machine-scope installation, automatic scope fallback, preflight diagnostics and timeouts.",
     "v0.2.53 - Restored permanent Apply and Restore Settings buttons directly on the first Windows 10 and Windows 11 Optimization cards while retaining the full-size profile controls above the cards.",
     "v0.2.52 - Test release for end-to-end validation of the repaired main launcher update detection, multi-endpoint GitHub metadata lookup, cache bypass, manual Check Again action, download, and installation flow.",

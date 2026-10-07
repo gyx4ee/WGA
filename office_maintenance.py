@@ -40,8 +40,8 @@ def find_ospp_vbs() -> Path | None:
     for search_root in OSPP_SEARCH_ROOTS:
         if not search_root.exists():
             continue
-        for candidate in search_root.rglob("OSPP.VBS"):
-            if candidate.is_file():
+        for candidate in search_root.rglob("*"):
+            if candidate.is_file() and candidate.name.lower() == "ospp.vbs":
                 return candidate
     return None
 

@@ -41,7 +41,7 @@ from driver_backup import (
     compress_backup,
     restore_drivers_from_backup,
 )
-from office_activation import build_office_activation_commands, get_office_version_label
+from office_activation import build_office_activation_commands, get_office_version_label, locate_cscript_executable
 from office_inventory import detect_installed_office
 from office_installers import OFFICE_OFFLINE_INSTALLERS, get_office_offline_installer
 from language_manager import build_language_action, get_language_status
@@ -86,8 +86,8 @@ from network_monitoring_ui import NetworkMonitoringUI
 APP_TITLE = "WinSys Guardian Advanced"
 WINDOW_SIZE = "930x630"
 MAIN_WINDOW_SIZE = "1220x820"
-MAIN_MIN_WIDTH = 1120
-MAIN_MIN_HEIGHT = 760
+MAIN_MIN_WIDTH = 760
+MAIN_MIN_HEIGHT = 520
 BASE_DPI = 96.0
 SPLASH_BASE_WIDTH = 930
 SPLASH_BASE_HEIGHT = 630
@@ -215,12 +215,14 @@ def apply_main_window_layout(window: tk.Tk) -> None:
     # Podbira podhodyasht razmer za glavniq ekran spored rezolyuciqta na monitora.
     screen_width = window.winfo_screenwidth()
     screen_height = window.winfo_screenheight()
-    target_width = max(980, screen_width - max(40, screen_width // 25))
-    target_height = max(700, screen_height - max(70, screen_height // 14))
+    target_width = max(820, screen_width - max(40, screen_width // 25))
+    target_height = max(560, screen_height - max(70, screen_height // 14))
     target_width = min(target_width, screen_width - 20)
     target_height = min(target_height, screen_height - 20)
     center_geometry(window, target_width, target_height)
-    window.minsize(min(max(900, target_width - 180), target_width), min(max(640, target_height - 120), target_height))
+    min_width = 760 if screen_width < 1050 else 900
+    min_height = 520 if screen_height < 760 else 640
+    window.minsize(min(max(min_width, target_width - 180), target_width), min(max(min_height, target_height - 120), target_height))
     if screen_width >= 1500 and screen_height >= 850:
         try:
             window.state("zoomed")
@@ -1376,6 +1378,20 @@ def normalize_product_key_input(raw_value: str) -> str:
     return "-".join(compact[index:index + 5] for index in range(0, 25, 5))
 
 
+# Намира Windows system script без да се чупи от 32-bit redirect в packaged build.
+def locate_windows_system_script(script_name: str) -> Path:
+    windir = Path(os.environ.get("WINDIR", r"C:\Windows"))
+    candidates = [
+        windir / "Sysnative" / script_name,
+        windir / "System32" / script_name,
+        windir / "SysWOW64" / script_name,
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return windir / "System32" / script_name
+
+
 # Помощна функция за ask product key.
 def ask_product_key(parent: tk.Misc, title: str, prompt: str, initialvalue: str = "") -> str | None:
     # Показва поле за ключ, като първо превключва към английска клавиатура.
@@ -2342,6 +2358,11 @@ class MainMenuUI:
         apply_main_window_layout(self.root)
         self.root.configure(bg="#08130a")
         self.settings = load_settings()
+        try:
+            self.user_text_scale = clamp(float(self.settings.get("text_scale", 1.0)), 0.8, 1.3)
+        except (TypeError, ValueError):
+            self.user_text_scale = 1.0
+        self.text_scale_var = tk.StringVar(value=f"{int(round(self.user_text_scale * 100))}%")
         self.secure_store = load_secure_store()
         self.launch_info = get_launch_location_info()
         self.resource_status: ResourceStatus = check_resource_status(PROJECT_ROOT)
@@ -2474,6 +2495,63 @@ class MainMenuUI:
             width=22,
             cursor="hand2",
         )
+
+        self.text_scale_frame = tk.Frame(self.header, bg=APP_PANEL)
+        self.text_scale_down_button = tk.Button(
+            self.text_scale_frame,
+            text="A-",
+            command=lambda: self._change_text_scale(-0.05),
+            font=("Segoe UI Semibold", 9),
+            bg=APP_PANEL_ALT,
+            fg=APP_TEXT,
+            activebackground=APP_BORDER_STRONG,
+            activeforeground="#ffffff",
+            bd=0,
+            padx=8,
+            pady=5,
+            cursor="hand2",
+        )
+        self.text_scale_down_button.pack(side="left", padx=(0, 4))
+        self.text_scale_label = tk.Label(
+            self.text_scale_frame,
+            textvariable=self.text_scale_var,
+            font=("Segoe UI Semibold", 9),
+            fg=APP_TEXT_SOFT,
+            bg=APP_PANEL,
+            width=5,
+        )
+        self.text_scale_label.pack(side="left")
+        self.text_scale_up_button = tk.Button(
+            self.text_scale_frame,
+            text="A+",
+            command=lambda: self._change_text_scale(0.05),
+            font=("Segoe UI Semibold", 9),
+            bg=APP_PANEL_ALT,
+            fg=APP_TEXT,
+            activebackground=APP_BORDER_STRONG,
+            activeforeground="#ffffff",
+            bd=0,
+            padx=8,
+            pady=5,
+            cursor="hand2",
+        )
+        self.text_scale_up_button.pack(side="left", padx=(4, 0))
+        self.text_scale_reset_button = tk.Button(
+            self.text_scale_frame,
+            text="100%",
+            command=self._reset_text_scale,
+            font=("Segoe UI Semibold", 8),
+            bg=APP_ACCENT_SOFT,
+            fg="#f2fff8",
+            activebackground="#27a67a",
+            activeforeground="#ffffff",
+            bd=0,
+            padx=8,
+            pady=5,
+            cursor="hand2",
+        )
+        self.text_scale_reset_button.pack(side="left", padx=(6, 0))
+        self.text_scale_frame.place(relx=1.0, x=-138, y=22, anchor="ne")
 
         self.subtitle_label = tk.Label(
             self.header,
@@ -5621,7 +5699,7 @@ class MainMenuUI:
             return ("Има записан Office ключ", False) if saved_office_key else ("Office не е открит", False)
         try:
             result = subprocess.run(
-                ["cscript", "//nologo", str(ospp_vbs), "/dstatus"],
+                [locate_cscript_executable(), "//nologo", str(ospp_vbs), "/dstatus"],
                 capture_output=True,
                 text=True,
                 timeout=20,
@@ -5815,6 +5893,7 @@ class MainMenuUI:
             {"icon": "actions_small", "label": "Почистване\nна системата", "action_id": "reset_onedrive_2"},
             {"icon": "refresh_small", "label": "Рестартиране\nна услуги", "action_id": "reset_onedrive_1"},
             {"icon": "monitor_small", "label": "Проверка\nна здравето", "action_id": "driver_pc_report"},
+            {"icon": "home_small", "label": "Икони на\nработния плот", "action_id": "add_desktop_icons"},
             {"icon": "globe_small", "label": "Езици\nКлавиатури", "menu": "language"},
         ]
 
@@ -6108,6 +6187,16 @@ class MainMenuUI:
     def _render_main_dashboard_v2(self, parent: tk.Widget | None = None) -> None:
         # Нов dashboard за Начало, подреден максимално близо до референтната визия.
         dashboard_parent = parent or self.cards_frame
+        self.root.update_idletasks()
+        dashboard_width = dashboard_parent.winfo_width() or self.cards_frame.winfo_width() or max(720, self.root.winfo_width() - self.sidebar_width)
+        dashboard_height = dashboard_parent.winfo_height() or self.cards_frame.winfo_height() or max(480, self.root.winfo_height() - self.header_height_px)
+        compact_dashboard = dashboard_width < 760 or dashboard_height < 560
+        medium_dashboard = not compact_dashboard and dashboard_width < 980
+        metrics_columns = 2 if compact_dashboard else (3 if medium_dashboard else 5)
+        lower_columns = 1 if compact_dashboard else (2 if medium_dashboard else 3)
+        dashboard_gap = self._scale_px(6 if compact_dashboard else 8)
+        progress_width = self._scale_px(130 if compact_dashboard else (170 if medium_dashboard else 220))
+        dashboard_wrap = max(self._scale_px(190), min(self._scale_px(360), dashboard_width - self._scale_px(80)))
 
         # Помощна функция за make panel.
         def make_panel(parent: tk.Widget, *, bg: str = APP_PANEL, border: str = APP_BORDER, radius: int = 18) -> tk.Frame:
@@ -6118,7 +6207,7 @@ class MainMenuUI:
             track = tk.Frame(parent, bg="#13201c", height=10)
             track.pack(fill="x", pady=(8, 0))
             track.pack_propagate(False)
-            fill = tk.Frame(track, bg=accent, width=max(10, int(220 * (value / 100))), height=10)
+            fill = tk.Frame(track, bg=accent, width=max(10, int(progress_width * (value / 100))), height=10)
             fill.place(x=0, y=0)
             return track, fill
 
@@ -6130,8 +6219,30 @@ class MainMenuUI:
             else:
                 tk.Label(parent, text=fallback, font=self._font(18, "bold", "Segoe UI Symbol"), fg=fg, bg=bg).pack(side=side, padx=(0, 10))
 
-        outer = tk.Frame(dashboard_parent, bg=APP_BG, bd=0)
-        outer.pack(fill="both", expand=True)
+        scroll_canvas = tk.Canvas(dashboard_parent, bg=APP_BG, highlightthickness=0, bd=0, relief="flat")
+        scroll_canvas.pack(side="left", fill="both", expand=True)
+        scroll_bar = ttk.Scrollbar(dashboard_parent, orient="vertical", command=scroll_canvas.yview)
+        scroll_canvas.configure(yscrollcommand=scroll_bar.set)
+        scroll_bar.pack(side="right", fill="y")
+        outer = tk.Frame(scroll_canvas, bg=APP_BG, bd=0)
+        outer_window = scroll_canvas.create_window((0, 0), window=outer, anchor="nw")
+
+        # Помощна функция за refresh dashboard scroll.
+        def refresh_dashboard_scroll(_: object | None = None) -> None:
+            if not scroll_canvas.winfo_exists():
+                return
+            scroll_canvas.update_idletasks()
+            canvas_width = max(scroll_canvas.winfo_width(), 1)
+            content_height = max(outer.winfo_reqheight(), 1)
+            scroll_canvas.itemconfigure(outer_window, width=canvas_width)
+            scroll_canvas.configure(scrollregion=(0, 0, canvas_width, content_height))
+            if content_height <= max(scroll_canvas.winfo_height(), 1):
+                scroll_bar.pack_forget()
+            elif not scroll_bar.winfo_ismapped():
+                scroll_bar.pack(side="right", fill="y")
+
+        outer.bind("<Configure>", refresh_dashboard_scroll)
+        scroll_canvas.bind("<Configure>", refresh_dashboard_scroll)
         self.dashboard_live_widgets = {}
 
         status_ok = all(item.ok for item in self.latest_health_items) if self.latest_health_items else False
@@ -6173,7 +6284,7 @@ class MainMenuUI:
         ).pack(anchor="w", pady=(2, 0))
 
         right_banner = tk.Frame(banner_inner, bg=APP_PANEL)
-        right_banner.pack(side="right", padx=(8, 12), pady=7)
+        right_banner.pack(side="right" if not compact_dashboard else "left", fill="x" if compact_dashboard else "none", expand=compact_dashboard, padx=(8, 12), pady=7)
         tk.Label(right_banner, text="Статус на ъпдейти", font=self._font(7), fg=APP_TEXT_MUTED, bg=APP_PANEL).pack(anchor="w")
         tk.Label(
             right_banner,
@@ -6182,7 +6293,7 @@ class MainMenuUI:
             fg=APP_TEXT,
             bg=APP_PANEL,
             justify="left",
-            wraplength=280,
+            wraplength=max(self._scale_px(180), min(self._scale_px(280), dashboard_wrap)),
         ).pack(anchor="w", pady=(2, 3))
         tk.Label(
             right_banner,
@@ -6208,12 +6319,16 @@ class MainMenuUI:
 
         metrics = tk.Frame(outer, bg=APP_BG)
         metrics.pack(fill="x", pady=(0, 12))
-        for index in range(5):
+        for index in range(metrics_columns):
             metrics.columnconfigure(index, weight=1, uniform="metrics")
+        for row_index in range(math.ceil(5 / metrics_columns)):
+            metrics.rowconfigure(row_index, weight=1)
 
         for idx, spec in enumerate(self._dashboard_metric_cards()):
             card = make_panel(metrics, radius=20)
-            card.grid(row=0, column=idx, sticky="nsew", padx=(0 if idx == 0 else 8, 0))
+            card_row = idx // metrics_columns
+            card_column = idx % metrics_columns
+            card.grid(row=card_row, column=card_column, sticky="nsew", padx=(0 if card_column == 0 else dashboard_gap, 0), pady=(0 if card_row == 0 else dashboard_gap, 0))
             card_body = card.content  # type: ignore[attr-defined]
             accent_color = APP_ACCENT if spec["ok"] else APP_WARNING
             accent_strip = tk.Frame(card_body, bg=accent_color, height=4)
@@ -6241,7 +6356,7 @@ class MainMenuUI:
             bottom_row = tk.Frame(inner_frame, bg=APP_PANEL)
             bottom_row.pack(fill="x", padx=12, pady=(0, 8))
             tk.Label(bottom_row, text="●", font=self._font(10), fg=APP_ACCENT if spec["ok"] else "#ff8b8b", bg=APP_PANEL).pack(side="left")
-            status_label = tk.Label(bottom_row, text=str(spec["status"]), font=self._font(6), fg=APP_TEXT_SOFT, bg=APP_PANEL, wraplength=145, justify="left")
+            status_label = tk.Label(bottom_row, text=str(spec["status"]), font=self._font(6), fg=APP_TEXT_SOFT, bg=APP_PANEL, wraplength=max(self._scale_px(100), min(self._scale_px(145), dashboard_width // max(metrics_columns, 1) - self._scale_px(70))), justify="left")
             status_label.pack(side="left", padx=(6, 0))
             percent_value = self._dashboard_metric_percent(str(spec["value"]), bool(spec["ok"]))
             percent_row = tk.Frame(inner_frame, bg=APP_PANEL)
@@ -6258,7 +6373,10 @@ class MainMenuUI:
             }
 
         alert_card = make_panel(metrics, bg="#241315", border="#533038", radius=20)
-        alert_card.grid(row=0, column=4, sticky="nsew", padx=(8, 0))
+        alert_index = 4
+        alert_row = alert_index // metrics_columns
+        alert_column = alert_index % metrics_columns
+        alert_card.grid(row=alert_row, column=alert_column, sticky="nsew", padx=(0 if alert_column == 0 else dashboard_gap, 0), pady=(0 if alert_row == 0 else dashboard_gap, 0))
         alert_body = alert_card.content  # type: ignore[attr-defined]
         alert_strip = tk.Frame(alert_body, bg=APP_DANGER if problem_count else APP_ACCENT, height=4)
         alert_strip.pack(fill="x", padx=12, pady=(10, 0))
@@ -6292,12 +6410,16 @@ class MainMenuUI:
 
         lower = tk.Frame(outer, bg=APP_BG)
         lower.pack(fill="both", expand=True)
-        lower.columnconfigure(0, weight=11, uniform="lower")
-        lower.columnconfigure(1, weight=14, uniform="lower")
-        lower.columnconfigure(2, weight=12, uniform="lower")
+        for column_index in range(lower_columns):
+            lower.columnconfigure(column_index, weight=1, uniform="lower")
+        lower.rowconfigure(0, weight=1)
+        if lower_columns < 3:
+            lower.rowconfigure(1, weight=1)
+        if lower_columns == 1:
+            lower.rowconfigure(2, weight=1)
 
         info_panel = make_panel(lower, radius=20)
-        info_panel.grid(row=0, column=0, sticky="nsew", padx=(0, 8))
+        info_panel.grid(row=0, column=0, sticky="nsew", padx=(0, dashboard_gap if lower_columns > 1 else 0), pady=(0, dashboard_gap if lower_columns == 1 else 0))
         info_panel_body = info_panel.content  # type: ignore[attr-defined]
         info_strip = tk.Frame(info_panel_body, bg=APP_ACCENT, height=4)
         info_strip.pack(fill="x", padx=12, pady=(10, 0))
@@ -6323,7 +6445,7 @@ class MainMenuUI:
             highlightthickness=0,
             bd=0,
             relief="flat",
-            height=self._scale_px(360),
+            height=self._scale_px(230 if compact_dashboard else 300 if medium_dashboard else 360),
         )
         info_canvas.grid(row=0, column=0, sticky="nsew")
         info_viewport = tk.Frame(info_canvas, bg=APP_PANEL)
@@ -6370,7 +6492,9 @@ class MainMenuUI:
         ).pack(fill="x", padx=12, pady=(12, 12))
 
         installer_panel = make_panel(lower, radius=20)
-        installer_panel.grid(row=0, column=1, sticky="nsew", padx=8)
+        installer_row = 1 if lower_columns == 1 else 0
+        installer_column = 0 if lower_columns == 1 else 1
+        installer_panel.grid(row=installer_row, column=installer_column, sticky="nsew", padx=(0 if lower_columns == 1 else dashboard_gap), pady=(0, dashboard_gap if lower_columns == 1 else 0))
         installer_panel_body = installer_panel.content  # type: ignore[attr-defined]
         installer_accent_strip = tk.Frame(installer_panel_body, bg=APP_ACCENT, height=4)
         installer_accent_strip.pack(fill="x", padx=12, pady=(10, 0))
@@ -6541,7 +6665,12 @@ class MainMenuUI:
         ).pack(fill="x", padx=12, pady=(0, 12))
 
         right_column = tk.Frame(lower, bg=APP_BG)
-        right_column.grid(row=0, column=2, sticky="nsew", padx=(8, 0))
+        if lower_columns == 1:
+            right_column.grid(row=2, column=0, sticky="nsew", pady=(0, 0))
+        elif lower_columns == 2:
+            right_column.grid(row=1, column=0, columnspan=2, sticky="nsew", pady=(dashboard_gap, 0))
+        else:
+            right_column.grid(row=0, column=2, sticky="nsew", padx=(dashboard_gap, 0))
         right_column.rowconfigure(0, weight=3)
         right_column.rowconfigure(1, weight=2)
         component_panel = make_panel(right_column, radius=20)
@@ -6571,7 +6700,7 @@ class MainMenuUI:
             highlightthickness=0,
             bd=0,
             relief="flat",
-            height=self._scale_px(250),
+            height=self._scale_px(190 if compact_dashboard else 220 if medium_dashboard else 250),
         )
         component_canvas.grid(row=0, column=0, sticky="nsew")
         component_viewport = tk.Frame(component_canvas, bg=APP_PANEL_ALT)
@@ -6608,13 +6737,49 @@ class MainMenuUI:
         quick_header.pack(fill="x", padx=16, pady=(14, 10))
         icon_or_text(quick_header, "actions_small", "▣", bg=APP_PANEL, fg=APP_ACCENT)
         tk.Label(quick_header, text="Бързи действия", font=self._font(12, "bold", "Segoe UI Semibold"), fg=APP_TEXT, bg=APP_PANEL).pack(side="left")
-        actions_frame = tk.Frame(quick_panel_body, bg=APP_PANEL)
-        actions_frame.pack(fill="both", expand=True, padx=10, pady=(0, 10))
-        for idx in range(4):
+        actions_holder = tk.Frame(quick_panel_body, bg=APP_PANEL)
+        actions_holder.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+        actions_holder.columnconfigure(0, weight=1)
+        actions_holder.rowconfigure(0, weight=1)
+        actions_canvas = tk.Canvas(
+            actions_holder,
+            bg=APP_PANEL,
+            highlightthickness=0,
+            bd=0,
+            relief="flat",
+            height=self._scale_px(150 if compact_dashboard else 180),
+        )
+        actions_canvas.grid(row=0, column=0, sticky="nsew")
+        actions_scrollbar = ttk.Scrollbar(actions_holder, orient="vertical", command=actions_canvas.yview)
+        actions_canvas.configure(yscrollcommand=actions_scrollbar.set)
+        actions_frame = tk.Frame(actions_canvas, bg=APP_PANEL)
+        actions_window = actions_canvas.create_window((0, 0), window=actions_frame, anchor="nw")
+
+        # Помощна функция за refresh quick actions scroll.
+        def refresh_quick_actions_scroll(_: object | None = None) -> None:
+            if not actions_canvas.winfo_exists():
+                return
+            actions_canvas.update_idletasks()
+            canvas_width = max(actions_canvas.winfo_width(), 1)
+            content_height = max(actions_frame.winfo_reqheight(), 1)
+            actions_canvas.itemconfigure(actions_window, width=canvas_width)
+            actions_canvas.configure(scrollregion=(0, 0, canvas_width, content_height))
+            if content_height <= max(actions_canvas.winfo_height(), 1):
+                actions_scrollbar.grid_forget()
+            elif not actions_scrollbar.winfo_ismapped():
+                actions_scrollbar.grid(row=0, column=1, sticky="ns", padx=(6, 0))
+
+        actions_frame.bind("<Configure>", refresh_quick_actions_scroll)
+        actions_canvas.bind("<Configure>", refresh_quick_actions_scroll)
+        self._bind_dashboard_canvas_mousewheel(actions_canvas, actions_canvas)
+        quick_columns = 1 if compact_dashboard else 2
+        for idx in range(quick_columns):
             actions_frame.columnconfigure(idx, weight=1, uniform="quick")
         for idx, action in enumerate(self._dashboard_quick_actions()):
             card = tk.Frame(actions_frame, bg=APP_PANEL_ALT, bd=0, highlightthickness=1, highlightbackground=APP_BORDER)
-            card.grid(row=0, column=idx, sticky="nsew", padx=(0 if idx == 0 else 6, 0))
+            action_row = idx // quick_columns
+            action_column = idx % quick_columns
+            card.grid(row=action_row, column=action_column, sticky="nsew", padx=(0 if action_column == 0 else 6, 0), pady=(0 if action_row == 0 else 6, 0))
             if "menu" in action:
                 command = lambda menu_key=action["menu"]: self.render_menu(menu_key)
             elif action["action_id"] == "open_console":
@@ -6636,10 +6801,12 @@ class MainMenuUI:
                 pady=12,
                 cursor="hand2",
                 justify="center",
-                wraplength=120,
+                wraplength=max(self._scale_px(90), min(self._scale_px(120), dashboard_width // max(quick_columns, 1) - self._scale_px(90))),
                 image=quick_icon,
                 compound="top",
             ).pack(fill="both", expand=True)
+        self._bind_dashboard_canvas_mousewheel(actions_frame, actions_canvas)
+        refresh_quick_actions_scroll()
 
         footer = make_panel(outer, bg="#09110f", radius=18)
         footer.pack(fill="x", pady=(12, 0))
@@ -6652,7 +6819,7 @@ class MainMenuUI:
         ]
         for icon_name, title, value, ok in footer_items:
             segment = tk.Frame(footer_body, bg="#09110f")
-            segment.pack(side="left", fill="x", expand=True, padx=16, pady=10)
+            segment.pack(side="top" if compact_dashboard else "left", fill="x", expand=True, padx=16, pady=(8 if compact_dashboard else 10))
             icon_or_text(segment, icon_name, "•", bg="#09110f", fg=APP_ACCENT)
             tk.Label(segment, text=f"{title}: ", font=self._font(10), fg=APP_TEXT_SOFT, bg="#09110f").pack(side="left")
             tk.Label(segment, text=value, font=self._font(10, "bold", "Segoe UI Semibold"), fg=APP_ACCENT if ok else APP_DANGER, bg="#09110f").pack(side="left", padx=(0, 10))
@@ -6661,6 +6828,9 @@ class MainMenuUI:
             for dot_index in range(5):
                 tk.Label(dots, text="●", font=self._font(8), fg=APP_ACCENT if ok or dot_index < 2 else "#2d3b36", bg="#09110f").pack(side="left", padx=1)
 
+        self._bind_dashboard_canvas_mousewheel(scroll_canvas, scroll_canvas)
+        self._bind_dashboard_canvas_mousewheel(outer, scroll_canvas)
+        refresh_dashboard_scroll()
         self.page_label.config(text="Начален dashboard")
         self.prev_button.config(state="disabled")
         self.next_button.config(state="disabled")
@@ -8170,6 +8340,8 @@ class MainMenuUI:
     # Обработва събитието on program selector mousewheel.
     def _on_program_selector_mousewheel(self, canvas: tk.Canvas, event: tk.Event) -> str:
         # Позволява скрол с мишката в прозореца за избор на програми.
+        if not canvas.winfo_exists():
+            return "break"
         delta = getattr(event, "delta", 0)
         if getattr(event, "num", None) == 4:
             delta = 120
@@ -8177,7 +8349,7 @@ class MainMenuUI:
             delta = -120
         if delta == 0:
             return "break"
-        canvas.yview_scroll(-1 if delta > 0 else 1, "units")
+        canvas.yview_scroll(-3 if delta > 0 else 3, "units")
         return "break"
 
     # Помощна функция за bind program selector mousewheel.
@@ -8186,6 +8358,8 @@ class MainMenuUI:
         widget.bind("<MouseWheel>", lambda event: self._on_program_selector_mousewheel(canvas, event))
         widget.bind("<Button-4>", lambda event: self._on_program_selector_mousewheel(canvas, event))
         widget.bind("<Button-5>", lambda event: self._on_program_selector_mousewheel(canvas, event))
+        for child in widget.winfo_children():
+            self._bind_program_selector_mousewheel(child, canvas)
 
     # Рисува program selector loading върху текущия екран.
     def _render_program_selector_loading(
@@ -8380,8 +8554,20 @@ class MainMenuUI:
         canvas = tk.Canvas(parent, bg="#0b1d0f", highlightthickness=0, height=360)
         scrollbar = ttk.Scrollbar(parent, orient="vertical", command=canvas.yview)
         task_frame = tk.Frame(canvas, bg="#0b1d0f")
-        task_frame.bind("<Configure>", lambda event: canvas.configure(scrollregion=canvas.bbox("all")))
-        canvas.create_window((0, 0), window=task_frame, anchor="nw")
+        task_window = canvas.create_window((0, 0), window=task_frame, anchor="nw")
+
+        # Помощна функция за refresh program selector scroll.
+        def refresh_program_selector_scroll(_: object | None = None) -> None:
+            if not canvas.winfo_exists():
+                return
+            canvas.update_idletasks()
+            canvas_width = max(canvas.winfo_width(), 1)
+            content_height = max(task_frame.winfo_reqheight(), 1)
+            canvas.itemconfigure(task_window, width=canvas_width)
+            canvas.configure(scrollregion=(0, 0, canvas_width, content_height))
+
+        task_frame.bind("<Configure>", refresh_program_selector_scroll)
+        canvas.bind("<Configure>", refresh_program_selector_scroll)
         canvas.configure(yscrollcommand=scrollbar.set)
         canvas.pack(side="left", fill="both", expand=True, padx=(16, 0), pady=8)
         scrollbar.pack(side="right", fill="y", padx=(0, 16), pady=8)
@@ -8396,7 +8582,7 @@ class MainMenuUI:
                 category_label = tk.Label(
                     task_frame,
                     text=current_category,
-                    font=("Segoe UI Semibold", 12),
+                    font=self._font(12, "bold", "Segoe UI Semibold"),
                     bg="#0b1d0f",
                     fg="#c9ffd0",
                 )
@@ -8415,7 +8601,7 @@ class MainMenuUI:
                 fg="#edffef",
                 activeforeground="#ffffff",
                 text=task["label"],
-                font=("Segoe UI Semibold", 10),
+                font=self._font(10, "bold", "Segoe UI Semibold"),
                 anchor="w",
             )
             check_button.pack(anchor="w", fill="x")
@@ -8426,7 +8612,7 @@ class MainMenuUI:
                     text=task["description"],
                     bg="#112716",
                     fg="#91b897",
-                    font=("Segoe UI", 9),
+                    font=self._font(9),
                     wraplength=wraplength,
                     justify="left",
                 )
@@ -8439,7 +8625,7 @@ class MainMenuUI:
                     text=f"Намерено: {installed_text}",
                     bg="#112716",
                     fg="#c8f7cb",
-                    font=("Segoe UI", 9),
+                    font=self._font(9),
                     justify="left",
                 )
                 installed_label.pack(anchor="w", padx=(24, 0), pady=(4, 0))
@@ -8456,7 +8642,7 @@ class MainMenuUI:
                     fg="#ffd9d9",
                     activeforeground="#ffffff",
                     text=remove_text,
-                    font=("Segoe UI", 9),
+                    font=self._font(9),
                     anchor="w",
                 )
                 if not installed_now:
@@ -8473,7 +8659,7 @@ class MainMenuUI:
             controls,
             text="Избери всичко",
             command=lambda: self._set_auto_install_selection(True),
-            font=("Segoe UI Semibold", 10),
+            font=self._font(10, "bold", "Segoe UI Semibold"),
             bg="#1f6fb2",
             fg="#f4fbff",
             activebackground="#2b8ddd",
@@ -8489,7 +8675,7 @@ class MainMenuUI:
             controls,
             text="Изчисти",
             command=lambda: self._set_auto_install_selection(False),
-            font=("Segoe UI Semibold", 10),
+            font=self._font(10, "bold", "Segoe UI Semibold"),
             bg="#36403a",
             fg="#d8e2db",
             activebackground="#465049",
@@ -8507,7 +8693,7 @@ class MainMenuUI:
                 controls,
                 text="Затвори",
                 command=self._close_program_selector_window,
-                font=("Segoe UI Semibold", 10),
+                font=self._font(10, "bold", "Segoe UI Semibold"),
                 bg="#5a2424",
                 fg="#fff0f0",
                 activebackground="#7b3030",
@@ -8524,7 +8710,7 @@ class MainMenuUI:
             controls,
             text=start_button_text,
             command=self._start_auto_installer,
-            font=("Segoe UI Semibold", 11),
+            font=self._font(11, "bold", "Segoe UI Semibold"),
             bg="#1f8f43",
             fg="#f5fff7",
             activebackground="#28b155",
@@ -8536,6 +8722,7 @@ class MainMenuUI:
         )
         start_button.pack(side="right")
         self._bind_program_selector_mousewheel(start_button, canvas)
+        refresh_program_selector_scroll()
 
     # Помощна функция за close program selector window.
     def _close_program_selector_window(self) -> None:
@@ -8586,7 +8773,7 @@ class MainMenuUI:
         tk.Label(
             header,
             text="Избор на програми",
-            font=("Segoe UI Semibold", 16),
+            font=self._font(16, "bold", "Segoe UI Semibold"),
             bg="#102515",
             fg="#edffef",
         ).pack(anchor="w")
@@ -8604,7 +8791,7 @@ class MainMenuUI:
         content_holder.pack(fill="both", expand=True)
         self._load_program_selector_async(
             content_holder,
-            wraplength=860,
+            wraplength=max(320, min(860, outer.winfo_width() - self._scale_px(80))),
             start_button_text="Инсталирай избраните",
             show_close_button=True,
         )
@@ -8620,11 +8807,11 @@ class MainMenuUI:
         self.cards_frame.update_idletasks()
         frame_width = self.cards_frame.winfo_width()
         frame_height = self.cards_frame.winfo_height()
-        available_width = max(720, frame_width - self._scale_px(48)) if frame_width > 1 else max(720, self.root.winfo_width() - self.sidebar_width - self._scale_px(130))
-        available_height = max(520, frame_height - self._scale_px(48)) if frame_height > 1 else max(520, self.root.winfo_height() - self.header_height_px - self._scale_px(170))
+        available_width = max(520, frame_width - self._scale_px(48)) if frame_width > 1 else max(520, self.root.winfo_width() - self.sidebar_width - self._scale_px(130))
+        available_height = max(430, frame_height - self._scale_px(48)) if frame_height > 1 else max(430, self.root.winfo_height() - self.header_height_px - self._scale_px(170))
         panel_width = min(self._scale_px(920), available_width)
         panel_height = min(self._scale_px(650), available_height)
-        selector_wrap = max(520, panel_width - self._scale_px(90))
+        selector_wrap = max(300, panel_width - self._scale_px(90))
 
         outer = tk.Frame(
             self.cards_frame,
@@ -8643,7 +8830,7 @@ class MainMenuUI:
         tk.Label(
             header,
             text="Автоматичен инсталатор",
-            font=("Segoe UI Semibold", 16),
+            font=self._font(16, "bold", "Segoe UI Semibold"),
             bg="#102515",
             fg="#edffef",
         ).pack(anchor="center")
@@ -8679,10 +8866,51 @@ class MainMenuUI:
     # Помощна функция за font.
     def _font(self, size: int, weight: str = "", family: str = "Segoe UI") -> tuple[str, int] | tuple[str, int, str]:
         # Vrushta ednakvo skaliiран font za celiq glaven ekran.
-        scaled_size = max(8, int(round(size * self.ui_scale)))
+        current_width = self.root.winfo_width() or self.root.winfo_screenwidth()
+        current_height = self.root.winfo_height() or self.root.winfo_screenheight()
+        text_scale = self.ui_scale * self.user_text_scale
+        if current_width >= 1500 and current_height >= 850:
+            text_scale *= 1.08
+        if current_width >= 1800 and current_height >= 1000:
+            text_scale *= 1.06
+        if current_width < 900 or current_height < 650:
+            text_scale *= 0.92
+        minimum_size = 7 if current_width < 900 or current_height < 650 else 8
+        scaled_size = max(minimum_size, int(round(size * text_scale)))
         if weight:
             return (family, scaled_size, weight)
         return (family, scaled_size)
+
+    # Променя потребителския размер на текста.
+    def _change_text_scale(self, delta: float) -> None:
+        # Дава ръчен контрол върху размера на шрифта без да изключва automatic scaling.
+        self._set_text_scale(self.user_text_scale + delta)
+
+    # Връща размера на текста към нормалните 100%.
+    def _reset_text_scale(self) -> None:
+        self._set_text_scale(1.0)
+
+    # Задава и записва потребителския размер на текста.
+    def _set_text_scale(self, value: float) -> None:
+        new_scale = round(clamp(value, 0.8, 1.3), 2)
+        if abs(new_scale - self.user_text_scale) < 0.001:
+            return
+        self.user_text_scale = new_scale
+        self.text_scale_var.set(f"{int(round(self.user_text_scale * 100))}%")
+        self.settings["text_scale"] = f"{self.user_text_scale:.2f}"
+        try:
+            save_settings(self.settings)
+        except OSError:
+            pass
+        self._update_layout_metrics()
+        self._apply_responsive_theme()
+        if self.resize_render_job:
+            try:
+                self.root.after_cancel(self.resize_render_job)
+            except tk.TclError:
+                pass
+        self.resize_render_job = self.root.after(80, self._rerender_after_resize)
+        self.status_var.set(f"Размер на текста: {int(round(self.user_text_scale * 100))}%")
 
     # Обновява layout metrics след промяна в състоянието.
     def _update_layout_metrics(self) -> None:
@@ -8705,9 +8933,13 @@ class MainMenuUI:
             self.ui_scale = min(self.ui_scale, 0.96)
         if current_width < 1100:
             self.ui_scale = min(self.ui_scale, 0.90)
+        if current_width < 980 or current_height < 700:
+            self.ui_scale = min(self.ui_scale, 0.84)
 
-        self.sidebar_width = max(250, min(360, self._scale_px(320)))
-        self.header_height_px = max(78, self._scale_px(90))
+        self.sidebar_width = max(210 if current_width < 980 else 250, min(360, self._scale_px(320)))
+        if current_width < 980:
+            self.sidebar_width = min(self.sidebar_width, 230)
+        self.header_height_px = max(70 if current_height < 700 else 78, self._scale_px(90))
         self.header_title_size = max(18, self._scale_px(22))
         self.header_subtitle_size = max(9, self._scale_px(10))
         self.body_text_size = max(8, self._scale_px(9))
@@ -8720,16 +8952,23 @@ class MainMenuUI:
         self.system_info_wrap = max(220, self._scale_px(280))
         self.resource_wrap = max(360, self._scale_px(520))
         self.right_subtitle_wrap = max(420, self._scale_px(630))
-        self.content_pad_x = max(12, self._scale_px(20))
-        self.content_pad_y = max(12, self._scale_px(18))
-        self.nav_button_char_width = 10 if current_width < 1200 else 11
-        self.card_button_width_px = max(210, self._scale_px(CARD_BUTTON_PIXEL_WIDTH))
-        self.card_button_height_px = max(42, self._scale_px(CARD_BUTTON_PIXEL_HEIGHT))
+        self.content_pad_x = max(8 if current_width < 980 else 12, self._scale_px(20))
+        self.content_pad_y = max(8 if current_height < 700 else 12, self._scale_px(18))
+        self.nav_button_char_width = 8 if current_width < 980 else (10 if current_width < 1200 else 11)
+        button_min_width = 170 if current_width < 980 else 210
+        button_min_height = 38 if current_height < 700 else 42
+        self.card_button_width_px = max(button_min_width, self._scale_px(CARD_BUTTON_PIXEL_WIDTH))
+        self.card_button_height_px = max(button_min_height, self._scale_px(CARD_BUTTON_PIXEL_HEIGHT))
         self.card_action_gap_px = max(6, self._scale_px(8))
-        self.card_title_wrap = max(240, min(420, current_width // 3 - 70))
-        self.card_desc_wrap = max(240, min(420, current_width // 3 - 70))
-        self.compact_card_title_wrap = max(260, min(440, current_width // 3 - 50))
-        self.compact_card_desc_wrap = max(260, min(440, current_width // 3 - 50))
+        menu_content_width = max(320, current_width - self.sidebar_width - (self.content_pad_x * 2) - 110)
+        if current_width < 1120:
+            base_card_wrap = max(280, min(620, menu_content_width - 90))
+        else:
+            base_card_wrap = max(240, min(440, menu_content_width // 2 - 80))
+        self.card_title_wrap = base_card_wrap
+        self.card_desc_wrap = base_card_wrap
+        self.compact_card_title_wrap = max(260, min(620, base_card_wrap + 40))
+        self.compact_card_desc_wrap = max(260, min(620, base_card_wrap + 40))
         self.scaled_card_min_height = max(170, self._scale_px(CARD_MIN_HEIGHT))
         self.scaled_menu_card_min_height = {
             key: max(self.scaled_card_min_height, self._scale_px(value))
@@ -8747,7 +8986,13 @@ class MainMenuUI:
         self.header_admin_chip.configure(font=self._font(9, "bold", "Segoe UI Semibold"))
         self.header_exit_button.configure(font=self._font(10, "bold", "Segoe UI Semibold"), width=max(8, int(10 * self.ui_scale)))
         self.header_dashboard_button.configure(font=self._font(9, "bold", "Segoe UI Semibold"), width=max(20, int(22 * self.ui_scale)))
+        self.text_scale_down_button.configure(font=self._font(9, "bold", "Segoe UI Semibold"))
+        self.text_scale_label.configure(font=self._font(9, "bold", "Segoe UI Semibold"))
+        self.text_scale_up_button.configure(font=self._font(9, "bold", "Segoe UI Semibold"))
+        self.text_scale_reset_button.configure(font=self._font(8, "bold", "Segoe UI Semibold"))
         self.header_exit_button.place_configure(x=-24, y=self._scale_px(22))
+        text_scale_x = -126 if self.root.winfo_width() < 980 else -138
+        self.text_scale_frame.place_configure(x=text_scale_x, y=self._scale_px(22))
         version_x = max(420, self._scale_px(520))
         admin_x = max(500, self._scale_px(608))
         self.version_chip.place_configure(x=version_x, y=self._scale_px(22))
@@ -10418,7 +10663,7 @@ class MainMenuUI:
             self.root.after(0, lambda: self._show_activation_result(False, "OSPP.VBS was not found.", "Office"))
             return
 
-        command = ["cscript", "//nologo", str(ospp_vbs), "/dstatus"]
+        command = [locate_cscript_executable(), "//nologo", str(ospp_vbs), "/dstatus"]
         output_lines: list[str] = []
         try:
             self.root.after(
@@ -10753,17 +10998,28 @@ class MainMenuUI:
 
     # Стартира windows activation и връща резултата.
     def _run_windows_activation(self, version_label: str, product_key: str) -> None:
-        slmgr_path = Path(os.environ.get("WINDIR", r"C:\Windows")) / "System32" / "slmgr.vbs"
+        slmgr_path = locate_windows_system_script("slmgr.vbs")
+        cscript_exe = locate_cscript_executable()
+        if not slmgr_path.exists():
+            self.root.after(
+                0,
+                lambda: self._show_activation_result(
+                    False,
+                    f"slmgr.vbs was not found at the expected Windows script path: {slmgr_path}",
+                    version_label,
+                ),
+            )
+            return
         commands = [
             (
                 45,
                 "Installing product key...",
-                ["cscript", "//nologo", str(slmgr_path), "/ipk", product_key],
+                [cscript_exe, "//nologo", str(slmgr_path), "/ipk", product_key],
             ),
             (
                 90,
                 "Requesting Microsoft activation...",
-                ["cscript", "//nologo", str(slmgr_path), "/ato"],
+                [cscript_exe, "//nologo", str(slmgr_path), "/ato"],
             ),
         ]
 
