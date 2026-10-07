@@ -1271,6 +1271,7 @@ def get_startup_menu_from_args() -> str | None:
 def enable_windows_desktop_icons(progress_callback=None) -> list[str]:
     # Показва системните икони на работния плот през Windows registry.
     enabled_labels: list[str] = []
+    changed = False
     total_steps = len(DESKTOP_ICON_TARGETS) + 2
     current_step = 0
 
@@ -1285,19 +1286,29 @@ def enable_windows_desktop_icons(progress_callback=None) -> list[str]:
             )
         for registry_path in DESKTOP_ICON_PATHS:
             key = winreg.CreateKey(winreg.HKEY_CURRENT_USER, registry_path)
-            winreg.SetValueEx(key, clsid, 0, winreg.REG_DWORD, 0)
+            try:
+                current_value, _ = winreg.QueryValueEx(key, clsid)
+            except FileNotFoundError:
+                current_value = None
+            if current_value != 0:
+                winreg.SetValueEx(key, clsid, 0, winreg.REG_DWORD, 0)
+                changed = True
+                if label not in enabled_labels:
+                    enabled_labels.append(label)
             winreg.CloseKey(key)
-        enabled_labels.append(label)
 
     current_step += 1
-    if progress_callback is not None:
-        progress_callback(94, "Опресняване на работния плот...", "Explorer се опреснява, за да се покажат иконите.")
-    refresh_windows_desktop()
+    if changed:
+        if progress_callback is not None:
+            progress_callback(94, "Опресняване на работния плот...", "Explorer се опреснява еднократно, за да се покажат иконите.")
+        refresh_windows_desktop()
+    elif progress_callback is not None:
+        progress_callback(94, "Без нужда от опресняване.", "Системните икони вече са активни.")
 
     current_step += 1
     if progress_callback is not None:
         progress_callback(100, "Готово.", "Иконите на работния плот са активирани успешно.")
-    return enabled_labels
+    return enabled_labels or [label for label, _ in DESKTOP_ICON_TARGETS]
 
 
 # Помощна функция за refresh windows desktop.
@@ -1307,16 +1318,6 @@ def refresh_windows_desktop() -> None:
         ctypes.windll.shell32.SHChangeNotify(0x08000000, 0, None, None)
     except Exception:
         pass
-
-    refresh_commands = [
-        ["ie4uinit.exe", "-show"],
-        ["rundll32.exe", "user32.dll,UpdatePerUserSystemParameters"],
-    ]
-    for command in refresh_commands:
-        try:
-            subprocess.run(command, check=False, capture_output=True, text=True)
-        except OSError:
-            continue
 
 
 # Помощна функция за switch keyboard layout to english.
