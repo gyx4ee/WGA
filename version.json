@@ -1,10 +1,11 @@
 {
-  "version": "0.2.64",
+  "version": "0.2.65",
   "version_info_url": "https://raw.githubusercontent.com/gyx4ee/WGA/refs/heads/main/version.json",
   "download_url": "https://github.com/gyx4ee/WGA/releases/latest",
   "package_url": "https://raw.githubusercontent.com/gyx4ee/WGA/refs/heads/main/WGA-portable.zip",
-  "notes": "Fixed the Automatic Installer popup so it opens in selection mode first and waits for the Start button before installing anything.",
+  "notes": "Improved the Automatic Installer selector: nothing is checked by default, three install-class preset buttons were added, and development packages were added for computer lab deployments.",
   "changelog": [
+    "v0.2.65 - Changed Automatic Installer to start with no checked apps, added preset buttons for Classroom, Computer Lab and Full Package selections, added Git/Python/Node.js/Visual Studio Code options, and kept installation blocked until Start is pressed.",
     "v0.2.64 - Fixed Automatic Installer startup behavior: the installer popup now lets the user choose applications first, hides the misleading auto-start option, and only begins after pressing Start.",
     "v0.2.63 - Added automatic Windows and Office activation to the bottom of the Automatic Installer, wired both actions to the existing saved-key activation workflows, and verified the installer checklist/step coverage.",
     "v0.2.62 - Fixed the WGA launch transition so the Suite start menu remains compact while the main WGA dashboard and internal menus automatically open maximized after the loader.",
