@@ -1,10 +1,11 @@
 {
-  "version": "0.2.62",
+  "version": "0.2.63",
   "version_info_url": "https://raw.githubusercontent.com/gyx4ee/WGA/refs/heads/main/version.json",
   "download_url": "https://github.com/gyx4ee/WGA/releases/latest",
   "package_url": "https://raw.githubusercontent.com/gyx4ee/WGA/refs/heads/main/WGA-portable.zip",
-  "notes": "Fixed the WGA launch transition so the compact Suite start menu stays windowed, but the main WGA interface opens maximized on the full available screen after the loading screen.",
+  "notes": "Added Windows and Office automatic activation as the final steps in the Automatic Installer and fixed the installer backend so those activation actions run through the WGA activation workflow instead of being treated as Winget packages.",
   "changelog": [
+    "v0.2.63 - Added automatic Windows and Office activation to the bottom of the Automatic Installer, wired both actions to the existing saved-key activation workflows, and verified the installer checklist/step coverage.",
     "v0.2.62 - Fixed the WGA launch transition so the Suite start menu remains compact while the main WGA dashboard and internal menus automatically open maximized after the loader.",
     "v0.2.61 - Added a real modern update flow in the Suite launcher with a styled update dialog, changelog preview, download/install button behavior, progress status, and stable PySide6 6.9.3 packaging.",
     "v0.2.60 - Rebuilt the Windows package with stable PySide6 6.9.3 to fix the frozen QtWidgets DLL startup error introduced by the previous PySide6 6.11.2 package.",
