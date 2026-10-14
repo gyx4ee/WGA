@@ -1,10 +1,13 @@
 {
-  "version": "0.2.58",
+  "version": "0.2.61",
   "version_info_url": "https://raw.githubusercontent.com/gyx4ee/WGA/refs/heads/main/version.json",
   "download_url": "https://github.com/gyx4ee/WGA/releases/latest",
   "package_url": "https://raw.githubusercontent.com/gyx4ee/WGA/refs/heads/main/WGA-portable.zip",
-  "notes": "Hotfix for the 0.2.57 update package: restored the required Qt6OpenGL runtime DLL so the PySide6 QtWidgets application starts correctly after updating.",
+  "notes": "Added a real modern update flow in the Suite launcher: available updates now show a styled WGA dialog with changelog and the button downloads and prepares the update package instead of only checking again.",
   "changelog": [
+    "v0.2.61 - Added a real modern update flow in the Suite launcher with a styled update dialog, changelog preview, download/install button behavior, progress status, and stable PySide6 6.9.3 packaging.",
+    "v0.2.60 - Rebuilt the Windows package with stable PySide6 6.9.3 to fix the frozen QtWidgets DLL startup error introduced by the previous PySide6 6.11.2 package.",
+    "v0.2.59 - Manual repair package after 0.2.58: restored the full required Qt OpenGL runtime set including opengl32sw.dll to fix QtWidgets startup on updated portable installs.",
     "v0.2.58 - Hotfix for the 0.2.57 update package: restored the required Qt6OpenGL runtime DLL so the packaged PySide6 QtWidgets application starts correctly after updating.",
     "v0.2.57 - Modernized the Suite start flow with a full-screen start-menu background, top WGA 3D logo, centered standalone WGA loading window, logo.png loading branding, hidden three-card launcher during WGA loading, and direct transition into the WGA dashboard after loading.",
     "v0.2.56 - Prevented desktop icons from flashing after activation workflows by making Add Desktop Icons update registry values only when needed and replacing aggressive ie4uinit/rundll32 refresh calls with a single lightweight Explorer notification.",
