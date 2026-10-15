@@ -1,10 +1,11 @@
 {
-  "version": "0.2.66",
+  "version": "0.2.67",
   "version_info_url": "https://raw.githubusercontent.com/gyx4ee/WGA/refs/heads/main/version.json",
   "download_url": "https://github.com/gyx4ee/WGA/releases/latest",
   "package_url": "https://raw.githubusercontent.com/gyx4ee/WGA/refs/heads/main/WGA-portable.zip",
-  "notes": "Rebuilt the current Automatic Installer release with silent sequential installation progress, a centered installer status window, deselect-all support, and the expanded Winget application list.",
+  "notes": "Added Software and Packages: manual online/offline installation, local package checks, source availability checks, and live download progress with size, speed, ETA, SHA-256 verification and extraction status.",
   "changelog": [
+    "v0.2.67 - Added the Software and Packages sidebar section with manual WinGet and offline installation, local package availability, selected package downloads, online source checks, centered live progress, size/speed/ETA details, SHA-256 status and truncated-download detection. Fixed buffered download progress in the existing resource workflow.",
     "v0.2.66 - Rebuilt the current Automatic Installer release with silent sequential installation progress, a centered installer status window, deselect-all support, hidden unselected package rows, expanded browser/utility/developer package options, and latest-version Winget installs.",
     "v0.2.65 - Changed Automatic Installer to start with no checked apps, added preset buttons for Classroom, Computer Lab and Full Package selections, added Git/Python/Node.js/Visual Studio Code options, and kept installation blocked until Start is pressed.",
     "v0.2.64 - Fixed Automatic Installer startup behavior: the installer popup now lets the user choose applications first, hides the misleading auto-start option, and only begins after pressing Start.",
