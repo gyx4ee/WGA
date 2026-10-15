@@ -35,10 +35,30 @@ class SoftwarePageTests(unittest.TestCase):
     def test_catalog_starts_unchecked_and_filters(self):
         with patch('pages.software_page.check_resource_status', return_value=self.status):
             page = SoftwarePage()
-            self.assertEqual(page.table.item(0, 0).checkState(), Qt.CheckState.Unchecked)
+            self.assertFalse(page.checkboxes[0].isChecked())
+            self.assertEqual(page.table.item(0, 3).text(), 'Наличен')
+            self.assertNotIn('https://', page.table.item(0, 3).text())
             page.search.setText('no matching package')
             self.assertTrue(page.table.isRowHidden(0))
             page.deleteLater()
+
+    def test_checkbox_and_row_click_both_select_packages(self):
+        from PySide6.QtTest import QTest
+        with patch('pages.software_page.check_resource_status', return_value=self.status):
+            page = SoftwarePage()
+            page.resize(900, 650)
+            page.show()
+            self.app.processEvents()
+            checkbox = page.checkboxes[0]
+            QTest.mouseClick(checkbox, Qt.MouseButton.LeftButton)
+            self.assertTrue(checkbox.isChecked())
+            cell = page.table.visualItemRect(page.table.item(0, 1))
+            QTest.mouseClick(page.table.viewport(), Qt.MouseButton.LeftButton, pos=cell.center())
+            self.assertFalse(checkbox.isChecked())
+            checkbox.setChecked(True)
+            page.clear_selection()
+            self.assertFalse(checkbox.isChecked())
+            page.close()
 
     def test_download_reports_progress_before_completion(self):
         worker = PackageWorker('download', [self.item])

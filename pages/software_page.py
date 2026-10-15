@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import re
 import urllib.request
-from urllib.parse import urlsplit
 
 from PySide6.QtCore import QThread, Qt, Signal
-from PySide6.QtWidgets import (QAbstractItemView, QComboBox, QDialog, QHBoxLayout,
+from PySide6.QtGui import QBrush
+from PySide6.QtWidgets import (QAbstractItemView, QCheckBox, QComboBox, QDialog, QHBoxLayout,
     QGridLayout, QHeaderView, QLabel, QLineEdit, QPlainTextEdit, QProgressBar, QPushButton,
     QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget)
 
@@ -45,10 +46,10 @@ class PackageWorker(QThread):
                         with urllib.request.urlopen(request, timeout=15) as response:
                             size = int(response.headers.get('Content-Length') or 0)
                             self.update.emit(int((index + 1) * 100 / count), item.name,
-                                f"Достъпен: {urlsplit(item.url).netloc} | {size / 1048576:.1f} MB | HTTP {response.status}")
+                                f"Източник: Наличен | {size / 1048576:.1f} MB | HTTP {response.status}")
                     elif self.mode == 'download':
                         self.update.emit(int(index * 100 / count), item.name,
-                            f"Източник: {item.url}\nSHA-256: {'ще се провери' if item.sha256 else 'не е зададен в каталога'}")
+                            f"Източник: Наличен\nSHA-256: {'ще се провери' if item.sha256 else 'не е зададен в каталога'}")
 
                         def progress(done, total, name, speed=0.0, eta=0, phase=''):
                             percent = min(100, int(done * 100 / total)) if total else 0
@@ -104,6 +105,7 @@ class PackageProgressDialog(QDialog):
         self.worker.finished.connect(lambda: self.close_button.setEnabled(True))
 
     def on_update(self, percent, title, detail):
+        detail = re.sub(r'https?://\S+', 'онлайн източник', detail)
         self.bar.setValue(percent)
         self.title.setText(title)
         self.detail.setText(detail)
@@ -111,6 +113,7 @@ class PackageProgressDialog(QDialog):
             self.log.appendPlainText(f'{title}\n{detail}')
 
     def on_result(self, message):
+        message = re.sub(r'https?://\S+', 'онлайн източник', message)
         self.title.setText(message)
         self.log.appendPlainText(message)
         self.parent().refresh()
@@ -145,9 +148,11 @@ class SoftwarePage(QWidget):
         self.summary.setWordWrap(True)
         layout.addWidget(self.summary)
         self.table = QTableWidget(0, 4)
-        self.table.setHorizontalHeaderLabels(['Пакет', 'Наличност', 'Размер', 'Източник / файлове'])
+        self.table.setHorizontalHeaderLabels(['Пакет', 'Локално', 'Размер', 'Онлайн източник'])
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.table.cellClicked.connect(self.toggle_row)
+        self.table.verticalHeader().setDefaultSectionSize(38)
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
         self.table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
         layout.addWidget(self.table, 1)
@@ -167,6 +172,7 @@ class SoftwarePage(QWidget):
 
     def refresh(self):
         self.table.setRowCount(0)
+        self.checkboxes = []
         self.entries = []
         offline = self.mode.currentIndex() == 0
         self.check_button.setEnabled(offline)
@@ -177,21 +183,29 @@ class SoftwarePage(QWidget):
             self.entries = sorted(status.checks, key=lambda c: c.item.name.casefold())
             values = [(c.item.name, 'Наличен' if c.available else 'Липсва',
                 f'{c.item.size_bytes / 1048576:.1f} MB' if c.item.size_bytes else 'Неизвестен',
-                c.item.url or 'Няма онлайн адрес') for c in self.entries]
+                'Наличен' if c.item.url else 'Няма източник') for c in self.entries]
         else:
             self.entries = sorted(AUTO_INSTALLER_PACKAGES, key=lambda x: x[0].casefold())
-            values = [(name, 'Онлайн', 'От WinGet', package) for name, package in self.entries]
+            values = [(name, 'Онлайн', 'От WinGet', 'Наличен') for name, package in self.entries]
         for row, values_row in enumerate(values):
             self.table.insertRow(row)
             for col, value in enumerate(values_row):
                 cell = QTableWidgetItem(value)
                 if col == 0:
-                    cell.setFlags(cell.flags() | Qt.ItemFlag.ItemIsUserCheckable)
-                    cell.setCheckState(Qt.CheckState.Unchecked)
+                    cell.setForeground(QBrush(Qt.GlobalColor.transparent))
                     if offline:
                         cell.setToolTip('\n'.join(self.entries[row].item.required_files))
                 self.table.setItem(row, col, cell)
+            checkbox = QCheckBox(values_row[0])
+            checkbox.setCursor(Qt.CursorShape.PointingHandCursor)
+            checkbox.setToolTip(self.table.item(row, 0).toolTip())
+            self.checkboxes.append(checkbox)
+            self.table.setCellWidget(row, 0, checkbox)
         self.filter_rows()
+
+    def toggle_row(self, row, column):
+        checkbox = self.checkboxes[row]
+        checkbox.setChecked(not checkbox.isChecked())
 
     def filter_rows(self):
         query = self.search.text().casefold()
@@ -199,12 +213,12 @@ class SoftwarePage(QWidget):
             self.table.setRowHidden(row, query not in self.table.item(row, 0).text().casefold())
 
     def clear_selection(self):
-        for row in range(self.table.rowCount()):
-            self.table.item(row, 0).setCheckState(Qt.CheckState.Unchecked)
+        for checkbox in self.checkboxes:
+            checkbox.setChecked(False)
 
     def start(self, mode):
         selected = [entry for row, entry in enumerate(self.entries)
-            if self.table.item(row, 0).checkState() == Qt.CheckState.Checked]
+            if self.checkboxes[row].isChecked()]
         if not selected:
             modern_message(self, 'Няма избор', 'Избери поне един пакет.')
             return
