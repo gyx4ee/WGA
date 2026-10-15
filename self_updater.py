@@ -10,6 +10,8 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlsplit, urlunsplit
 from urllib.request import urlopen
 
+from file_updates import download_file_update
+
 
 PRESERVED_NAMES = {
     "settings.json",
@@ -166,11 +168,17 @@ def prepare_update_install(
     if progress_callback:
         progress_callback(5)
 
-    package_path = download_update_package(package_url, work_dir, progress_callback)
-    if progress_callback:
-        progress_callback(55)
-
-    source_root = extract_update_package(package_path, work_dir, progress_callback)
+    try:
+        if urlsplit(package_url).path.lower().endswith('.json'):
+            source_root = download_file_update(package_url, work_dir / 'files', target_root, progress_callback)
+        else:
+            package_path = download_update_package(package_url, work_dir, progress_callback)
+            if progress_callback:
+                progress_callback(55)
+            source_root = extract_update_package(package_path, work_dir, progress_callback)
+    except Exception:
+        shutil.rmtree(work_dir)
+        raise
     helper_path = create_update_helper(
         source_root=source_root,
         target_root=target_root,

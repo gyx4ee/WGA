@@ -6,6 +6,8 @@ __pycache__/
 .wga_secure_store.json
 .wga_secure_store.json.bak
 settings.json
+logs/
+hosting-upload/
 
 .idea/
 .vscode/

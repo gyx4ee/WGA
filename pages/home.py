@@ -443,7 +443,7 @@ class HomePage(QScrollArea):
         if not modern_update_prompt(self, result.latest_version, result.notes, result.changelog):
             return
         if not result.package_url:
-            modern_message(self, "Само ръчно изтегляне", "За тази версия няма автоматичен пакет. Отвори страницата за изтегляне от GitHub.")
+            modern_message(self, "Само ръчно изтегляне", "За тази версия няма автоматична актуализация. Отвори страницата за изтегляне на wsga.eu.")
             return
         self._install_update(result.package_url)
 

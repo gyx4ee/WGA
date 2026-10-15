@@ -1,10 +1,11 @@
 {
-  "version": "0.2.68",
+  "version": "0.2.69",
   "version_info_url": "https://raw.githubusercontent.com/gyx4ee/WGA/refs/heads/main/version.json",
-  "download_url": "https://github.com/gyx4ee/WGA/releases/latest",
+  "download_url": "https://github.com/gyx4ee/WGA",
   "package_url": "https://raw.githubusercontent.com/gyx4ee/WGA/refs/heads/main/WGA-portable.zip",
-  "notes": "Fixed package selection with explicit checkboxes and row clicks in Software and Packages. Hidden download addresses from the catalog and progress window; only source availability is displayed.",
+  "notes": "Final GitHub migration update: installs the wsga.eu file updater. After restart, future updates are downloaded as individual verified files from wsga.eu.",
   "changelog": [
+    "v0.2.69 - Moved update checks to wsga.eu and added verified per-file downloads without a portable ZIP.",
     "v0.2.68 - Fixed manual package selection with dedicated checkboxes, row-click toggling and deselect-all. Hidden download URLs from the software catalog and progress details; source availability is shown instead. Added click-based selection regression tests.",
     "v0.2.67 - Added the Software and Packages sidebar section with manual WinGet and offline installation, local package availability, selected package downloads, online source checks, centered live progress, size/speed/ETA details, SHA-256 status and truncated-download detection. Fixed buffered download progress in the existing resource workflow.",
     "v0.2.66 - Rebuilt the current Automatic Installer release with silent sequential installation progress, a centered installer status window, deselect-all support, hidden unselected package rows, expanded browser/utility/developer package options, and latest-version Winget installs.",

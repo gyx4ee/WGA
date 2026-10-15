@@ -103,7 +103,7 @@ def _prepare_url(url: str) -> str:
 
     parts = urlsplit(stripped_url)
     if parts.scheme not in {"http", "https"} or not parts.netloc:
-        raise ValueError("Invalid update URL. Use a full http/https GitHub raw link.")
+        raise ValueError("Невалиден адрес за актуализации. Използвай пълен HTTPS адрес.")
 
     encoded_path = quote(parts.path, safe="/-._~")
     encoded_query = quote(parts.query, safe="=&-._~")
@@ -132,7 +132,7 @@ def check_for_updates(current_version: str, version_info_url: str) -> UpdateResu
         if exc.code == 404:
             return UpdateResult(
                 status="raw_unavailable",
-                error="GitHub raw version.json is not publicly available yet.",
+                error="Файлът с версията все още не е публикуван на сървъра.",
             )
         return UpdateResult(status="error", error=str(exc))
     except (URLError, json.JSONDecodeError, TimeoutError, ValueError) as exc:
