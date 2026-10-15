@@ -24,7 +24,11 @@ Remove-Item -Recurse -Force "$projectRoot\dist" -ErrorAction SilentlyContinue
 Remove-Item -Recurse -Force "$projectRoot\installer-output" -ErrorAction SilentlyContinue
 
 Write-Host "Building WinSys Guardian Advanced executable..." -ForegroundColor Cyan
-cmd /c "$pyInstallerCmd --noconfirm --clean --onedir --windowed --name WGA --icon `"assets\wga-icon.ico`" --add-data `"assets;assets`" --add-data `"installers_manifest.json;.`" --add-data `"version.json;.`" --add-data `"third_party\open-shell\portable\PFiles\Open-Shell;third_party\open-shell\PFiles\Open-Shell`" --add-data `"third_party\open-shell\LICENSE.txt;third_party\open-shell`" app.py"
+cmd /c "$pyInstallerCmd --noconfirm --clean --onedir --windowed --name WGA --icon `"assets\wga-icon.ico`" --add-data `"assets;assets`" --add-data `"WGA_UI_Assets_v3_COMPLETE;WGA_UI_Assets_v3_COMPLETE`" --add-data `"ui\styles.qss;ui`" --add-data `"legacy_app.py;.`" --add-data `"installers_manifest.json;.`" --add-data `"version.json;.`" --add-data `"third_party\open-shell\portable\PFiles\Open-Shell;third_party\open-shell\PFiles\Open-Shell`" --add-data `"third_party\open-shell\LICENSE.txt;third_party\open-shell`" app.py"
+
+Write-Host "Building WGA monitoring agent executable..." -ForegroundColor Cyan
+cmd /c "$pyInstallerCmd --noconfirm --clean --onefile --windowed --name wga_agent --icon `"assets\wga-icon.ico`" --add-data `"assets\wga-icon.png;assets`" --add-data `"assets\wga-icon.ico;assets`" --add-data `"version.json;.`" wga_agent.py"
+Copy-Item "$projectRoot\dist\wga_agent.exe" "$projectRoot\dist\WGA\wga_agent.exe" -Force
 
 Write-Host "Creating portable update package..." -ForegroundColor Cyan
 $portableZip = "$projectRoot\installer-output\WGA-portable.zip"
