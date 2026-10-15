@@ -240,7 +240,13 @@ def download_resource(
                     eta = int((total_size - downloaded) / speed) if total_size and speed > 0 else 0
                     progress_callback(downloaded, total_size, item.name, speed, eta)
 
+    if total_size and downloaded != total_size:
+        target_path.unlink(missing_ok=True)
+        raise RuntimeError(f"Непълно изтегляне на {item.name}: {downloaded}/{total_size} bytes.")
+
     if item.sha256:
+        if callable(progress_callback):
+            progress_callback(downloaded, downloaded, item.name, 0.0, 0, "Проверка SHA-256")
         # След теглене проверяваме файла, за да не остане счупен архив.
         digest = hashlib.sha256()
         with target_path.open("rb") as downloaded_file:

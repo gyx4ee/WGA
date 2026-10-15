@@ -10,6 +10,7 @@ from nexus_admin import change_password, check_nexus_admin_status, create_user, 
 from pages.execution_page import ExecutionProgressPage
 from pages.home import HomePage, WgaDashboardPage
 from pages.simple_page import LegacyMenuPage, SectionAction, SimpleSectionPage
+from pages.software_page import SoftwarePage
 from services.admin import relaunch_as_admin
 from services.action_runner import format_action_history
 from services.key_store import (
@@ -216,6 +217,8 @@ class MainWindow(QMainWindow):
             ExecutionProgressPage("Изтегляне на ресурси", "Изтегля липсващите installer пакети от manifest-а и ги разархивира при нужда.", "resources_download_missing"),
         )
         self._add_legacy_menu_pages()
+        software_page = SoftwarePage()
+        self._add_page("software", software_page)
         body.addWidget(self.stack, 1)
         self.right_panel = RightPanel()
         self.right_panel.navigate.connect(self.show_page)
@@ -357,6 +360,8 @@ class MainWindow(QMainWindow):
         return modern_data
 
     def show_page(self, key: str) -> None:
+        if key == "install_software":
+            key = "software"
         if key == "app_exit":
             self.close()
             return
@@ -471,6 +476,8 @@ class MainWindow(QMainWindow):
             modern_message(self, "Грешка при отваряне", f"Модулът не можа да се стартира:\n{exc}")
 
     def _page_title(self, key: str) -> str:
+        if key == "software":
+            return "Софтуер и пакети"
         widget = self.stack.widget(self.pages[key])
         if isinstance(widget, LegacyMenuPage):
             return widget.menu_key.replace("_", " ").title()

@@ -16,6 +16,7 @@ class Sidebar(QFrame):
         ("home", "Начало", "navigation/home.png"),
         ("windows", "Windows", "navigation/windows.png"),
         ("office", "Office", "navigation/office.png"),
+        ("software", "Софтуер и пакети", "navigation/tools.png"),
         ("drivers", "Драйвери", "navigation/drivers.png"),
         ("network", "Мрежа и интернет", "navigation/network.png"),
         ("system", "Система", "navigation/system.png"),

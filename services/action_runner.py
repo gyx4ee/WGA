@@ -8,6 +8,8 @@ import subprocess
 import sys
 import tempfile
 import urllib.request
+from queue import Queue
+from threading import Thread
 from contextvars import ContextVar
 from collections.abc import Iterator
 from datetime import datetime
@@ -1110,23 +1112,37 @@ def _run_resources_download_missing() -> Iterator[dict[str, object]]:
             percent = int((downloaded / total) * 100) if total else 0
             total_progress = int(((index - 1) + (percent / 100)) * 90 / total_items) + 5
             action = phase or "Изтегляне"
-            progress_events.append(
+            progress_events.put(
                 _event(
                     min(96, total_progress),
                     action,
-                    f"{name}: {percent}% | Скорост: {int(speed / 1024) if speed else 0} KB/s | ETA: {eta}s",
+                    f"{name}: {percent}% | {downloaded / 1048576:.1f} / {total / 1048576:.1f} MB | Скорост: {speed / 1048576:.2f} MB/s | ETA: {eta}s",
                 )
             )
 
-        progress_events: list[dict[str, object]] = []
+        progress_events = Queue()
+
+        def transfer():
+            try:
+                progress_events.put((True, download_resource(_project_root(), item, progress)))
+            except Exception as exc:
+                progress_events.put((False, exc))
+
         try:
-            target_path = download_resource(_project_root(), item, progress)
-            for event in progress_events:
+            yield _event(base_progress, "Източник", f"{item.name}\n{item.url}")
+            thread = Thread(target=transfer, daemon=True)
+            thread.start()
+            while True:
+                event = progress_events.get()
+                if isinstance(event, tuple):
+                    thread.join()
+                    if not event[0]:
+                        raise event[1]
+                    target_path = event[1]
+                    break
                 yield event
             yield _event(min(96, int((index / total_items) * 90) + 5), "Готов пакет", f"{item.name}: {target_path}")
         except Exception as exc:
-            for event in progress_events:
-                yield event
             errors.append(f"{item.name}: {exc}")
             yield _event(min(96, int((index / total_items) * 90) + 5), "Проблем", f"{item.name}: {exc}")
     final_status = check_resource_status(_project_root())
